@@ -1,4 +1,4 @@
-# Flink CDC POC — Kafka Connect vs Flink MySQL CDC Connector
+# Flink CDC&Outbox Connectors POC — Kafka Connect vs Flink for MySQL 
 
 A working proof-of-concept demonstrating :
 - **four ways to migrate a MySQL CDC connector from Kafka Connect to Apache Flink**. 
