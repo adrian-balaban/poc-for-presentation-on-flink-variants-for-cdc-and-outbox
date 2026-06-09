@@ -1,5 +1,5 @@
 {
-  "permissions": {
+    "permissions": {
     "allow": [
       "Bash(curl -s http://localhost:8081/jobs)",
       "Bash(curl -s \"http://localhost:8081/jobs/d2c63f5b01a904168c1bd280387e22ba/exceptions\")",

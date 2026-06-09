@@ -1,0 +1,27 @@
+{
+  "name": "kc-yaml-pipeline-cdc",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "database.hostname": "localhost",
+    "database.port": 3306,
+    "database.user": "flink",
+    "database.password": "flink",
+    "database.server.id": "5700",
+    "database.server.name": "mysql-yaml",
+    "database.include.list": "poc_db",
+    "table.include.list": "poc_db.orders,poc_db.customers,poc_db.products",
+    "snapshot.mode": "initial",
+    "transforms": "enrichment",
+    "transforms.enrichment.type": "poc.kafka.connect.EnrichmentTransform",
+    "transforms.enrichment.variant.name": "yaml-pipeline-cdc",
+    "transforms.enrichment.topic.prefix": "poc.cdc.yaml",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": false,
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": false,
+    "decimal.handling.mode": "string",
+    "include.schema.changes": false,
+    "publication.name": "poc_yaml",
+    "topic.prefix": "poc.cdc.yaml"
+  }
+}

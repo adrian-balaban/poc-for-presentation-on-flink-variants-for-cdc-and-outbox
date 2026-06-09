@@ -112,11 +112,13 @@ Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DAT
 
 ## Component tests
 
-Each variant has a component test in the `component-tests` subproject. Tests connect to existing Docker infrastructure (MySQL + Kafka) and run Flink in an embedded local cluster — no docker Flink needed.
+Each Flink variant and Kafka Connect variant has corresponding component tests in the `component-tests` subproject. Tests connect to existing Docker infrastructure (MySQL + Kafka) and run Flink in an embedded local cluster or connect to Kafka Connect REST API.
 
 **Prerequisites:**
 ```bash
 cd docker && docker compose up -d    # Start MySQL, Kafka, etc.
+# For Kafka Connect tests only:
+cd docker/kafka-connect && ./build-and-deploy.sh
 ```
 
 **Run tests:**
@@ -129,7 +131,12 @@ cd docker && docker compose up -d    # Start MySQL, Kafka, etc.
 
 # Single component test
 ./gradlew :component-tests:test --tests "poc.component.DataStreamCdcTest"
+
+# Or run everything (all Flink, Kafka Connect, components, restarts Docker):
+./gradlew all
 ```
+
+### Flink Variants
 
 | Test class | Variant | Server-ID range | Status |
 |---|---|---|---|
@@ -139,20 +146,57 @@ cd docker && docker compose up -d    # Start MySQL, Kafka, etc.
 | `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 7040–7049 | ✅ PASS |
 | `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | n/a — manual only | ✅ PASS |
 
-The 7000–7099 block is reserved exclusively for component tests (not in production ranges above).
+### Kafka Connect Variants
+
+| Test class | Variant | Server-ID | Status |
+|---|---|---|---|
+| `KafkaConnectDataStreamTest` | kc-datastream-cdc | 5900 | ✅ PASS |
+| `KafkaConnectTableApiTest` | kc-table-api-cdc | 6000 | ✅ PASS |
+| `KafkaConnectSqlApiTest` | kc-sql-api-cdc | 5800 | ✅ PASS |
+| `KafkaConnectOutboxTest` | kc-outbox-cdc | 5600 | ✅ PASS |
+| `KafkaConnectYamlPipelineTest` | kc-yaml-pipeline-cdc | 5700 | ✅ PASS |
+
+The 7000–7099 block is reserved exclusively for Flink component tests (not in production ranges above).
 
 **Docker availability:**
 - If Docker is running: tests pass (✅ green in VS Code)
 - If Docker is stopped: tests skip gracefully (⭕ yellow in VS Code)
+- If Kafka Connect is not available: Kafka Connect tests skip gracefully
 
 ## Production Deployment
 
 All variants are configured with **exactly-once semantics** checkpoints (30-second interval, 60-second timeout). For safe job upgrades and state recovery, see the runbooks below.
 
+## Kafka Connect Variants (Alternative CDC Approach)
+
+In addition to Flink variants, this POC includes **Kafka Connect** versions of all 5 CDC patterns using Debezium's MySQL connector with custom Single Message Transformers (SMTs):
+
+**Quick start:**
+```bash
+cd docker/kafka-connect
+./build-and-deploy.sh
+```
+
+**What's included:**
+- 5 connectors mirroring Flink variants (DataStream, Table API, SQL API, Outbox, YAML Pipeline)
+- Custom SMT code for enrichment and dynamic topic routing
+- Maven project for building SMT JARs
+- Deployment script with health checks
+- Unit tests for transformations
+
+**Key differences from Flink:**
+- Kafka Connect: Stateless workers, horizontal scaling, REST API management
+- Flink: Full state API, windowing, timers, fine-grained control
+- Same Debezium source and Kafka sink
+- Useful for benchmarking and understanding CDC trade-offs
+
+See [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) and [docker/KAFKA_CONNECT_QUICKSTART.md](./docker/KAFKA_CONNECT_QUICKSTART.md).
+
 ## See Also
 
 - [**CHECKPOINT_CONFIG.md**](./CHECKPOINT_CONFIG.md) — Flink 2.2 checkpoint semantics, monitoring, troubleshooting
 - [**SAVEPOINT_RUNBOOK.md**](./SAVEPOINT_RUNBOOK.md) — 5-phase safe upgrade workflow, server-ID management, disaster recovery
+- [**KAFKA_CONNECT.md**](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, custom SMTs, detailed comparison
 
 ## Context
 

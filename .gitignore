@@ -9,3 +9,13 @@
 variant-yaml-pipeline/
 *.org
 *.pptx
+
+# Kafka Connect SMTs
+docker/kafka-connect-smts/target/
+docker/kafka-connect-smts/.classpath
+docker/kafka-connect-smts/.project
+docker/kafka-connect-smts/.settings/
+docker/kafka-connect-smts/bin/
+
+# Kafka Connect plugins (optional)
+docker/kafka-connect-plugins/

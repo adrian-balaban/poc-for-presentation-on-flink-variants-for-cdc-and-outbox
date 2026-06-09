@@ -114,8 +114,53 @@ tasks.register('all') { // buildAndTest
             println "WARNING: Services may not be fully ready. Proceeding anyway..."
         }
 
-        // Run component tests
-        println '=== Running component tests ==='
+        // Build Kafka Connect SMTs with Maven
+        println '=== Building Kafka Connect SMTs ==='
+        exec {
+            commandLine 'bash', '-c', 'cd docker/kafka-connect-smts && mvn clean package -q'
+        }
+
+        // Build and start Kafka Connect
+        println '=== Starting Kafka Connect ==='
+        exec {
+            commandLine 'bash', '-c', "cd docker && ${composeUp} kafka-connect"
+        }
+
+        // Wait for Kafka Connect REST API to be ready
+        println 'Waiting for Kafka Connect to be ready (up to 60 seconds)...'
+        maxWait = 60
+        elapsed = 0
+        ready = false
+        while (elapsed < maxWait) {
+            try {
+                def connectOk = 'curl -sf http://localhost:8083 > /dev/null 2>&1'.execute().waitFor() == 0
+                if (connectOk) {
+                    println "Kafka Connect is ready!"
+                    ready = true
+                    break
+                }
+            } catch (Exception e) {
+                println("Continue waiting after exception " + e.getMessage())
+            }
+            elapsed += 2
+            if (elapsed < maxWait) {
+                println "Waiting... (${elapsed}s elapsed)"
+                Thread.sleep(2000)
+            }
+        }
+
+        if (!ready) {
+            println "WARNING: Kafka Connect may not be ready. Proceeding anyway..."
+        }
+
+        // Deploy Kafka Connect connectors
+        println '=== Deploying Kafka Connect connectors ==='
+        exec {
+            commandLine 'bash', '-c', 'cd docker/kafka-connect && ./deploy-connectors.sh'
+        }
+
+        // Run component tests (both Flink and Kafka Connect)
+        println '=== Running component tests (Flink + Kafka Connect) ==='
         exec {
             commandLine './gradlew', ':component-tests:test'
         }

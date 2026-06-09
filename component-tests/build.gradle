@@ -40,6 +40,9 @@ dependencies {
     // MySQL driver for component tests
     testImplementation 'com.mysql:mysql-connector-j:8.3.0'
 
+    // Kafka Connect REST API client & JSON parsing (for KafkaConnect tests)
+    testImplementation 'org.json:json:20231013'
+
     // Test framework & logging
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.assertj:assertj-core:3.25.3'
