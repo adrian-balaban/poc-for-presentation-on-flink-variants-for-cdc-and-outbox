@@ -57,11 +57,19 @@ All subproject `build.gradle` files reference these via `rootProject.ext.*` — 
 
 ## Local infra
 
+**Docker (default):**
 ```bash
 cd docker && docker compose up -d    # MySQL + Kafka + Flink JM+TM + Kafka UI
 cd docker && docker compose down     # tear down (data lost)
 ```
 
+**Podman (alternative):**
+```bash
+cd docker && podman-compose -f podman-compose.yml up -d
+cd docker && podman-compose -f podman-compose.yml down -v
+```
+
+Services:
 - Flink Dashboard: http://localhost:8081
 - Kafka UI:        http://localhost:8080
 - MySQL:           localhost:3306  user=flink  password=flink  db=poc_db
@@ -100,6 +108,7 @@ Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DAT
 - Do not reuse server-ID ranges across variants — MySQL will reject duplicate replica IDs
 - Do not leave `upgradeMode: stateless` permanently in Flink deployments — every restart would re-snapshot the full table
 - Variant 5 (YAML Pipeline) has no Maven shade module — do not add Java sources to it; it is intentionally zero-code
+- When using Podman: use `podman-compose.yml` (not `docker-compose.yml`) — it has bridge networking + rootless-compatible volume flags
 
 ## Component tests
 

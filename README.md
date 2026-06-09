@@ -37,9 +37,9 @@ Each variant is an independent Gradle subproject that builds its own fat-jar and
 
 ## Prerequisites
 
-- Docker + Docker Compose
+- **Docker + Docker Compose** OR **Podman + podman-compose** (see [Podman alternative](#podman-alternative) below)
 - Java 17+
-- `flink-cdc.sh` on PATH for variant 5
+- (Optional) `flink-cdc.sh` on PATH for variant 5
 
 ---
 
@@ -139,6 +139,37 @@ This orchestrates a complete build-and-test cycle:
 4. **Runs component tests** — `./gradlew :component-tests:test`
 
 The task runs all steps sequentially, stopping on any failure. Useful for CI/CD pipelines or full validation before deployment.
+
+---
+
+## Podman alternative
+
+For users who prefer **Podman** over Docker, a Podman-compatible Compose file is included:
+
+```bash
+# Install podman-compose (if not already installed)
+pip install podman-compose
+
+# Start infrastructure with Podman
+cd docker
+podman-compose -f podman-compose.yml up -d
+
+# Stop and clean up
+podman-compose -f podman-compose.yml down -v --remove-orphans
+```
+
+**Key differences from docker-compose.yml:**
+- **Network mode**: Uses Podman bridge network instead of host mode (more portable across platforms)
+- **Port mappings**: Explicit port mappings for all services
+- **Volume flags**: `:Z` flag for rootless Podman compatibility
+- **Service hostnames**: Services communicate via container names on the bridge network (Podman-managed DNS)
+
+**Configuration changes for Podman:**
+- `MYSQL_HOST`, `KAFKA_BOOTSTRAP`, and `FLINK_PROPERTIES` use container names (e.g., `mysql`, `kafka`) instead of `localhost`
+- All ports remain the same on localhost: MySQL 3306, Kafka 9092, Flink Dashboard 8081, Kafka UI 8080
+
+**Rootless Podman:**
+If using rootless Podman (recommended for security), ensure your user has proper `subuid`/`subgid` mappings configured. The `:Z` volume flags in `podman-compose.yml` handle SELinux relabeling automatically.
 
 ---
 

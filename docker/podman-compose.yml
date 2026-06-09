@@ -1,0 +1,133 @@
+version: '3.8'
+
+# Podman-compatible Compose file. Replace docker-compose.yml usage with:
+#   podman-compose -f podman-compose.yml up -d
+#   podman-compose -f podman-compose.yml down -v
+#
+# Key differences from docker-compose.yml:
+# 1. network_mode: host → bridge network with explicit port mappings (more portable)
+# 2. Volume flags :Z for rootless Podman compatibility
+# 3. Service networking via container names on bridge (podman-managed DNS)
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: flink
+      MYSQL_PASSWORD: flink
+      MYSQL_DATABASE: poc_db
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d:Z
+    command:
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --server-id=1
+      - --expire_logs_days=1
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "flink", "-pflink"]
+      interval: 10s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      retries: 5
+
+  flink-jobmanager:
+    build:
+      context: ./flink-with-mysql
+    container_name: flink-jm
+    ports:
+      - "6123:6123"
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.rpc.port: 6123
+        taskmanager.numberOfTaskSlots: 5
+        rest.bind-address: 0.0.0.0
+        rest.port: 8081
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/overview"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+
+  flink-taskmanager:
+    build:
+      context: ./flink-with-mysql
+    container_name: flink-tm
+    ports:
+      - "6124:6123"
+      - "8082:8081"
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.rpc.port: 6123
+        taskmanager.numberOfTaskSlots: 5
+    depends_on:
+      - flink-jobmanager
+
+  flink-cdc-submitter:
+    build:
+      context: ./flink-cdc-submitter
+    container_name: flink-cdc-submitter
+    volumes:
+      - ../variant-flink-cdc-yaml-pipeline-cdc-job/src/main/resources/pipeline.yaml:/pipeline.yaml:ro,Z
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: flink
+      MYSQL_PASSWORD: flink
+      MYSQL_DATABASE: poc_db
+      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_TOPIC_PREFIX: poc.cdc
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    restart: on-failure
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: poc
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      SERVER_PORT: 8080
+    depends_on:
+      - kafka
