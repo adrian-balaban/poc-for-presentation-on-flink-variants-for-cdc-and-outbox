@@ -113,8 +113,8 @@ services:
 
   kafka-connect:
     build:
-      context: ./kafka-connect
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./kafka-connect/Dockerfile
     container_name: kafka-connect
     network_mode: host
     environment:
