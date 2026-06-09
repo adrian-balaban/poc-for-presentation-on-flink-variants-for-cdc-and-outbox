@@ -85,26 +85,27 @@ tasks.register('all') { // buildAndTest
             commandLine 'bash', '-c', "cd docker && ${composeUp}"
         }
 
-        // Wait for MySQL + Kafka to accept connections (engine health status is
+        // Wait for MySQL, Kafka, and Kafka Connect to be ready (engine health status is
         // unreliable under podman-compose, so we probe the services directly).
-        println 'Waiting for services to start (up to 90 seconds)...'
-        int maxWait = 90
+        println 'Waiting for services to start (up to 120 seconds)...'
+        int maxWait = 120
         int elapsed = 0
         boolean ready = false
         while (elapsed < maxWait) {
             try {
                 def mysqlOk = "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink".execute().waitFor() == 0
                 def kafkaOk = "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092".execute().waitFor() == 0
-                if (mysqlOk && kafkaOk) {
-                    println "MySQL + Kafka are ready!"
+                def connectOk = 'curl -sf http://localhost:8083 > /dev/null 2>&1'.execute().waitFor() == 0
+                if (mysqlOk && kafkaOk && connectOk) {
+                    println "✓ MySQL, Kafka, and Kafka Connect are ready!"
                     ready = true
                     break
                 }
             } catch (Exception e) {
-                println("Continue waiting after exception " + e.getMessage())
+                // Continue waiting, services might still be starting
             }
             elapsed += 5
-            if (elapsed < maxWait) {
+            if (elapsed < maxWait && !ready) {
                 println "Waiting... (${elapsed}s elapsed)"
                 Thread.sleep(5000)
             }
@@ -118,39 +119,6 @@ tasks.register('all') { // buildAndTest
         println '=== Building Kafka Connect SMTs ==='
         exec {
             commandLine './gradlew', ':kafka-connect-smts:shadowJar'
-        }
-
-        // Build and start Kafka Connect
-        println '=== Starting Kafka Connect ==='
-        exec {
-            commandLine 'bash', '-c', "cd docker && ${composeUp} kafka-connect"
-        }
-
-        // Wait for Kafka Connect REST API to be ready
-        println 'Waiting for Kafka Connect to be ready (up to 60 seconds)...'
-        maxWait = 60
-        elapsed = 0
-        ready = false
-        while (elapsed < maxWait) {
-            try {
-                def connectOk = 'curl -sf http://localhost:8083 > /dev/null 2>&1'.execute().waitFor() == 0
-                if (connectOk) {
-                    println "Kafka Connect is ready!"
-                    ready = true
-                    break
-                }
-            } catch (Exception e) {
-                println("Continue waiting after exception " + e.getMessage())
-            }
-            elapsed += 2
-            if (elapsed < maxWait) {
-                println "Waiting... (${elapsed}s elapsed)"
-                Thread.sleep(2000)
-            }
-        }
-
-        if (!ready) {
-            println "WARNING: Kafka Connect may not be ready. Proceeding anyway..."
         }
 
         // Deploy Kafka Connect connectors
