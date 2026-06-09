@@ -94,13 +94,12 @@ This orchestrates:
 #### 1. Build Custom SMTs
 
 ```bash
-cd docker/kafka-connect-smts
-mvn clean package
+./gradlew :kafka-connect-smts:shadowJar
 ```
 
 This creates:
-- `target/kafka-connect-smts-1.0.0.jar` — compiled SMTs
-- `target/kafka-connect-smts-1.0.0-with-deps.jar` — shaded JAR with dependencies
+- `docker/kafka-connect-smts/build/libs/kafka-connect-smts-1.0.0.jar` — compiled SMTs
+- `docker/kafka-connect-smts/build/libs/kafka-connect-smts-1.0.0-with-deps.jar` — shaded JAR with dependencies
 
 #### 2. Start Docker Infrastructure
 

@@ -1,0 +1,47 @@
+// Kafka Connect custom Single Message Transformers (SMTs)
+// Builds a JAR with EnrichmentTransform and OutboxRoutingTransform
+
+apply plugin: 'java'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+group = 'poc.kafka.connect'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Kafka Connect API (provided by Kafka Connect runtime)
+    compileOnly 'org.apache.kafka:connect-api:3.6.1'
+
+    // JSON parsing
+    implementation 'org.json:json:20231013'
+
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+}
+
+jar {
+    manifest {
+        attributes(
+            'Specification-Title': 'POC Kafka Connect SMTs',
+            'Specification-Version': project.version,
+            'Implementation-Title': 'poc.kafka.connect',
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+shadowJar {
+    archiveClassifier = 'with-deps'
+    zip64 = true
+
+    // Exclude Kafka Connect API (provided by runtime)
+    exclude 'org/apache/kafka/connect/**'
+}

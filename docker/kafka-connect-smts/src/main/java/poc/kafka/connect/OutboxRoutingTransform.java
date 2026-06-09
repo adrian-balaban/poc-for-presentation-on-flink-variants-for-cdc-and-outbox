@@ -29,8 +29,10 @@ public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Trans
 
     @Override
     public void configure(Map<String, ?> configs) {
-        topicPrefix = (String) configs.getOrDefault(TOPIC_PREFIX, "poc.cdc.outbox");
-        destinationField = (String) configs.getOrDefault(DESTINATION_FIELD, "destination");
+        Object prefix = configs.get(TOPIC_PREFIX);
+        topicPrefix = prefix != null ? prefix.toString() : "poc.cdc.outbox";
+        Object field = configs.get(DESTINATION_FIELD);
+        destinationField = field != null ? field.toString() : "destination";
     }
 
     @Override

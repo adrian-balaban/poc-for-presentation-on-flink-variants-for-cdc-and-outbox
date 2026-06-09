@@ -114,10 +114,10 @@ tasks.register('all') { // buildAndTest
             println "WARNING: Services may not be fully ready. Proceeding anyway..."
         }
 
-        // Build Kafka Connect SMTs with Maven
+        // Build Kafka Connect SMTs with Gradle
         println '=== Building Kafka Connect SMTs ==='
         exec {
-            commandLine 'bash', '-c', 'cd docker/kafka-connect-smts && mvn clean package -q'
+            commandLine './gradlew', ':kafka-connect-smts:shadowJar'
         }
 
         // Build and start Kafka Connect

@@ -7,16 +7,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 echo "=== Building and Deploying Kafka Connect Variants ==="
 echo ""
 
-# 1. Build SMTs
+# 1. Build SMTs with Gradle
 echo "Step 1: Building custom SMTs..."
-cd "$PROJECT_ROOT/docker/kafka-connect-smts"
+cd "$PROJECT_ROOT"
 
-if ! command -v mvn &> /dev/null; then
-    echo "✗ Maven not found. Please install Maven first."
-    exit 1
-fi
-
-mvn clean package -q
+./gradlew :kafka-connect-smts:shadowJar -q
 if [ $? -eq 0 ]; then
     echo "✓ SMTs built successfully"
 else

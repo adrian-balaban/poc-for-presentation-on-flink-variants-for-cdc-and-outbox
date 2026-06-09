@@ -28,9 +28,7 @@ This script:
 
 **Step 1: Build SMTs**
 ```bash
-cd docker/kafka-connect-smts
-mvn clean package
-cd ../..
+./gradlew :kafka-connect-smts:shadowJar
 ```
 
 **Step 2: Start services**

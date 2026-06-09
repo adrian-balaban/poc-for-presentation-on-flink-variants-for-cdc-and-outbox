@@ -39,7 +39,7 @@ public class EnrichmentTransform<R extends ConnectRecord<R>> implements Transfor
             String enriched = enrichJson(jsonValue);
             return record.newRecord(
                 record.topic(),
-                record.partition(),
+                record.kafkaPartition(),
                 record.keySchema(),
                 record.key(),
                 record.valueSchema(),

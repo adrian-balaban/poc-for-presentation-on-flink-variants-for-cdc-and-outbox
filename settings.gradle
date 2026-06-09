@@ -14,3 +14,7 @@ include 'variant-flink-sql-api-cdc-job'
 include 'variant-flink-datastream-api-v1-outbox-job'
 include 'variant-flink-cdc-yaml-pipeline-cdc-job'
 include 'component-tests'
+
+// Kafka Connect SMTs
+include 'kafka-connect-smts'
+project(':kafka-connect-smts').projectDir = file('docker/kafka-connect-smts')
