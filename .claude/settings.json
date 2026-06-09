@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:8081/jobs)",
+      "Bash(curl -s \"http://localhost:8081/jobs/d2c63f5b01a904168c1bd280387e22ba/exceptions\")",
+      "Bash(curl -fL \"https://repo1.maven.org/maven2/org/apache/flink/flink-cdc-pipeline-connector-mysql/3.6.0-2.2/flink-cdc-pipeline-connector-mysql-3.6.0-2.2.jar\" -o /tmp/flink-cdc-pipeline-connector-mysql-3.6.0-2.2.jar)",
+      "Bash(awk '{print $5}')",
+      "Bash(curl -s \"http://localhost:8081/jobs/b033eae1fc8bf21ccd1b2b94d270b20e\")",
+      "Bash(wait)",
+      "Bash(curl -s http://localhost:8081/overview)",
+      "Bash(curl -s http://localhost:8081/jobs/overview)",
+      "Bash(python3 -c \"import sys,json; [print\\(j['name'],'→',j['state']\\) for j in json.load\\(sys.stdin\\)['jobs']]\")",
+      "Bash(./gradlew shadowJar)",
+      "Bash(curl -sf http://localhost:8081/overview)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f\\\\\"slots: {d['slots-available']}/{d['slots-total']} free\\\\\"\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f\\\\\"Cluster: slots {d['slots-total']}, available {d['slots-available']}, jobs-running {d['jobs-running']}\\\\\"\\)\")"
+    ]
+  }
+}

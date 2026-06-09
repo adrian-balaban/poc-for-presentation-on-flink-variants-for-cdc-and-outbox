@@ -1,0 +1,48 @@
+# Variant 5 — YAML Pipeline (Flink CDC Pipeline API)
+#
+# Zero Java. Submitted via:
+#   flink-cdc.sh pipeline.yaml
+#
+# Flink CDC 3.x handles snapshot + binlog automatically.
+# Server-ID range 5700-5709 is reserved for this variant.
+
+################################################################################
+# Source — MySQL CDC
+################################################################################
+source:
+  type: mysql
+  name: MySQL Source
+  hostname: ${MYSQL_HOST}
+  port: ${MYSQL_PORT}
+  username: ${MYSQL_USER}
+  password: ${MYSQL_PASSWORD}
+  tables: ${MYSQL_DATABASE}.orders
+  server-id: 5700-5709
+  server-time-zone: UTC
+
+################################################################################
+# Sink — Kafka
+################################################################################
+sink:
+  type: kafka
+  name: Kafka Sink
+  properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
+  topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline
+
+################################################################################
+# Pipeline metadata and checkpoint configuration
+################################################################################
+pipeline:
+  name: Flink CDC YAML Pipeline CDC Job
+  parallelism: 1
+  schema.change.behavior: evolve
+  checkpoint:
+    interval: 30000
+    # timeout must exceed the checkpoint interval; 60 s gives headroom under load.
+    # WARNING: do NOT set upgradeMode: stateless in production Flink deployments —
+    # it discards all CDC offset state on every restart, forcing a full re-snapshot.
+    timeout: 60000
+    mode: EXACTLY_ONCE
+    max_concurrent_checkpoints: 1
+    min_pause: 5000
+    externalized_checkpoint_cleanup: RETAIN_ON_CANCELLATION

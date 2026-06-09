@@ -1,0 +1,46 @@
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'jacoco'
+apply plugin: 'info.solidsoft.pitest'
+
+dependencies {
+    implementation project(':common')
+    implementation "org.apache.flink:flink-sql-connector-mysql-cdc:${rootProject.ext.flinkCdcVersion}"
+    implementation "org.apache.flink:flink-connector-kafka:${rootProject.ext.flinkKafkaVersion}"
+    compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+    compileOnly "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
+    testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+}
+
+shadowJar {
+    manifest { attributes 'Main-Class': 'poc.datastream.DataStreamCdcJob' }
+    mergeServiceFiles()
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports { xml.required = true; html.required = true }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            element = 'CLASS'
+            excludes = ['poc.datastream.DataStreamCdcJob']
+            limit { counter = 'LINE';   value = 'COVEREDRATIO'; minimum = 1.0 }
+            limit { counter = 'BRANCH'; value = 'COVEREDRATIO'; minimum = 1.0 }
+        }
+    }
+}
+check.dependsOn jacocoTestCoverageVerification
+
+pitest {
+    junit5PluginVersion = '1.2.1'
+    targetClasses       = ['poc.datastream.CdcEventRouter']
+    targetTests         = ['poc.datastream.*']
+    excludedClasses     = ['poc.datastream.DataStreamCdcJob']
+    mutationThreshold   = 100
+    coverageThreshold   = 0
+    outputFormats       = ['HTML', 'XML']
+    timestampedReports  = false
+}

@@ -1,0 +1,39 @@
+# Variant 5 — YAML Pipeline (Flink CDC Pipeline API)
+#
+# Zero Java. Submitted via:
+#   flink-cdc.sh pipeline.yaml
+#
+# Flink CDC 3.x handles snapshot + binlog automatically.
+# Server-ID range 5700-5709 is reserved for this variant.
+
+################################################################################
+# Source — MySQL CDC
+################################################################################
+source:
+  type: mysql
+  name: MySQL Source
+  hostname: ${MYSQL_HOST:-localhost}
+  port: ${MYSQL_PORT:-3306}
+  username: ${MYSQL_USER:-flink}
+  password: ${MYSQL_PASSWORD:-flink}
+  tables: ${MYSQL_DATABASE:-poc_db}.orders
+  server-id: 5700-5709
+  server-time-zone: UTC
+
+################################################################################
+# Sink — Kafka
+################################################################################
+sink:
+  type: kafka
+  name: Kafka Sink
+  properties:
+    bootstrap.servers: ${KAFKA_BOOTSTRAP:-localhost:9092}
+  topic: ${KAFKA_TOPIC_PREFIX:-poc.cdc}.yaml-pipeline
+
+################################################################################
+# Pipeline metadata
+################################################################################
+pipeline:
+  name: YAML Pipeline CDC Job
+  parallelism: 1
+  schema.change.behavior: evolve

@@ -1,0 +1,16 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'flink-cdc-poc'
+
+include 'common'
+include 'variant-flink-datastream-api-v1-cdc-job'
+include 'variant-flink-table-api-cdc-job'
+include 'variant-flink-sql-api-cdc-job'
+include 'variant-flink-datastream-api-v1-outbox-job'
+include 'variant-flink-cdc-yaml-pipeline-cdc-job'
+include 'component-tests'

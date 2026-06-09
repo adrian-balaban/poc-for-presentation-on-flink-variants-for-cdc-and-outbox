@@ -1,0 +1,123 @@
+version: '3.8'
+
+# All services use host network because Docker bridge forwarding is broken on this machine.
+# Every service binds directly to localhost; use localhost:<port> for all connections.
+# NOTE: network_mode: host is Linux-only. On macOS/Windows Docker Desktop this is silently
+# ignored and services will fail to connect to each other via localhost.
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    network_mode: host
+    environment:
+      # WARNING: POC-only credentials. In production inject via a secrets manager
+      # or Kubernetes Secrets — never use plaintext defaults in a real deployment.
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: flink
+      MYSQL_PASSWORD: flink
+      MYSQL_DATABASE: poc_db
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    command:
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --server-id=1
+      - --expire_logs_days=1
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "flink", "-pflink"]
+      interval: 10s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    network_mode: host
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Fixed CLUSTER_ID: if you wipe and recreate the kafka volume, this ID must match
+      # or Kafka will throw InconsistentClusterIdException. Run: docker compose down -v to reset.
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      retries: 5
+
+  flink-jobmanager:
+    build:
+      context: ./flink-with-mysql
+    container_name: flink-jm
+    network_mode: host
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: localhost
+        jobmanager.rpc.port: 6123
+        taskmanager.numberOfTaskSlots: 5
+        rest.bind-address: 0.0.0.0
+        rest.port: 8081
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/overview"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+
+  flink-taskmanager:
+    build:
+      context: ./flink-with-mysql
+    container_name: flink-tm
+    network_mode: host
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: localhost
+        jobmanager.rpc.port: 6123
+        taskmanager.numberOfTaskSlots: 5
+    depends_on:
+      - flink-jobmanager
+
+  flink-cdc-submitter:
+    build:
+      context: ./flink-cdc-submitter
+    container_name: flink-cdc-submitter
+    network_mode: host
+    volumes:
+      - ../variant-flink-cdc-yaml-pipeline-cdc-job/src/main/resources/pipeline.yaml:/pipeline.yaml:ro
+    environment:
+      MYSQL_HOST: localhost
+      MYSQL_PORT: 3306
+      MYSQL_USER: flink
+      MYSQL_PASSWORD: flink
+      MYSQL_DATABASE: poc_db
+      KAFKA_BOOTSTRAP: localhost:9092
+      KAFKA_TOPIC_PREFIX: poc.cdc
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+    restart: on-failure
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    network_mode: host
+    environment:
+      KAFKA_CLUSTERS_0_NAME: poc
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: localhost:9092
+      SERVER_PORT: 8080
+    depends_on:
+      - kafka

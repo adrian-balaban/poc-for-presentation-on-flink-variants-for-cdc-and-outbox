@@ -1,0 +1,10 @@
+// No Java source — this variant is a YAML pipeline submitted via flink-cdc.sh.
+// The build just packages the YAML into a deployable zip for reference.
+
+task packagePipeline(type: Zip) {
+    archiveFileName = 'yaml-pipeline.zip'
+    destinationDirectory = layout.buildDirectory.dir('libs')
+    from('src/main/resources') { include '*.yaml' }
+}
+
+build.dependsOn packagePipeline

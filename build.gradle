@@ -1,0 +1,114 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath 'com.github.johnrengelman:shadow:8.1.1'
+        classpath 'info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.15.0'
+    }
+}
+
+// Shadow and pitest are applied per-subproject via apply plugin: '...'
+
+ext {
+    flinkVersion       = '2.2.0'
+    flinkCdcVersion    = '3.6.0-2.2'
+    flinkKafkaVersion  = '5.0.0-2.2'
+    kafkaVersion       = '3.7.0'
+    javaVersion        = '17'
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        sourceCompatibility = JavaVersion.toVersion(rootProject.ext.javaVersion)
+        targetCompatibility = JavaVersion.toVersion(rootProject.ext.javaVersion)
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+        compileOnly "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    // Global resolution strategy for lz4-java conflict
+    configurations.all {
+        resolutionStrategy {
+            force 'org.lz4:lz4-java:1.8.0'
+            exclude group: 'at.yawk.lz4', module: 'lz4-java'
+        }
+    }
+}
+
+tasks.register('all') { // buildAndTest
+    group = 'flink-cdc-poc'
+    description = 'Build all, restart Docker Compose, and run component tests'
+
+    doLast {
+        // Build all modules
+        exec {
+            commandLine './gradlew', 'clean', 'build', '-x', 'test'
+        }
+
+        // Restart Docker Compose with improved diagnostics
+        println '=== Stopping and cleaning Docker Compose ==='
+        exec {
+            commandLine 'bash', '-c', 'cd docker && docker compose down -v --remove-orphans'
+        }
+
+        println '=== Waiting 5 seconds before restart ==='
+        Thread.sleep(5000)
+
+        println '=== Starting Docker Compose ==='
+        exec {
+            commandLine 'bash', '-c', 'cd docker && docker compose up -d'
+        }
+
+        // Wait for services with health checks
+        println 'Waiting for Docker services to start (60 seconds)...'
+        int maxWait = 60
+        int elapsed = 0
+        while (elapsed < maxWait) {
+            try {
+                def result = ['bash', '-c', 'cd docker && docker compose ps -q mysql'].execute().text
+                if (result.trim()) {
+                    println "MySQL container running, checking health..."
+                    def healthCmd = "docker exec mysql mysqladmin ping -h localhost -u flink -pflink 2>/dev/null".execute()
+                    int exitCode = healthCmd.waitFor()
+                    if (exitCode == 0) {
+                        println "MySQL is healthy!"
+                        break
+                    }
+                }
+            } catch (Exception e) {
+                println("Continue waiting after exception "+e.getMessage())
+            }
+            elapsed += 5
+            if (elapsed < maxWait) {
+                println "Waiting... (${elapsed}s elapsed)"
+                Thread.sleep(5000)
+            }
+        }
+
+        if (elapsed >= maxWait) {
+            println "WARNING: Services may not be fully ready. Proceeding anyway..."
+        }
+
+        // Run component tests
+        println '=== Running component tests ==='
+        exec {
+            commandLine './gradlew', ':component-tests:test'
+        }
+    }
+}
+

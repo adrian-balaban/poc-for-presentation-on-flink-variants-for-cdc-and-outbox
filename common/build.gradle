@@ -1,0 +1,50 @@
+apply plugin: 'jacoco'
+apply plugin: 'info.solidsoft.pitest'
+
+dependencies {
+    compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+    implementation "org.apache.flink:flink-connector-kafka:${rootProject.ext.flinkKafkaVersion}"
+    implementation "org.apache.kafka:kafka-clients:${rootProject.ext.kafkaVersion}"
+    implementation "org.apache.flink:flink-sql-connector-mysql-cdc:${rootProject.ext.flinkCdcVersion}"
+    implementation "com.mysql:mysql-connector-j:8.3.0"
+    testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+    testImplementation "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports { xml.required = true; html.required = true }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            element = 'CLASS'
+            // Deserializer has no logic; KafkaSinkFactory.create is pure Flink API wiring
+            // Routers are event-routing logic tested end-to-end in component tests
+            // (all require flink-connector-base at runtime)
+            excludes = [
+                'poc.common.deserializer.PocJsonDeserializationSchema',
+                'poc.common.router.CdcEventRouter',
+                'poc.common.router.OutboxRouter',
+                'poc.common.sink.KafkaSinkFactory'
+            ]
+            limit { counter = 'LINE';   value = 'COVEREDRATIO'; minimum = 1.0 }
+            limit { counter = 'BRANCH'; value = 'COVEREDRATIO'; minimum = 1.0 }
+        }
+    }
+}
+check.dependsOn jacocoTestCoverageVerification
+
+pitest {
+    junit5PluginVersion = '1.2.1'
+    targetClasses       = ['poc.common.config.*', 'poc.common.sink.KafkaSinkFactory']
+    targetTests         = ['poc.common.*']
+    excludedClasses     = ['poc.common.deserializer.*']
+    excludedMethods     = ['create']
+    mutationThreshold   = 100
+    coverageThreshold   = 0
+    outputFormats       = ['HTML', 'XML']
+    timestampedReports  = false
+}

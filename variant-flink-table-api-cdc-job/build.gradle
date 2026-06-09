@@ -1,0 +1,15 @@
+apply plugin: 'com.github.johnrengelman.shadow'
+
+dependencies {
+    implementation project(':common')
+    implementation "org.apache.flink:flink-sql-connector-mysql-cdc:${rootProject.ext.flinkCdcVersion}"
+    compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+    compileOnly "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
+    compileOnly "org.apache.flink:flink-table-api-java-bridge:${rootProject.ext.flinkVersion}"
+    compileOnly "org.apache.flink:flink-table-planner-loader:${rootProject.ext.flinkVersion}"
+}
+
+shadowJar {
+    manifest { attributes 'Main-Class': 'poc.tableapi.TableApiCdcJob' }
+    mergeServiceFiles()
+}
