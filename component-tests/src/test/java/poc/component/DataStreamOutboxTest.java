@@ -64,9 +64,13 @@ class DataStreamOutboxTest extends ContainerBase {
 
         JobClient job = env.executeAsync("Outbox CDC Test");
         try {
-            List<String> messages = pollKafka("test.cdc.outbox", 1, Duration.ofSeconds(45));
+            // outbox_events is seeded with payments/notifications/audit rows and the
+            // test inserts another payments row, so the snapshot emits several events.
+            // Poll for all of them and assert a payments event is present — asserting
+            // the *first* message is non-deterministic (snapshot/partition ordering).
+            List<String> messages = pollKafka("test.cdc.outbox", 4, Duration.ofSeconds(45));
             assertThat(messages).isNotEmpty();
-            assertThat(messages.get(0)).contains("payments");
+            assertThat(messages).anyMatch(m -> m.contains("payments"));
             log.info("Outbox CDC pipeline produced {} Kafka message(s)", messages.size());
         } finally {
             job.cancel().get();

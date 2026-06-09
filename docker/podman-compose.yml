@@ -12,7 +12,7 @@ version: '3.8'
 services:
 
   mysql:
-    image: mysql:8.0
+    image: docker.io/library/mysql:8.0
     container_name: mysql
     ports:
       - "3306:3306"
@@ -30,12 +30,12 @@ services:
       - --server-id=1
       - --expire_logs_days=1
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "flink", "-pflink"]
+      test: mysqladmin ping -h localhost -u flink -pflink
       interval: 10s
       retries: 5
 
   kafka:
-    image: confluentinc/cp-kafka:7.6.1
+    image: docker.io/confluentinc/cp-kafka:7.6.1
     container_name: kafka
     ports:
       - "9092:9092"
@@ -43,9 +43,15 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      # Dual listeners: bridge mode isolates containers, so we need separate
+      # advertised addresses. EXTERNAL (localhost:9092) is for host clients
+      # (component tests, kafka CLI); INTERNAL (kafka:29092) is for other
+      # containers (submitter, kafka-ui). On host networking a single listener
+      # works, but bridge requires this split or clients get an unreachable host.
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -55,7 +61,7 @@ services:
       mysql:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test: kafka-broker-api-versions --bootstrap-server localhost:9092
       interval: 15s
       retries: 5
 
@@ -80,7 +86,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8081/overview"]
+      test: curl -sf http://localhost:8081/overview
       interval: 10s
       retries: 10
       start_period: 30s
@@ -113,21 +119,22 @@ services:
       MYSQL_USER: flink
       MYSQL_PASSWORD: flink
       MYSQL_DATABASE: poc_db
-      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_BOOTSTRAP: kafka:29092
       KAFKA_TOPIC_PREFIX: poc.cdc
+      JOBMANAGER_HOST: flink-jobmanager
     depends_on:
       flink-jobmanager:
         condition: service_healthy
     restart: on-failure
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: docker.io/provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     ports:
       - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: poc
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       SERVER_PORT: 8080
     depends_on:
       - kafka

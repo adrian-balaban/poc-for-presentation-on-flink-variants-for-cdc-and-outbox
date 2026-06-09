@@ -52,46 +52,56 @@ subprojects {
 
 tasks.register('all') { // buildAndTest
     group = 'flink-cdc-poc'
-    description = 'Build all, restart Docker Compose, and run component tests'
+    description = 'Build all, restart the container stack (Podman or Docker), and run component tests'
 
     doLast {
+        // Detect the container engine — prefer Podman, fall back to Docker.
+        boolean hasPodman = false
+        try {
+            hasPodman = ['bash', '-c', 'command -v podman-compose >/dev/null 2>&1'].execute().waitFor() == 0
+        } catch (Exception ignored) { }
+
+        String engine      = hasPodman ? 'podman' : 'docker'
+        String composeUp   = hasPodman ? 'podman-compose -f podman-compose.yml up -d'   : 'docker compose up -d'
+        String composeDown = hasPodman ? 'podman-compose -f podman-compose.yml down -v' : 'docker compose down -v --remove-orphans'
+        println "=== Using container engine: ${engine} ==="
+
         // Build all modules
         exec {
             commandLine './gradlew', 'clean', 'build', '-x', 'test'
         }
 
-        // Restart Docker Compose with improved diagnostics
-        println '=== Stopping and cleaning Docker Compose ==='
+        // Restart the container stack with improved diagnostics
+        println "=== Stopping and cleaning ${engine} stack ==="
         exec {
-            commandLine 'bash', '-c', 'cd docker && docker compose down -v --remove-orphans'
+            commandLine 'bash', '-c', "cd docker && ${composeDown}"
         }
 
         println '=== Waiting 5 seconds before restart ==='
         Thread.sleep(5000)
 
-        println '=== Starting Docker Compose ==='
+        println "=== Starting ${engine} stack ==="
         exec {
-            commandLine 'bash', '-c', 'cd docker && docker compose up -d'
+            commandLine 'bash', '-c', "cd docker && ${composeUp}"
         }
 
-        // Wait for services with health checks
-        println 'Waiting for Docker services to start (60 seconds)...'
-        int maxWait = 60
+        // Wait for MySQL + Kafka to accept connections (engine health status is
+        // unreliable under podman-compose, so we probe the services directly).
+        println 'Waiting for services to start (up to 90 seconds)...'
+        int maxWait = 90
         int elapsed = 0
+        boolean ready = false
         while (elapsed < maxWait) {
             try {
-                def result = ['bash', '-c', 'cd docker && docker compose ps -q mysql'].execute().text
-                if (result.trim()) {
-                    println "MySQL container running, checking health..."
-                    def healthCmd = "docker exec mysql mysqladmin ping -h localhost -u flink -pflink 2>/dev/null".execute()
-                    int exitCode = healthCmd.waitFor()
-                    if (exitCode == 0) {
-                        println "MySQL is healthy!"
-                        break
-                    }
+                def mysqlOk = "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink".execute().waitFor() == 0
+                def kafkaOk = "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092".execute().waitFor() == 0
+                if (mysqlOk && kafkaOk) {
+                    println "MySQL + Kafka are ready!"
+                    ready = true
+                    break
                 }
             } catch (Exception e) {
-                println("Continue waiting after exception "+e.getMessage())
+                println("Continue waiting after exception " + e.getMessage())
             }
             elapsed += 5
             if (elapsed < maxWait) {
@@ -100,7 +110,7 @@ tasks.register('all') { // buildAndTest
             }
         }
 
-        if (elapsed >= maxWait) {
+        if (!ready) {
             println "WARNING: Services may not be fully ready. Proceeding anyway..."
         }
 

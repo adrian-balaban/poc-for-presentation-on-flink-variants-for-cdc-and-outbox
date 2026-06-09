@@ -1,4 +1,4 @@
-FROM flink:2.2
+FROM docker.io/library/flink:2.2
 
 ARG FLINK_CDC_VERSION=3.6.0-2.2
 

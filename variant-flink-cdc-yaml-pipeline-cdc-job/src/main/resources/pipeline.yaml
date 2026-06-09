@@ -19,6 +19,11 @@ source:
   tables: ${MYSQL_DATABASE}.orders
   server-id: 5700-5709
   server-time-zone: UTC
+  # MySQL 8 uses caching_sha2_password; over a non-TLS connection the JDBC driver
+  # used for schema discovery needs public-key retrieval enabled or it throws
+  # "Public Key Retrieval is not allowed".
+  jdbc.properties.allowPublicKeyRetrieval: "true"
+  jdbc.properties.useSSL: "false"
 
 ################################################################################
 # Sink — Kafka
@@ -36,13 +41,15 @@ pipeline:
   name: Flink CDC YAML Pipeline CDC Job
   parallelism: 1
   schema.change.behavior: evolve
-  checkpoint:
-    interval: 30000
-    # timeout must exceed the checkpoint interval; 60 s gives headroom under load.
-    # WARNING: do NOT set upgradeMode: stateless in production Flink deployments —
-    # it discards all CDC offset state on every restart, forcing a full re-snapshot.
-    timeout: 60000
-    mode: EXACTLY_ONCE
-    max_concurrent_checkpoints: 1
-    min_pause: 5000
-    externalized_checkpoint_cleanup: RETAIN_ON_CANCELLATION
+  # Checkpoint config must be FLAT dotted keys — the Flink CDC YAML parser flattens
+  # the `pipeline:` block into a String→String map, so a nested `checkpoint:` object
+  # throws "Cannot deserialize value of type String from Object value".
+  # timeout must exceed the checkpoint interval; 60 s gives headroom under load.
+  # WARNING: do NOT set upgradeMode: stateless in production Flink deployments —
+  # it discards all CDC offset state on every restart, forcing a full re-snapshot.
+  execution.checkpointing.interval: 30000
+  execution.checkpointing.timeout: 60000
+  execution.checkpointing.mode: EXACTLY_ONCE
+  execution.checkpointing.max-concurrent-checkpoints: 1
+  execution.checkpointing.min-pause: 5000
+  execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
