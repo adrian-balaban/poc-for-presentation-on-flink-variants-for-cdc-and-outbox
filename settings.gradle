@@ -17,4 +17,4 @@ include 'component-tests'
 
 // Kafka Connect SMTs
 include 'kafka-connect-smts'
-project(':kafka-connect-smts').projectDir = file('docker/kafka-connect-smts')
+project(':kafka-connect-smts').projectDir = file('local-development/kafka-connect-smts')

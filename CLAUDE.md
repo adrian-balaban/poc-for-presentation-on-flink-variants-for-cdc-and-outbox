@@ -15,14 +15,14 @@ A 5-variant Gradle multi-project POC demonstrating Apache Flink MySQL CDC as a r
 
 Requires Java 17. Gradle wrapper is included — no local Gradle install needed.
 
-**Note:** Component tests require Podman to be running (`cd docker && podman-compose -f podman-compose.yml up -d`). If the stack is unavailable, component tests are skipped gracefully (shown as yellow ⭕ in test explorer).
+**Note:** Component tests require Podman to be running (`cd local-development && podman-compose -f podman-compose.yml up -d`). If the stack is unavailable, component tests are skipped gracefully (shown as yellow ⭕ in test explorer).
 
 ### Full Integration Test (all)
 
 The `all` task orchestrates a complete build-and-test cycle:
 
 1. **Builds all modules** — `./gradlew clean build -x test`
-2. **Restarts Podman Compose** — `cd docker && podman-compose -f podman-compose.yml down -v && ... up -d`
+2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d`
 3. **Waits for services** — polls MySQL + Kafka until healthy
 4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
 5. **Deploys Kafka Connect connectors** — REST API (with `DB_HOST=mysql` for bridge networking)
@@ -62,8 +62,8 @@ All subproject `build.gradle` files reference these via `rootProject.ext.*` — 
 ## Local infra
 
 ```bash
-cd docker && podman-compose -f podman-compose.yml up -d    # MySQL + Kafka + Flink JM+TM + Kafka Connect + Kafka UI
-cd docker && podman-compose -f podman-compose.yml down -v  # tear down (data lost)
+cd local-development && podman-compose -f podman-compose.yml up -d    # MySQL + Kafka + Flink JM+TM + Kafka Connect + Kafka UI
+cd local-development && podman-compose -f podman-compose.yml down -v  # tear down (data lost)
 ```
 
 Services:
@@ -116,7 +116,7 @@ Each Flink variant and Kafka Connect variant has corresponding component tests i
 
 **Prerequisites:**
 ```bash
-cd docker && podman-compose -f podman-compose.yml up -d
+cd local-development && podman-compose -f podman-compose.yml up -d
 ```
 
 **Run tests:**
@@ -187,7 +187,7 @@ In addition to Flink variants, this POC includes **Kafka Connect** versions of a
 - Same Debezium source and Kafka sink
 - Useful for benchmarking and understanding CDC trade-offs
 
-See [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) and [docker/KAFKA_CONNECT_QUICKSTART.md](./docker/KAFKA_CONNECT_QUICKSTART.md).
+See [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) and [local-development/KAFKA_CONNECT_QUICKSTART.md](./local-development/KAFKA_CONNECT_QUICKSTART.md).
 
 ## See Also
 

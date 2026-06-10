@@ -80,7 +80,7 @@ tasks.register('all') { // buildAndTest
         // Restart the container stack with improved diagnostics
         println "=== Stopping and cleaning ${engine} stack ==="
         exec {
-            commandLine 'bash', '-c', "cd docker && ${composeDown}"
+            commandLine 'bash', '-c', "cd local-development && ${composeDown}"
         }
 
         println '=== Waiting 5 seconds before restart ==='
@@ -88,7 +88,7 @@ tasks.register('all') { // buildAndTest
 
         println "=== Starting ${engine} stack ==="
         exec {
-            commandLine 'bash', '-c', "cd docker && ${composeUp}"
+            commandLine 'bash', '-c', "cd local-development && ${composeUp}"
         }
 
         // Wait for MySQL and Kafka to be ready (engine health status is
@@ -138,7 +138,7 @@ tasks.register('all') { // buildAndTest
         String dbHost = (engine == 'podman') ? 'mysql' : 'localhost'
         println '=== Deploying Kafka Connect connectors ==='
         exec {
-            commandLine 'bash', '-c', "cd docker/kafka-connect && DB_HOST=${dbHost} ./deploy-connectors.sh"
+            commandLine 'bash', '-c', "cd local-development/kafka-connect && DB_HOST=${dbHost} ./deploy-connectors.sh"
         }
 
         // Run component tests (both Flink and Kafka Connect)

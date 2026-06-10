@@ -187,7 +187,7 @@ flink-cdc-poc/
 │   └── src/main/java/poc/outbox/OutboxJob.java
 ├── variant-flink-cdc-yaml-pipeline-cdc-job/
 │   └── src/main/resources/pipeline.yaml
-└── docker/
+└── local-development/
     ├── podman-compose.yml
     └── mysql-init/init.sql             # schema + seed data
 ```

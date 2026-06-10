@@ -97,7 +97,7 @@ This orchestrates:
 ./gradlew :kafka-connect-smts:shadowJar
 ```
 
-This creates `docker/kafka-connect-smts/build/libs/kafka-connect-smts-1.0.0-with-deps.jar` — a shadow JAR with `org.json` bundled, compiled targeting Java 11.
+This creates `local-development/kafka-connect-smts/build/libs/kafka-connect-smts-1.0.0-with-deps.jar` — a shadow JAR with `org.json` bundled, compiled targeting Java 11.
 
 #### 2. Start Infrastructure
 
@@ -115,13 +115,13 @@ To rebuild the image after changing the SMT code:
 ```bash
 cd /path/to/flink-cdc-poc
 ./gradlew :kafka-connect-smts:shadowJar
-podman build -t docker_kafka-connect:latest -f docker/kafka-connect/Dockerfile .
+podman build -t docker_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
 ```
 
 #### 3. Deploy Connectors
 
 ```bash
-cd docker/kafka-connect
+cd local-development/kafka-connect
 DB_HOST=mysql ./deploy-connectors.sh
 ```
 
@@ -301,7 +301,7 @@ podman logs kafka-connect | grep -iE 'EnrichmentTransform|NoClass|ClassNot|Unsup
 
 # Rebuild image with correct Java 11 SMT JAR:
 ./gradlew :kafka-connect-smts:shadowJar
-podman build -t docker_kafka-connect:latest -f docker/kafka-connect/Dockerfile .
+podman build -t docker_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
 ```
 
 ### Server ID collision
