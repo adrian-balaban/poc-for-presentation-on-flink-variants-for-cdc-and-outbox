@@ -112,7 +112,7 @@ Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DAT
 
 ## Component tests
 
-Each Flink variant and Kafka Connect variant has corresponding component tests in the `component-tests` subproject. Tests connect to existing Podman infrastructure (MySQL + Kafka) and run Flink in an embedded local cluster or connect to Kafka Connect REST API.
+Each Flink variant and Kafka Connect variant has corresponding component tests in the `component-tests` subproject. Flink tests submit fat-jars to the real Flink JobManager container via the REST API (jobs visible at http://localhost:8081 during the test run). Kafka Connect tests use the Kafka Connect REST API.
 
 **Prerequisites:**
 ```bash
@@ -136,13 +136,15 @@ cd local-development && podman-compose -f podman-compose.yml up -d
 
 ### Flink Variants
 
-| Test class | Variant | Server-ID range | Status |
-|---|---|---|---|
-| `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 7000–7009, 7050–7059 | ✅ PASS |
-| `TableApiCdcTest` | variant-flink-table-api-cdc-job | 7010–7019 | ✅ PASS |
-| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 7020–7039 | ✅ PASS |
-| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 7040–7049 | ✅ PASS |
-| `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | n/a — manual only | ✅ PASS |
+Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert Kafka output, then cancel. Server-IDs used are those hardcoded in each entry class (production ranges).
+
+| Test class | Variant | Server-ID range | Kafka topic | Status |
+|---|---|---|---|---|
+| `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 5900–5999 (JM env default) | `poc.cdc.datastream` | ✅ PASS |
+| `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (hardcoded in DDL) | `poc.cdc.table-api` | ✅ PASS |
+| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (hardcoded in DDL) | `poc.cdc.sql-api.orders` | ✅ PASS |
+| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5900–5999 (JM env default) | `poc.cdc.outbox` | ✅ PASS |
+| `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.cdc.yaml.orders` | ✅ PASS |
 
 ### Kafka Connect Variants
 
@@ -154,12 +156,13 @@ cd local-development && podman-compose -f podman-compose.yml up -d
 | `KafkaConnectOutboxTest` | kc-outbox-cdc | 5600 | ✅ PASS |
 | `KafkaConnectYamlPipelineTest` | kc-yaml-pipeline-cdc | 5700 | ✅ PASS |
 
-The 7000–7099 block is reserved exclusively for Flink component tests (not in production ranges above).
-
 **Stack availability:**
-- If Podman stack is running: tests pass (✅ green in VS Code)
+- If Podman stack is running (MySQL + Kafka + Flink JM): tests pass (✅ green in VS Code)
 - If Podman stack is stopped: tests skip gracefully (⭕ yellow in VS Code)
+- If Flink JM is not available: Flink tests skip gracefully
 - If Kafka Connect is not available: Kafka Connect tests skip gracefully
+
+**Note:** `DataStreamCdcTest` and `DataStreamOutboxTest` both default to server-ID range `5900–5999` (from `JobConfig` default in the flink-jm container env). They run sequentially and each cancels before the next starts, so there is no simultaneous MySQL replica ID conflict.
 
 ## Production Deployment
 

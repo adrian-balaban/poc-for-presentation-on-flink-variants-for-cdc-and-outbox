@@ -137,12 +137,14 @@ This orchestrates a complete build-and-test cycle:
 
 1. Builds all modules — `./gradlew clean build -x test`
 2. Restarts Podman Compose — `podman-compose -f podman-compose.yml down -v && ... up -d` (down errors are non-fatal — "container not found" on first run is normal)
-3. Waits for services — polls MySQL + Kafka + Kafka Connect until ready (up to 180 s)
+3. Waits for services — polls MySQL + Kafka + Kafka Connect + Flink JM until ready (up to 180 s)
 4. Builds Kafka Connect SMTs — `./gradlew :kafka-connect-smts:shadowJar`
 5. Deploys Kafka Connect connectors — REST API deployment via `deploy-connectors.sh`
 6. Runs component tests — Flink + Kafka Connect tests
 
 The task runs all steps sequentially, stopping on any failure.
+
+During the component test run, all 5 Flink variant jobs are submitted to the Flink JobManager and are visible at http://localhost:8081/#/job/running while each test executes. Jobs are cancelled automatically after each test.
 
 ---
 

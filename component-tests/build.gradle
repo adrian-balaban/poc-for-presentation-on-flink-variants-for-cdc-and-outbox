@@ -1,5 +1,5 @@
-// Component tests — each test spins up MySQL + Kafka via Testcontainers and
-// runs the Flink pipeline in an embedded local cluster (no docker Flink needed).
+// Component tests submit Flink fat-jars to the real JobManager container (localhost:8081)
+// via the Flink REST API and verify results via Kafka polling.
 // Run with:  ./gradlew :component-tests:test
 // or:        ./gradlew :component-tests:test --tests "poc.component.DataStreamCdcTest"
 
@@ -7,40 +7,16 @@ dependencies {
     // Shared config / sink factory
     testImplementation project(':common')
 
-    // Flink runtime (variants declare these as compileOnly; tests need them at runtime)
-    testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-connector-base:${rootProject.ext.flinkVersion}"
+    // MySQL driver for JDBC connectivity
+    testImplementation 'com.mysql:mysql-connector-j:8.3.0'
 
-    // MySQL CDC connector — sql-connector uber-jar covers both DataStream and Table API
-    testImplementation "org.apache.flink:flink-sql-connector-mysql-cdc:${rootProject.ext.flinkCdcVersion}"
-
-    // Kafka connector + client (with lz4 conflict resolution)
-    testImplementation("org.apache.flink:flink-connector-kafka:${rootProject.ext.flinkKafkaVersion}") {
-        exclude group: 'at.yawk.lz4', module: 'lz4-java'
-    }
+    // Kafka client for polling test topics
     testImplementation("org.apache.kafka:kafka-clients:${rootProject.ext.kafkaVersion}") {
         exclude group: 'at.yawk.lz4', module: 'lz4-java'
     }
-    // Explicitly use Flink's lz4 version
     testImplementation 'org.lz4:lz4-java:1.8.0'
 
-    // Table API (variant-table-api and variant-sql-api tests)
-    testImplementation "org.apache.flink:flink-table-api-java:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-table-api-java-bridge:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-table-planner-loader:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-table-runtime:${rootProject.ext.flinkVersion}"
-
-    // Variant classes
-    testImplementation project(':variant-flink-datastream-api-v1-cdc-job')
-    testImplementation project(':variant-flink-datastream-api-v1-outbox-job')
-    testImplementation project(':variant-flink-table-api-cdc-job')
-    testImplementation project(':variant-flink-sql-api-cdc-job')
-
-    // MySQL driver for component tests
-    testImplementation 'com.mysql:mysql-connector-j:8.3.0'
-
-    // Kafka Connect REST API client & JSON parsing (for KafkaConnect tests)
+    // JSON parsing (Kafka Connect REST API + Flink REST response parsing)
     testImplementation 'org.json:json:20231013'
 
     // Test framework & logging
@@ -65,23 +41,10 @@ test {
             }
         }
     }
-    // Component tests are slow but necessary — always run them
     enabled = true
 
-    // Testcontainers Docker configuration
-    environment 'DOCKER_HOST', System.getenv('DOCKER_HOST') ?: 'unix:///var/run/docker.sock'
-    environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
-    environment 'TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE', '/var/run/docker.sock'
-    environment 'TESTCONTAINERS_HOST_OVERRIDE', 'localhost'
+    // Pass root project dir so FlinkTestBase can resolve fat-jar paths
+    systemProperty 'rootProjectDir', rootProject.projectDir.absolutePath
 
-    // JVM configuration
-    jvmArgs '-Xmx2g'
-
-    // Docker Java client and Testcontainers configuration
-    jvmArgs '-Dcom.github.dockerjava.org.slf4j.simpleLogger.defaultLogLevel=debug'
-    jvmArgs '-Dorg.testcontainers.logs=true'
-
-    // Force Testcontainers to use Unix socket strategy
-    systemProperty 'testcontainers.dockerclient.strategy', 'org.testcontainers.dockerclient.UnixSocketClientProviderStrategy'
-    systemProperty 'docker.sock.override', '/var/run/docker.sock'
+    jvmArgs '-Xmx512m'
 }

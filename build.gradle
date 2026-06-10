@@ -101,6 +101,7 @@ tasks.register('all') { // buildAndTest
         int elapsed = 0
         boolean mysqlKafkaReady = false
         boolean kafkaConnectReady = false
+        boolean flinkReady = false
         while (elapsed < maxWait) {
             try {
                 if (!mysqlKafkaReady) {
@@ -115,18 +116,24 @@ tasks.register('all') { // buildAndTest
                         .execute().waitFor() == 0
                     if (kafkaConnectReady) println "✓ Kafka Connect is ready!"
                 }
-                if (mysqlKafkaReady && kafkaConnectReady) break
+                if (!flinkReady) {
+                    flinkReady = ['bash', '-c', 'curl -sf http://localhost:8081/overview >/dev/null 2>&1']
+                        .execute().waitFor() == 0
+                    if (flinkReady) println "✓ Flink JobManager is ready!"
+                }
+                if (mysqlKafkaReady && kafkaConnectReady && flinkReady) break
             } catch (Exception e) {
                 // Continue waiting, services might still be starting
             }
             elapsed += 5
             if (elapsed < maxWait) {
-                println "Waiting... (${elapsed}s elapsed, MySQL+Kafka=${mysqlKafkaReady}, KafkaConnect=${kafkaConnectReady})"
+                println "Waiting... (${elapsed}s elapsed, MySQL+Kafka=${mysqlKafkaReady}, KafkaConnect=${kafkaConnectReady}, Flink=${flinkReady})"
                 Thread.sleep(5000)
             }
         }
 
         if (!mysqlKafkaReady) println "WARNING: MySQL/Kafka may not be fully ready. Proceeding anyway..."
+        if (!flinkReady) println "WARNING: Flink JobManager REST not responding. Component tests requiring Flink will be skipped."
         if (!kafkaConnectReady) {
             // Check if the container even exists — helps diagnose silent image build failures
             def containerExists = ['bash', '-c',

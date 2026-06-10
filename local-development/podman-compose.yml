@@ -104,6 +104,15 @@ services:
         taskmanager.numberOfTaskSlots: 5
         rest.bind-address: 0.0.0.0
         rest.port: 8081
+      # JobConfig.fromEnv() defaults for jobs submitted via REST (bridge networking)
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: flink
+      MYSQL_PASSWORD: flink
+      MYSQL_DATABASE: poc_db
+      MYSQL_TABLES: poc_db.orders
+      KAFKA_BOOTSTRAP: kafka:29092
+      KAFKA_TOPIC_PREFIX: poc.cdc
     depends_on:
       mysql:
         condition: service_healthy

@@ -1,44 +1,47 @@
 package poc.component;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-import java.sql.*;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.Statement;
+import java.time.Duration;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Component test for SQL API variant.
+ * Component test for SQL API CDC variant (StatementSet — single JobGraph for two tables).
  *
- * Mirrors the StatementSet pattern from SqlApiCdcJob: two CDC sources (orders +
- * customers) compiled into a single JobGraph, each writing to a separate Kafka topic.
- * Server-ID ranges: orders 7020–7029, customers 7030–7039.
+ * Submits the fat-jar to the Flink JobManager container (localhost:8081) via REST.
+ * Server-IDs 5800-5849 (orders) and 5850-5899 (customers) are hardcoded in SqlApiCdcJob DDL.
  */
 @Slf4j
 @DisplayName("Flink SQL API : CDC Test")
-class SqlApiCdcTest extends ContainerBase {
+class SqlApiCdcTest extends FlinkTestBase {
+
+    private static final Path JAR = jarPath("variant-flink-sql-api-cdc-job");
+    private static final String ORDERS_TOPIC = "poc.cdc.sql-api.orders";
 
     @Test
-    @Timeout(60)
+    @Timeout(90)
     void sqlApiPipeline_capturesBothTables_andPublishesToSeparateKafkaTopics() throws Exception {
-        testConfig("7020-7029", "poc_db.orders");
-
-        // Insert test data
         try (Connection c = flinkConn(); Statement s = c.createStatement()) {
             s.executeUpdate("INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1, 33.33, 'SQL-TEST')");
             s.executeUpdate("INSERT INTO poc_db.customers (name, email) VALUES ('TestUser', 'test@example.com')");
         }
 
-        log.info("Test data inserted into orders and customers tables");
-
-        // Verify SQL API environment can be initialized
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
-        @SuppressWarnings("unused")
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-        env.enableCheckpointing(5_000);
-
-        log.info("SQL API environment initialized successfully");
+        String jobId = submitAndWait(JAR, "poc.sqlapi.SqlApiCdcJob", Duration.ofSeconds(30));
+        try {
+            List<String> messages = pollKafka(ORDERS_TOPIC, 1, Duration.ofSeconds(45));
+            assertThat(messages).isNotEmpty();
+            assertThat(messages).anyMatch(m -> m.contains("SQL-TEST"));
+            log.info("SQL API CDC: {} Kafka message(s) received on {}", messages.size(), ORDERS_TOPIC);
+        } finally {
+            cancelSilently(jobId);
+        }
     }
 }
