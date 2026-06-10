@@ -1,17 +1,15 @@
 FROM docker.io/confluentinc/cp-kafka-connect:7.6.1
 
-# Install Debezium MySQL connector
-RUN confluent-hub install --no-prompt debezium/debezium-connector-mysql:latest
+# Install Debezium MySQL connector via direct download (avoid Confluent Hub versioning issues)
+# Latest compatible with Java 11 is 2.x; confluent-hub may have version mismatches
+RUN curl -sL -o /tmp/debezium.jar https://repo1.maven.org/maven2/io/debezium/debezium-connector-mysql/2.7.3.Final/debezium-connector-mysql-2.7.3.Final-plugin.tar.gz && \
+    tar -xzf /tmp/debezium.jar -C /usr/share/java/ && \
+    rm /tmp/debezium.jar
 
 # Copy custom SMT JARs (built with gradle shadowJar)
-COPY kafka-connect-smts/build/libs/kafka-connect-smts-*-with-deps.jar /usr/share/java/custom-smts/
+# Build context is project root; kafka-connect-smts projectDir is docker/kafka-connect-smts
+COPY docker/kafka-connect-smts/build/libs/ /usr/share/java/custom-smts/
 
-# Add a startup script wrapper that ensures plugin path is set
-RUN echo '#!/bin/bash' > /tmp/entrypoint.sh && \
-    echo 'export CONNECT_PLUGIN_PATH="/usr/share/java,/usr/share/confluent-hub-components"' >> /tmp/entrypoint.sh && \
-    echo 'exec /etc/confluent/docker/run "$@"' >> /tmp/entrypoint.sh && \
-    chmod +x /tmp/entrypoint.sh
-
-ENTRYPOINT ["/tmp/entrypoint.sh"]
+ENTRYPOINT ["/etc/confluent/docker/run"]
 
 USER appuser

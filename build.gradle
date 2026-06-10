@@ -94,8 +94,10 @@ tasks.register('all') { // buildAndTest
         // Wait for MySQL and Kafka to be ready (engine health status is
         // unreliable under podman-compose, so we probe the services directly).
         // Kafka Connect startup is handled by deploy-connectors.sh script.
-        println 'Waiting for services to start (up to 90 seconds)...'
-        int maxWait = 90
+        // 180s timeout: Kafka Connect connector download and plugin scanning on first build
+        // can exceed 90s, especially with multiple connectors and network I/O latency.
+        println 'Waiting for services to start (up to 180 seconds)...'
+        int maxWait = 180
         int elapsed = 0
         boolean ready = false
         while (elapsed < maxWait) {
