@@ -85,19 +85,19 @@ tasks.register('all') { // buildAndTest
             commandLine 'bash', '-c', "cd docker && ${composeUp}"
         }
 
-        // Wait for MySQL, Kafka, and Kafka Connect to be ready (engine health status is
+        // Wait for MySQL and Kafka to be ready (engine health status is
         // unreliable under podman-compose, so we probe the services directly).
-        println 'Waiting for services to start (up to 120 seconds)...'
-        int maxWait = 120
+        // Kafka Connect startup is handled by deploy-connectors.sh script.
+        println 'Waiting for services to start (up to 90 seconds)...'
+        int maxWait = 90
         int elapsed = 0
         boolean ready = false
         while (elapsed < maxWait) {
             try {
                 def mysqlOk = "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink".execute().waitFor() == 0
                 def kafkaOk = "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092".execute().waitFor() == 0
-                def connectOk = 'curl -sf http://localhost:8083 > /dev/null 2>&1'.execute().waitFor() == 0
-                if (mysqlOk && kafkaOk && connectOk) {
-                    println "✓ MySQL, Kafka, and Kafka Connect are ready!"
+                if (mysqlOk && kafkaOk) {
+                    println "✓ MySQL and Kafka are ready!"
                     ready = true
                     break
                 }
