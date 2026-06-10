@@ -1,5 +1,5 @@
 #!/bin/bash
-# Don't exit on error - allow graceful degradation if Kafka Connect plugins aren't available
+set -e
 
 CONNECT_URL="http://localhost:8083"
 CONNECTORS_DIR="$(dirname "$0")/connectors"
@@ -32,22 +32,19 @@ deploy_connector() {
         -d @"$connector_file" > /dev/null 2>&1; then
         echo "✓ Deployed: $connector_name"
     else
-        echo "⚠️  WARNING: Failed to deploy: $connector_name (Debezium plugin may not be available)"
+        echo "✗ Failed to deploy: $connector_name"
+        return 1
     fi
 }
 
 main() {
     echo "=== Kafka Connect Connector Deployment ==="
 
-    # Non-blocking wait for Kafka Connect
-    if ! wait_for_connect; then
-        echo "⚠️  Kafka Connect not ready - skipping connector deployment"
-        return 0
-    fi
+    wait_for_connect || exit 1
 
     if [ ! -d "$CONNECTORS_DIR" ]; then
         echo "✗ Connectors directory not found: $CONNECTORS_DIR"
-        return 1
+        exit 1
     fi
 
     for connector_file in "$CONNECTORS_DIR"/*.json; do
@@ -57,8 +54,7 @@ main() {
     done
 
     echo "=== Deployment Complete ==="
-    echo "Note: Check $CONNECT_URL/connector-plugins for available connectors"
-    return 0
+    echo "Connectors status: $CONNECT_URL/connectors"
 }
 
 main "$@"
