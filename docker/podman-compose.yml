@@ -23,11 +23,17 @@ x-kafka-connect-env: &kafka-connect-defaults
   CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
   CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
 
+networks:
+  poc-net:
+    driver: bridge
+
 services:
 
   mysql:
     image: docker.io/library/mysql:8.0
     container_name: mysql
+    networks:
+      - poc-net
     ports:
       - "3306:3306"
     environment:
@@ -51,6 +57,8 @@ services:
   kafka:
     image: docker.io/confluentinc/cp-kafka:7.6.1
     container_name: kafka
+    networks:
+      - poc-net
     ports:
       - "9092:9092"
       - "9093:9093"
@@ -83,6 +91,8 @@ services:
     build:
       context: ./flink-with-mysql
     container_name: flink-jm
+    networks:
+      - poc-net
     ports:
       - "6123:6123"
       - "8081:8081"
@@ -109,6 +119,8 @@ services:
     build:
       context: ./flink-with-mysql
     container_name: flink-tm
+    networks:
+      - poc-net
     ports:
       - "6124:6123"
       - "8082:8081"
@@ -125,6 +137,8 @@ services:
     build:
       context: ./flink-cdc-submitter
     container_name: flink-cdc-submitter
+    networks:
+      - poc-net
     volumes:
       - ../variant-flink-cdc-yaml-pipeline-cdc-job/src/main/resources/pipeline.yaml:/pipeline.yaml:ro,Z
     environment:
@@ -143,9 +157,11 @@ services:
 
   kafka-connect:
     build:
-      context: .
-      dockerfile: ./kafka-connect/Dockerfile
+      context: ..
+      dockerfile: docker/kafka-connect/Dockerfile
     container_name: kafka-connect
+    networks:
+      - poc-net
     ports:
       - "8083:8083"
     environment:
@@ -164,6 +180,8 @@ services:
   kafka-ui:
     image: docker.io/provectuslabs/kafka-ui:latest
     container_name: kafka-ui
+    networks:
+      - poc-net
     ports:
       - "8080:8080"
     environment:
