@@ -17,8 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Component test for DataStream CDC variant.
  *
- * Submits the fat-jar to the Flink JobManager container (localhost:8081) via REST,
- * verifies CDC events reach Kafka, then cancels the job.
+ * Submits the fat-jar to the Flink JobManager container (localhost:8081) via REST
+ * and verifies CDC events reach Kafka. Jobs remain running after the test.
  * Server-ID range: uses JobConfig default (5900-5999) from the flink-jm container env.
  */
 @Slf4j
@@ -50,35 +50,27 @@ class DataStreamCdcTest extends FlinkTestBase {
         }
 
         String jobId = flink.submitJob(jarId, "poc.datastream.DataStreamCdcJob");
-        try {
-            flink.waitForJobRunning(jobId, Duration.ofSeconds(30));
-            List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
-            assertThat(messages).isNotEmpty();
-            assertThat(messages).anyMatch(m -> m.contains("DS-TEST"));
-            log.info("DataStream CDC: {} Kafka message(s) received", messages.size());
-        } finally {
-            cancelSilently(jobId);
-        }
+        flink.waitForJobRunning(jobId, Duration.ofSeconds(30));
+        List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+        assertThat(messages).isNotEmpty();
+        assertThat(messages).anyMatch(m -> m.contains("DS-TEST"));
+        log.info("DataStream CDC: {} Kafka message(s) received", messages.size());
     }
 
     @Test
     @Timeout(90)
     void cdcSource_capturesBinlogInsert_afterSnapshotComplete() throws Exception {
         String jobId = flink.submitJob(jarId, "poc.datastream.DataStreamCdcJob");
-        try {
-            flink.waitForJobRunning(jobId, Duration.ofSeconds(30));
+        flink.waitForJobRunning(jobId, Duration.ofSeconds(30));
 
-            try (Connection c = flinkConn(); Statement s = c.createStatement()) {
-                s.executeUpdate(
-                    "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (2, 22.22, 'BINLOG-TEST')");
-            }
-
-            List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
-            assertThat(messages).isNotEmpty();
-            assertThat(messages).anyMatch(m -> m.contains("BINLOG-TEST"));
-            log.info("DataStream CDC binlog test: {} Kafka message(s) received", messages.size());
-        } finally {
-            cancelSilently(jobId);
+        try (Connection c = flinkConn(); Statement s = c.createStatement()) {
+            s.executeUpdate(
+                "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (2, 22.22, 'BINLOG-TEST')");
         }
+
+        List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+        assertThat(messages).isNotEmpty();
+        assertThat(messages).anyMatch(m -> m.contains("BINLOG-TEST"));
+        log.info("DataStream CDC binlog test: {} Kafka message(s) received", messages.size());
     }
 }

@@ -13,7 +13,7 @@ import java.time.Duration;
  * container (localhost:8081) via the REST API.
  *
  * Tests are skipped gracefully if the Flink JM is not reachable.
- * Each test is responsible for cancelling its job in a finally block.
+ * Submitted jobs remain running after each test — visible at localhost:8081/#/job/running.
  *
  * Jar paths are resolved from the root project dir (passed as system property
  * 'rootProjectDir' by component-tests/build.gradle).
@@ -46,8 +46,8 @@ abstract class FlinkTestBase extends ContainerBase {
     }
 
     /**
-     * Upload the fat-jar, submit the job, wait until RUNNING, and return the jobId.
-     * The caller must cancel the job in a finally block via {@link #cancelSilently}.
+     * Upload the fat-jar, submit the job, and wait until RUNNING.
+     * The job is not cancelled after the test — it stays visible at localhost:8081.
      */
     protected static String submitAndWait(Path jarPath, String entryClass, Duration waitTimeout) throws Exception {
         log.info("Submitting {} to Flink JM", jarPath.getFileName());
@@ -55,16 +55,6 @@ abstract class FlinkTestBase extends ContainerBase {
         String jobId = flink.submitJob(jarId, entryClass);
         flink.waitForJobRunning(jobId, waitTimeout);
         return jobId;
-    }
-
-    /** Cancel a job; swallows errors so it is safe to use in finally blocks. */
-    protected static void cancelSilently(String jobId) {
-        if (jobId == null) return;
-        try {
-            flink.cancelJob(jobId);
-        } catch (Exception e) {
-            log.warn("Could not cancel job {}: {}", jobId, e.getMessage());
-        }
     }
 
     /** Resolve the fat-jar path for a variant module relative to the root project dir. */

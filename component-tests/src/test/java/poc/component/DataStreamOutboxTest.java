@@ -16,8 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Component test for Outbox variant.
  *
- * Submits the fat-jar to the Flink JobManager container (localhost:8081) via REST,
- * verifies outbox events reach Kafka routed by destination, then cancels the job.
+ * Submits the fat-jar to the Flink JobManager container (localhost:8081) via REST
+ * and verifies outbox events reach Kafka routed by destination. Job remains running after the test.
  */
 @Slf4j
 @DisplayName("Flink DataStream API v.1 : Outbox Test")
@@ -34,16 +34,12 @@ class DataStreamOutboxTest extends FlinkTestBase {
                 "INSERT INTO poc_db.outbox_events (destination, payload) VALUES ('payments', '{\"order_id\":1}')");
         }
 
-        String jobId = submitAndWait(JAR, "poc.outbox.OutboxJob", Duration.ofSeconds(30));
-        try {
-            // outbox_events is seeded with payments/notifications/audit rows and the
-            // test inserts another payments row, so the snapshot emits several events.
-            List<String> messages = pollKafka(TOPIC, 4, Duration.ofSeconds(45));
-            assertThat(messages).isNotEmpty();
-            assertThat(messages).anyMatch(m -> m.contains("payments"));
-            log.info("Outbox CDC: {} Kafka message(s) received", messages.size());
-        } finally {
-            cancelSilently(jobId);
-        }
+        submitAndWait(JAR, "poc.outbox.OutboxJob", Duration.ofSeconds(30));
+        // outbox_events is seeded with payments/notifications/audit rows and the
+        // test inserts another payments row, so the snapshot emits several events.
+        List<String> messages = pollKafka(TOPIC, 4, Duration.ofSeconds(45));
+        assertThat(messages).isNotEmpty();
+        assertThat(messages).anyMatch(m -> m.contains("payments"));
+        log.info("Outbox CDC: {} Kafka message(s) received", messages.size());
     }
 }

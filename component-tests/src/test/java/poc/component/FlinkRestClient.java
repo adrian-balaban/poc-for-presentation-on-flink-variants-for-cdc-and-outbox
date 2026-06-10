@@ -17,7 +17,7 @@ import java.util.UUID;
 
 /**
  * Thin client for the Flink REST API (localhost:8081).
- * Supports jar upload, job submission, status polling, and cancellation.
+ * Supports jar upload, job submission, and status polling.
  */
 @Slf4j
 class FlinkRestClient {
@@ -119,19 +119,6 @@ class FlinkRestClient {
             Thread.sleep(1000);
         }
         throw new RuntimeException("Job " + jobId + " did not reach RUNNING within " + timeout);
-    }
-
-    /** Cancel a running job. */
-    void cancelJob(String jobId) throws Exception {
-        HttpResponse<String> r = http.send(
-            HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/jobs/" + jobId))
-                .timeout(Duration.ofSeconds(15))
-                .header("Content-Type", "application/json")
-                .method("PATCH", HttpRequest.BodyPublishers.ofString("{\"status\":\"cancelled\"}"))
-                .build(),
-            HttpResponse.BodyHandlers.ofString());
-        log.info("Cancel job {} → HTTP {}", jobId, r.statusCode());
     }
 
     private String getJobState(String jobId) throws Exception {

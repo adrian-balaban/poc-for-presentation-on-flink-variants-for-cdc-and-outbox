@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Component test for Table API CDC variant.
  *
  * Submits the fat-jar to the Flink JobManager container (localhost:8081) via REST,
- * inserts a test row, verifies the CDC event reaches the Kafka upsert topic, then cancels.
+ * inserts a test row, and verifies the CDC event reaches the Kafka upsert topic. Job remains running.
  * Server-ID 6000-6099 is hardcoded in the DDL inside TableApiCdcJob.
  */
 @Slf4j
@@ -35,14 +35,10 @@ class TableApiCdcTest extends FlinkTestBase {
                 "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1, 55.55, 'TA-TEST')");
         }
 
-        String jobId = submitAndWait(JAR, "poc.tableapi.TableApiCdcJob", Duration.ofSeconds(30));
-        try {
-            List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
-            assertThat(messages).isNotEmpty();
-            assertThat(messages).anyMatch(m -> m.contains("TA-TEST"));
-            log.info("Table API CDC: {} Kafka message(s) received", messages.size());
-        } finally {
-            cancelSilently(jobId);
-        }
+        submitAndWait(JAR, "poc.tableapi.TableApiCdcJob", Duration.ofSeconds(30));
+        List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+        assertThat(messages).isNotEmpty();
+        assertThat(messages).anyMatch(m -> m.contains("TA-TEST"));
+        log.info("Table API CDC: {} Kafka message(s) received", messages.size());
     }
 }

@@ -162,7 +162,7 @@ Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert K
 - If Flink JM is not available: Flink tests skip gracefully
 - If Kafka Connect is not available: Kafka Connect tests skip gracefully
 
-**Note:** `DataStreamCdcTest` and `DataStreamOutboxTest` both default to server-ID range `5900–5999` (from `JobConfig` default in the flink-jm container env). They run sequentially and each cancels before the next starts, so there is no simultaneous MySQL replica ID conflict.
+**Note:** Flink jobs submitted by component tests are **not cancelled** after the test — they remain visible at http://localhost:8081/#/job/running for the lifetime of the stack. `DataStreamCdcTest` and `DataStreamOutboxTest` both use server-ID range `5900–5999` (JobConfig default in flink-jm env); they run sequentially so there is no simultaneous MySQL replica ID conflict.
 
 ## Production Deployment
 

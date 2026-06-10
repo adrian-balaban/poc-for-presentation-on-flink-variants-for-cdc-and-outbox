@@ -144,7 +144,7 @@ This orchestrates a complete build-and-test cycle:
 
 The task runs all steps sequentially, stopping on any failure.
 
-During the component test run, all 5 Flink variant jobs are submitted to the Flink JobManager and are visible at http://localhost:8081/#/job/running while each test executes. Jobs are cancelled automatically after each test.
+During the component test run, all 5 Flink variant jobs are submitted to the Flink JobManager and are visible at http://localhost:8081/#/job/running. Jobs are **not cancelled** after tests — they remain running for the lifetime of the stack.
 
 ---
 
