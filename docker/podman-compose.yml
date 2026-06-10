@@ -21,7 +21,7 @@ x-kafka-connect-env: &kafka-connect-defaults
   CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
   CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
   CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
-  CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+  CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components,/usr/share/java/custom-smts
 
 networks:
   poc-net:

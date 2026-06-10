@@ -103,8 +103,9 @@ tasks.register('all') { // buildAndTest
         while (elapsed < maxWait) {
             try {
                 // Merge health checks into single command for efficiency
-                def health = ("${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink && " +
-                              "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092")
+                def health = ['bash', '-c',
+                    "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink 2>/dev/null && " +
+                    "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null"]
                     .execute().waitFor() == 0
                 if (health) {
                     println "✓ MySQL and Kafka are ready!"
@@ -132,9 +133,12 @@ tasks.register('all') { // buildAndTest
         }
 
         // Deploy Kafka Connect connectors
+        // DB_HOST=mysql: on Podman bridge, the Connect container reaches MySQL by service name;
+        // on Docker host-network, localhost is correct (the script default).
+        String dbHost = (engine == 'podman') ? 'mysql' : 'localhost'
         println '=== Deploying Kafka Connect connectors ==='
         exec {
-            commandLine 'bash', '-c', 'cd docker/kafka-connect && ./deploy-connectors.sh'
+            commandLine 'bash', '-c', "cd docker/kafka-connect && DB_HOST=${dbHost} ./deploy-connectors.sh"
         }
 
         // Run component tests (both Flink and Kafka Connect)

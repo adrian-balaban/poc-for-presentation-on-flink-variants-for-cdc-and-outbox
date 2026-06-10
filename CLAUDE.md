@@ -109,6 +109,7 @@ Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DAT
 - Do not leave `upgradeMode: stateless` permanently in Flink deployments — every restart would re-snapshot the full table
 - Variant 5 (YAML Pipeline) has no Maven shade module — do not add Java sources to it; it is intentionally zero-code
 - When using Podman: use `podman-compose.yml` (not `docker-compose.yml`) — it has bridge networking + rootless-compatible volume flags
+- When using Podman from a snap-installed VS Code: the snap overrides `XDG_DATA_HOME`, which splits podman storage between VS Code terminals (`~/snap/code/<rev>/.local/share/containers`) and the rest of the system (`~/.local/share/containers`). Symptoms: healthchecks stuck in `(starting)` forever, compose app invisible outside VS Code, stale aardvark-dns entries causing "No route to host" between containers. Fix: pin `graphroot` in `~/.config/containers/storage.conf` (already done on this machine)
 
 ## Component tests
 

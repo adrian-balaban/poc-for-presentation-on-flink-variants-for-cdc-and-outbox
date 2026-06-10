@@ -5,8 +5,10 @@ apply plugin: 'java'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    // cp-kafka-connect:7.6.1 ships JDK 11; compiling for 17 produces class files
+    // that won't load in the container (UnsupportedClassVersionError 61.0 > 55.0).
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 group = 'poc.kafka.connect'

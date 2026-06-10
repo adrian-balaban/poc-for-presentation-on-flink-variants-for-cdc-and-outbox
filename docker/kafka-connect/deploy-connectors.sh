@@ -3,6 +3,9 @@ set -e
 
 CONNECT_URL="http://localhost:8083"
 CONNECTORS_DIR="$(dirname "$0")/connectors"
+# DB_HOST: hostname of MySQL as seen from inside the Kafka Connect container.
+# Defaults to "localhost" for Docker host-network mode; set to "mysql" for Podman bridge.
+DB_HOST="${DB_HOST:-localhost}"
 MAX_RETRIES=30
 RETRY_DELAY=2
 
@@ -27,9 +30,12 @@ deploy_connector() {
 
     echo "Deploying connector: $connector_name"
 
+    local payload
+    payload=$(sed "s/\"database.hostname\": \"localhost\"/\"database.hostname\": \"${DB_HOST}\"/" "$connector_file")
+
     if curl -sf -X POST "$CONNECT_URL/connectors" \
         -H "Content-Type: application/json" \
-        -d @"$connector_file" > /dev/null 2>&1; then
+        -d "$payload" > /dev/null 2>&1; then
         echo "✓ Deployed: $connector_name"
     else
         echo "✗ Failed to deploy: $connector_name"
