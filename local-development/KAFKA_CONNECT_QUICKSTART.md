@@ -32,7 +32,7 @@ podman-compose -f podman-compose.yml up -d mysql kafka kafka-connect
 
 **Step 3: Deploy connectors**
 ```bash
-cd docker/kafka-connect
+cd local-development/kafka-connect
 DB_HOST=mysql ./deploy-connectors.sh
 ```
 
@@ -83,7 +83,7 @@ After changing SMT code:
 ./gradlew :kafka-connect-smts:shadowJar
 
 # 2. Rebuild the container image (build context = project root)
-podman build -t docker_kafka-connect:latest -f docker/kafka-connect/Dockerfile .
+podman build -t docker_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
 
 # 3. Restart kafka-connect
 cd docker
@@ -124,7 +124,7 @@ podman exec kafka-connect ls -la /usr/share/java/custom-smts/
 # Rebuild image
 cd /path/to/flink-cdc-poc
 ./gradlew :kafka-connect-smts:shadowJar
-podman build -t docker_kafka-connect:latest -f docker/kafka-connect/Dockerfile .
+podman build -t docker_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
 ```
 
 ## Next Steps

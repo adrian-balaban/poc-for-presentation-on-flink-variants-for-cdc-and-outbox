@@ -94,10 +94,12 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
                 "value.converter.schemas.enable": false,
                 "decimal.handling.mode": "string",
                 "include.schema.changes": false,
+                "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
+                "schema.history.internal.kafka.topic": "dbhistory.outbox",
                 "topic.prefix": "poc.cdc.outbox"
               }
             }
-            """;
+            """.replace("\"localhost\"", "\"" + DB_HOST + "\"");
         deployConnector(CONNECTOR_NAME, config);
     }
 }

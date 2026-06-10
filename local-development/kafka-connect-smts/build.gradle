@@ -19,8 +19,9 @@ repositories {
 }
 
 dependencies {
-    // Kafka Connect API (provided by Kafka Connect runtime)
+    // Kafka Connect API (provided by Kafka Connect runtime; also needed for tests)
     compileOnly 'org.apache.kafka:connect-api:3.6.1'
+    testImplementation 'org.apache.kafka:connect-api:3.6.1'
 
     // JSON parsing
     implementation 'org.json:json:20231013'

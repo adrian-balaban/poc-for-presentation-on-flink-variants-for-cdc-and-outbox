@@ -158,7 +158,7 @@ services:
   kafka-connect:
     build:
       context: ..
-      dockerfile: docker/kafka-connect/Dockerfile
+      dockerfile: local-development/kafka-connect/Dockerfile
     container_name: kafka-connect
     networks:
       - poc-net

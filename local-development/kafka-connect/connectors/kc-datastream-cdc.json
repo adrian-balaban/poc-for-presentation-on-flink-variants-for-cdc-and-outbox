@@ -21,7 +21,8 @@
     "value.converter.schemas.enable": false,
     "decimal.handling.mode": "string",
     "include.schema.changes": false,
-    "publication.name": "poc_datastream",
+    "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
+    "schema.history.internal.kafka.topic": "dbhistory.datastream",
     "topic.prefix": "poc.cdc.datastream"
   }
 }

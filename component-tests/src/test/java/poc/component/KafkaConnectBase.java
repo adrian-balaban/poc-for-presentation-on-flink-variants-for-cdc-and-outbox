@@ -20,6 +20,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Slf4j
 public abstract class KafkaConnectBase extends ContainerBase {
 
+    // On Podman bridge networking the kafka-connect container reaches MySQL by service name.
+    // Override with -Ddb.host=localhost for Docker host-network mode.
+    static final String DB_HOST = System.getProperty("db.host",
+            System.getenv().getOrDefault("DB_HOST", "mysql"));
+
     private static final String KAFKA_CONNECT_URL = "http://localhost:8083";
     private static volatile Boolean kafkaConnectAvailable = null;
     private static final Object connectCheckLock = new Object();
@@ -65,17 +70,56 @@ public abstract class KafkaConnectBase extends ContainerBase {
      * @param connectorConfig JSON connector configuration
      */
     protected static void deployConnector(String connectorName, String connectorConfig) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(KAFKA_CONNECT_URL + "/connectors"))
-            .timeout(Duration.ofSeconds(10))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(connectorConfig))
-            .build();
+        // Always do a fresh deploy: create (if missing) → stop → delete offsets → delete → recreate.
+        // Stale offsets in poc-connect-offset survive connector deletion and cause Debezium to skip
+        // the initial snapshot and fail with "db history topic is missing" on restart.
+        HttpResponse<String> existsCheck = httpClient.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/status"))
+                .timeout(Duration.ofSeconds(5)).GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+        if (existsCheck.statusCode() != 200) {
+            // Connector doesn't exist yet — create a stub so we can use the offsets-reset API.
+            httpClient.send(
+                HttpRequest.newBuilder()
+                    .uri(URI.create(KAFKA_CONNECT_URL + "/connectors"))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(connectorConfig))
+                    .build(),
+                HttpResponse.BodyHandlers.ofString());
+            Thread.sleep(2000);
+        }
+        // Stop → delete offsets → delete connector.
+        httpClient.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/stop"))
+                .timeout(Duration.ofSeconds(10)).PUT(HttpRequest.BodyPublishers.noBody()).build(),
+            HttpResponse.BodyHandlers.ofString());
+        Thread.sleep(1500);
+        httpClient.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/offsets"))
+                .timeout(Duration.ofSeconds(10)).DELETE().build(),
+            HttpResponse.BodyHandlers.ofString());
+        httpClient.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName))
+                .timeout(Duration.ofSeconds(10)).DELETE().build(),
+            HttpResponse.BodyHandlers.ofString());
+        Thread.sleep(1000);
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() == 201 || response.statusCode() == 409) {
-            // 201 = created, 409 = already exists
-            log.info("Connector {} deployed: status {}", connectorName, response.statusCode());
+        // Recreate fresh with no stored offsets.
+        HttpResponse<String> response = httpClient.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create(KAFKA_CONNECT_URL + "/connectors"))
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(connectorConfig))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() == 201) {
+            log.info("Connector {} deployed fresh (offsets cleared)", connectorName);
         } else {
             log.error("Failed to deploy connector {}: {} {}", connectorName, response.statusCode(), response.body());
             throw new RuntimeException("Connector deployment failed: " + response.body());
@@ -102,14 +146,24 @@ public abstract class KafkaConnectBase extends ContainerBase {
     protected static void waitForConnectorRunning(String connectorName, Duration timeout) throws Exception {
         long deadline = System.currentTimeMillis() + timeout.toMillis();
         while (System.currentTimeMillis() < deadline) {
-            String status = getConnectorStatus(connectorName);
-            if (status.contains("\"state\":\"RUNNING\"")) {
-                log.info("Connector {} is RUNNING", connectorName);
-                return;
-            }
+            String statusJson = getConnectorStatus(connectorName);
+            try {
+                org.json.JSONObject status = new org.json.JSONObject(statusJson);
+                boolean connectorRunning = "RUNNING".equals(
+                        status.getJSONObject("connector").getString("state"));
+                org.json.JSONArray tasks = status.optJSONArray("tasks");
+                boolean allTasksRunning = tasks != null && tasks.length() > 0
+                        && tasks.toList().stream().allMatch(t ->
+                            "RUNNING".equals(((java.util.Map<?, ?>) t).get("state")));
+                if (connectorRunning && allTasksRunning) {
+                    log.info("Connector {} is RUNNING (connector + all tasks)", connectorName);
+                    return;
+                }
+            } catch (Exception ignored) { }
             Thread.sleep(1000);
         }
-        throw new RuntimeException("Connector " + connectorName + " did not reach RUNNING state");
+        throw new RuntimeException("Connector " + connectorName + " did not reach RUNNING state. Status: "
+                + getConnectorStatus(connectorName));
     }
 
     /**
@@ -124,7 +178,7 @@ public abstract class KafkaConnectBase extends ContainerBase {
               "name": "%s",
               "config": {
                 "connector.class": "io.debezium.connector.mysql.MySqlConnector",
-                "database.hostname": "localhost",
+                "database.hostname": "%s",
                 "database.port": 3306,
                 "database.user": "flink",
                 "database.password": "flink",
@@ -143,10 +197,12 @@ public abstract class KafkaConnectBase extends ContainerBase {
                 "value.converter.schemas.enable": false,
                 "decimal.handling.mode": "string",
                 "include.schema.changes": false,
+                "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
+                "schema.history.internal.kafka.topic": "dbhistory.%s",
                 "topic.prefix": "%s"
               }
             }
-            """, connectorName, serverId, serverName, tableList, variantName, topicPrefix, topicPrefix);
+            """, connectorName, DB_HOST, serverId, serverName, tableList, variantName, topicPrefix, variantName, topicPrefix);
     }
 
     /**
@@ -155,8 +211,8 @@ public abstract class KafkaConnectBase extends ContainerBase {
      */
     protected static void assertEnrichmentMetadata(
             String message, String jsonValue, String expectedVariant, String topicPrefix) {
-        assertThat(message).isNotEmpty();
-        JSONObject obj = new JSONObject(message);
+        assertThat(jsonValue).as(message).isNotEmpty();
+        JSONObject obj = new JSONObject(jsonValue);
         assertThat(obj.optString("variant")).as("variant field").isEqualTo(expectedVariant);
         assertThat(obj.optString("topic")).as("topic field").contains(topicPrefix);
         assertThat(obj.has("transformed_at")).as("transformed_at field present").isTrue();

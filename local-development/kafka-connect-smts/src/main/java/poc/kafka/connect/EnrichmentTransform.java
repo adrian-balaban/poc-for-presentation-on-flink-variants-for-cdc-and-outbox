@@ -11,7 +11,9 @@ import org.json.JSONObject;
 import java.util.Map;
 
 /**
- * Enriches each CDC event with variant metadata (variant name, topic, timestamp).
+ * Enriches each CDC event with variant metadata (variant name, topic, timestamp)
+ * and renames the Kafka topic to {topicPrefix}.{tableName} (stripping the database prefix
+ * that Debezium adds by default: {prefix}.{db}.{table} → {prefix}.{table}).
  *
  * Configuration:
  *   - variant.name: Name of the variant (e.g., "datastream-cdc", "outbox-cdc")
@@ -34,40 +36,97 @@ public class EnrichmentTransform<R extends ConnectRecord<R>> implements Transfor
     @Override
     public R apply(R record) {
         if (record.value() instanceof String) {
-            // JSON string value (Debezium default)
             String jsonValue = (String) record.value();
-            String enriched = enrichJson(jsonValue);
-            return record.newRecord(
-                record.topic(),
-                record.kafkaPartition(),
-                record.keySchema(),
-                record.key(),
-                record.valueSchema(),
-                enriched,
-                record.timestamp()
-            );
+            String table = extractTableFromJson(jsonValue);
+            String newTopic = topicPrefix + "." + table;
+            String enriched = enrichJson(jsonValue, newTopic);
+            return record.newRecord(newTopic, record.kafkaPartition(),
+                    record.keySchema(), record.key(),
+                    record.valueSchema(), enriched, record.timestamp());
+
+        } else if (record.value() instanceof Struct) {
+            Struct struct = (Struct) record.value();
+            String table = extractTableFromStruct(struct);
+            String newTopic = topicPrefix + "." + table;
+            Struct enriched = enrichStruct(struct, newTopic);
+            return record.newRecord(newTopic, record.kafkaPartition(),
+                    record.keySchema(), record.key(),
+                    enriched.schema(), enriched, record.timestamp());
+
         } else if (record.value() instanceof Map) {
-            // Map value
             Map<String, Object> value = (Map<String, Object>) record.value();
+            String table = extractTableFromMap(value);
+            String newTopic = topicPrefix + "." + table;
             value.put("variant", variantName);
-            value.put("topic", topicPrefix + "." + record.topic());
+            value.put("topic", newTopic);
             value.put("transformed_at", System.currentTimeMillis());
-            return record;
+            return record.newRecord(newTopic, record.kafkaPartition(),
+                    record.keySchema(), record.key(),
+                    record.valueSchema(), value, record.timestamp());
         }
         return record;
     }
 
-    private String enrichJson(String json) {
+    private String extractTableFromJson(String json) {
+        try {
+            JSONObject obj = new JSONObject(json);
+            JSONObject source = obj.optJSONObject("source");
+            if (source != null) return source.optString("table", "unknown");
+            return obj.optString("table", "unknown");
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+
+    private String extractTableFromStruct(Struct struct) {
+        try {
+            Struct source = (Struct) struct.get("source");
+            if (source != null) return (String) source.get("table");
+        } catch (Exception ignored) { }
+        return "unknown";
+    }
+
+    private String extractTableFromMap(Map<String, Object> map) {
+        Object source = map.get("source");
+        if (source instanceof Map) {
+            Object table = ((Map<?, ?>) source).get("table");
+            if (table != null) return table.toString();
+        }
+        Object table = map.get("table");
+        return table != null ? table.toString() : "unknown";
+    }
+
+    private String enrichJson(String json, String newTopic) {
         try {
             JSONObject obj = new JSONObject(json);
             obj.put("variant", variantName);
-            obj.put("topic", topicPrefix + "." + obj.optString("table", "unknown"));
+            obj.put("topic", newTopic);
             obj.put("transformed_at", System.currentTimeMillis());
             return obj.toString();
         } catch (Exception e) {
-            // Return original if JSON parsing fails
             return json;
         }
+    }
+
+    private Struct enrichStruct(Struct original, String newTopic) {
+        Schema originalSchema = original.schema();
+        SchemaBuilder builder = SchemaBuilder.struct();
+        for (org.apache.kafka.connect.data.Field field : originalSchema.fields()) {
+            builder.field(field.name(), field.schema());
+        }
+        builder.field("variant", Schema.OPTIONAL_STRING_SCHEMA);
+        builder.field("topic", Schema.OPTIONAL_STRING_SCHEMA);
+        builder.field("transformed_at", Schema.OPTIONAL_INT64_SCHEMA);
+        Schema newSchema = builder.build();
+
+        Struct enriched = new Struct(newSchema);
+        for (org.apache.kafka.connect.data.Field field : originalSchema.fields()) {
+            enriched.put(field.name(), original.get(field));
+        }
+        enriched.put("variant", variantName);
+        enriched.put("topic", newTopic);
+        enriched.put("transformed_at", System.currentTimeMillis());
+        return enriched;
     }
 
     @Override

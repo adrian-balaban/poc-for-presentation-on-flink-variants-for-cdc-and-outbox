@@ -91,39 +91,51 @@ tasks.register('all') { // buildAndTest
             commandLine 'bash', '-c', "cd local-development && ${composeUp}"
         }
 
-        // Wait for MySQL and Kafka to be ready (engine health status is
-        // unreliable under podman-compose, so we probe the services directly).
-        // Kafka Connect startup is handled by deploy-connectors.sh script.
-        // 180s timeout: Kafka Connect connector download and plugin scanning on first build
-        // can exceed 90s, especially with multiple connectors and network I/O latency.
+        // Wait for MySQL, Kafka, and Kafka Connect to be ready.
+        // Engine health status is unreliable under podman-compose, so probe services directly.
+        // 180s timeout: Kafka Connect plugin scanning + Debezium download on first build
+        // can take 90s+, especially on cold starts.
         println 'Waiting for services to start (up to 180 seconds)...'
         int maxWait = 180
         int elapsed = 0
-        boolean ready = false
+        boolean mysqlKafkaReady = false
+        boolean kafkaConnectReady = false
         while (elapsed < maxWait) {
             try {
-                // Merge health checks into single command for efficiency
-                def health = ['bash', '-c',
-                    "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink 2>/dev/null && " +
-                    "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null"]
-                    .execute().waitFor() == 0
-                if (health) {
-                    println "✓ MySQL and Kafka are ready!"
-                    ready = true
-                    break
+                if (!mysqlKafkaReady) {
+                    mysqlKafkaReady = ['bash', '-c',
+                        "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink 2>/dev/null && " +
+                        "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null"]
+                        .execute().waitFor() == 0
+                    if (mysqlKafkaReady) println "✓ MySQL and Kafka are ready!"
                 }
+                if (!kafkaConnectReady) {
+                    kafkaConnectReady = ['bash', '-c', 'curl -sf http://localhost:8083 >/dev/null 2>&1']
+                        .execute().waitFor() == 0
+                    if (kafkaConnectReady) println "✓ Kafka Connect is ready!"
+                }
+                if (mysqlKafkaReady && kafkaConnectReady) break
             } catch (Exception e) {
                 // Continue waiting, services might still be starting
             }
             elapsed += 5
-            if (elapsed < maxWait && !ready) {
-                println "Waiting... (${elapsed}s elapsed)"
+            if (elapsed < maxWait) {
+                println "Waiting... (${elapsed}s elapsed, MySQL+Kafka=${mysqlKafkaReady}, KafkaConnect=${kafkaConnectReady})"
                 Thread.sleep(5000)
             }
         }
 
-        if (!ready) {
-            println "WARNING: Services may not be fully ready. Proceeding anyway..."
+        if (!mysqlKafkaReady) println "WARNING: MySQL/Kafka may not be fully ready. Proceeding anyway..."
+        if (!kafkaConnectReady) {
+            // Check if the container even exists — helps diagnose silent image build failures
+            def containerExists = ['bash', '-c',
+                "${engine} inspect kafka-connect >/dev/null 2>&1"].execute().waitFor() == 0
+            if (!containerExists) {
+                throw new GradleException(
+                    "kafka-connect container does not exist. Image build likely failed during 'podman-compose up'. " +
+                    "Run: cd local-development && podman-compose -f podman-compose.yml up -d kafka-connect")
+            }
+            println "WARNING: Kafka Connect REST not responding but container exists — deploy-connectors.sh will retry."
         }
 
         // Build Kafka Connect SMTs with Gradle

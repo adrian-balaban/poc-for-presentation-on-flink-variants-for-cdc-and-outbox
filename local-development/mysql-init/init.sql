@@ -1,8 +1,9 @@
 -- poc_db schema used by all 5 variants
 
 -- Grant binlog/CDC privileges to the flink user
-GRANT REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'flink'@'%';
-GRANT SELECT ON poc_db.* TO 'flink'@'%';
+-- RELOAD is required by Debezium for FLUSH TABLES WITH READ LOCK during snapshot
+GRANT REPLICATION SLAVE, REPLICATION CLIENT, RELOAD ON *.* TO 'flink'@'%';
+GRANT SELECT, LOCK TABLES ON poc_db.* TO 'flink'@'%';
 FLUSH PRIVILEGES;
 
 CREATE DATABASE IF NOT EXISTS poc_db;

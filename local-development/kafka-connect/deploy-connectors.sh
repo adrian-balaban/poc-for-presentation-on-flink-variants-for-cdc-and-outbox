@@ -6,7 +6,7 @@ CONNECTORS_DIR="$(dirname "$0")/connectors"
 # DB_HOST: hostname of MySQL as seen from inside the Kafka Connect container.
 # Defaults to "localhost" for Docker host-network mode; set to "mysql" for Podman bridge.
 DB_HOST="${DB_HOST:-localhost}"
-MAX_RETRIES=30
+MAX_RETRIES=90
 RETRY_DELAY=2
 
 wait_for_connect() {

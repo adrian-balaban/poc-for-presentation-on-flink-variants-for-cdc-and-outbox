@@ -2,6 +2,9 @@ package poc.kafka.connect;
 
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.ConnectRecord;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.json.JSONObject;
 
@@ -39,29 +42,37 @@ public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Trans
     public R apply(R record) {
         String destination = extractDestination(record.value());
         String targetTopic = topicPrefix + "." + destination;
+        Object enrichedValue = addRoutingMetadata(record.value(), destination, targetTopic);
 
-        return record.newRecord(
-            targetTopic,  // Route to destination-specific topic
-            null,         // Partition: let Kafka decide
-            record.keySchema(),
-            record.key(),
-            record.valueSchema(),
-            addRoutingMetadata(record.value(), destination, targetTopic),
-            record.timestamp()
-        );
+        Schema newSchema = (enrichedValue instanceof Struct)
+                ? ((Struct) enrichedValue).schema() : record.valueSchema();
+
+        return record.newRecord(targetTopic, null,
+                record.keySchema(), record.key(),
+                newSchema, enrichedValue, record.timestamp());
     }
 
     private String extractDestination(Object value) {
         if (value instanceof String) {
             try {
                 JSONObject obj = new JSONObject((String) value);
-                // For CDC events, payload is nested under 'after'
                 if (obj.has("after")) {
-                    JSONObject after = obj.getJSONObject("after");
-                    return after.optString(destinationField, DEFAULT_DESTINATION);
+                    return obj.getJSONObject("after").optString(destinationField, DEFAULT_DESTINATION);
                 }
-                // Fallback to top-level field
                 return obj.optString(destinationField, DEFAULT_DESTINATION);
+            } catch (Exception e) {
+                return DEFAULT_DESTINATION;
+            }
+        } else if (value instanceof Struct) {
+            try {
+                Struct struct = (Struct) value;
+                Struct after = (Struct) struct.get("after");
+                if (after != null) {
+                    Object dest = after.get(destinationField);
+                    return dest != null ? dest.toString() : DEFAULT_DESTINATION;
+                }
+                Object dest = struct.get(destinationField);
+                return dest != null ? dest.toString() : DEFAULT_DESTINATION;
             } catch (Exception e) {
                 return DEFAULT_DESTINATION;
             }
@@ -87,6 +98,26 @@ public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Trans
             } catch (Exception e) {
                 return value;
             }
+        } else if (value instanceof Struct) {
+            Struct original = (Struct) value;
+            Schema originalSchema = original.schema();
+            SchemaBuilder builder = SchemaBuilder.struct();
+            for (org.apache.kafka.connect.data.Field field : originalSchema.fields()) {
+                builder.field(field.name(), field.schema());
+            }
+            builder.field("_route_destination", Schema.OPTIONAL_STRING_SCHEMA);
+            builder.field("_route_topic", Schema.OPTIONAL_STRING_SCHEMA);
+            builder.field("_routed_at", Schema.OPTIONAL_INT64_SCHEMA);
+            Schema newSchema = builder.build();
+
+            Struct enriched = new Struct(newSchema);
+            for (org.apache.kafka.connect.data.Field field : originalSchema.fields()) {
+                enriched.put(field.name(), original.get(field));
+            }
+            enriched.put("_route_destination", destination);
+            enriched.put("_route_topic", topic);
+            enriched.put("_routed_at", System.currentTimeMillis());
+            return enriched;
         } else if (value instanceof Map) {
             Map<String, Object> map = (Map<String, Object>) value;
             map.put("_route_destination", destination);
