@@ -102,12 +102,12 @@ This creates `local-development/kafka-connect-smts/build/libs/kafka-connect-smts
 #### 2. Start Infrastructure
 
 ```bash
-cd docker
+cd local-development
 podman-compose -f podman-compose.yml up -d
 ```
 
 The `kafka-connect` service:
-1. Uses the pre-built `docker_kafka-connect` image (Debezium + SMT JARs)
+1. Uses the pre-built `local-development_kafka-connect` image (Debezium + SMT JARs)
 2. Starts Kafka Connect REST API on `http://localhost:8083`
 3. Waits for Kafka to be healthy
 
@@ -115,7 +115,7 @@ To rebuild the image after changing the SMT code:
 ```bash
 cd /path/to/flink-cdc-poc
 ./gradlew :kafka-connect-smts:shadowJar
-podman build -t docker_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
+podman build -t local-development_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
 ```
 
 #### 3. Deploy Connectors
@@ -160,17 +160,16 @@ Adds variant metadata to each CDC event.
 ```
 
 **What it does:**
-- Parses CDC JSON payload
-- Adds `variant` field with variant name
-- Adds `topic` field with full topic path
-- Adds `transformed_at` timestamp
+- Receives a Kafka Connect `Struct` from Debezium (JSON serialization happens after transforms)
+- Renames the Kafka topic from `{prefix}.{db}.{table}` (Debezium default) to `{prefix}.{table}` by reading `source.table` from the CDC envelope
+- Adds `variant`, `topic`, and `transformed_at` fields to the event envelope
 
-**Example output:**
+**Example output (after `JsonConverter` serializes the `Struct`):**
 ```json
 {
-  "before": {},
-  "after": {},
-  "source": {},
+  "before": null,
+  "after": {"id": 1, "customer_id": 42, "amount": "99.99", "status": "PENDING"},
+  "source": {"db": "poc_db", "table": "orders", ...},
   "variant": "datastream-cdc",
   "topic": "poc.cdc.datastream.orders",
   "transformed_at": 1718003400000
@@ -249,11 +248,15 @@ All connectors share these settings (with `database.hostname` substituted at dep
   "database.password": "flink",
   "snapshot.mode": "initial",
   "decimal.handling.mode": "string",
-  "include.schema.changes": false
+  "include.schema.changes": false,
+  "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
+  "schema.history.internal.kafka.topic": "dbhistory.<variant>"
 }
 ```
 
 The connector JSON files store `"database.hostname": "localhost"` as the canonical default. `deploy-connectors.sh` substitutes it with `$DB_HOST` before POSTing, so the same JSON works for any network topology.
+
+The `schema.history.internal.*` fields are required by Debezium 2.x to persist the MySQL DDL schema history in a dedicated Kafka topic (one per connector). The `database.user` needs `RELOAD` and `LOCK TABLES` privileges for the initial snapshot (`FLUSH TABLES WITH READ LOCK`).
 
 ### JSON Converter
 
@@ -301,7 +304,7 @@ podman logs kafka-connect | grep -iE 'EnrichmentTransform|NoClass|ClassNot|Unsup
 
 # Rebuild image with correct Java 11 SMT JAR:
 ./gradlew :kafka-connect-smts:shadowJar
-podman build -t docker_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
+podman build -t local-development_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
 ```
 
 ### Server ID collision

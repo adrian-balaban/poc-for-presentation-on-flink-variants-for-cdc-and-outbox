@@ -52,7 +52,7 @@ pip install podman-compose
 ### 1. Start infrastructure
 
 ```bash
-cd docker
+cd local-development
 podman-compose -f podman-compose.yml up -d
 ```
 
