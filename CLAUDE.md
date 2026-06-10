@@ -22,8 +22,8 @@ Requires Java 17. Gradle wrapper is included — no local Gradle install needed.
 The `all` task orchestrates a complete build-and-test cycle:
 
 1. **Builds all modules** — `./gradlew clean build -x test`
-2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d`
-3. **Waits for services** — polls MySQL + Kafka until healthy
+2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d` (`down` exit is ignored — "container not found" on first run is normal)
+3. **Waits for services** — polls MySQL + Kafka + Kafka Connect (up to 180 s)
 4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
 5. **Deploys Kafka Connect connectors** — REST API (with `DB_HOST=mysql` for bridge networking)
 6. **Runs component tests** — `./gradlew :component-tests:test`

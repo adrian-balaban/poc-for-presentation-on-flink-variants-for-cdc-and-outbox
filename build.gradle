@@ -81,6 +81,7 @@ tasks.register('all') { // buildAndTest
         println "=== Stopping and cleaning ${engine} stack ==="
         exec {
             commandLine 'bash', '-c', "cd local-development && ${composeDown}"
+            ignoreExitValue = true  // "container not found" on first run is not an error
         }
 
         println '=== Waiting 5 seconds before restart ==='

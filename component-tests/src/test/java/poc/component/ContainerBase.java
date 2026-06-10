@@ -44,8 +44,8 @@ public abstract class ContainerBase {
             }
         }
         Assumptions.assumeTrue(dockerAvailable,
-            "Docker containers (MySQL/Kafka) not available — skipping component tests. " +
-            "Run: cd docker && docker compose up -d");
+            "Podman stack (MySQL/Kafka) not available — skipping component tests. " +
+            "Run: cd local-development && podman-compose -f podman-compose.yml up -d");
     }
 
     private static boolean checkDockerConnectivity() {
