@@ -211,15 +211,15 @@ The custom SMTs are compiled with `targetCompatibility = VERSION_11` because `cp
 
 ## Server-ID Ranges
 
-Kafka Connect uses fixed server-IDs from the ranges reserved for each variant:
+Kafka Connect uses fixed server-IDs from the dedicated `5500–5599` range so the always-running connectors never collide with the Flink variants (which own `5600–6099`):
 
-| Connector | Server-ID | Range |
-|-----------|-----------|-------|
-| kc-outbox-cdc | 5600 | 5600–5699 |
-| kc-yaml-pipeline-cdc | 5700 | 5700–5709 |
-| kc-sql-api-cdc | 5800 | 5800–5899 |
-| kc-datastream-cdc | 5900 | 5900–5999 |
-| kc-table-api-cdc | 6000 | 6000–6099 |
+| Connector | Server-ID |
+|-----------|-----------|
+| kc-datastream-cdc | 5510 |
+| kc-table-api-cdc | 5520 |
+| kc-sql-api-cdc | 5530 |
+| kc-yaml-pipeline-cdc | 5540 |
+| kc-outbox-cdc | 5550 |
 
 ## Comparison with Flink Variants
 

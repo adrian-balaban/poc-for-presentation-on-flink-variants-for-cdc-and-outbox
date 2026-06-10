@@ -72,9 +72,9 @@ tasks.register('all') { // buildAndTest
         String composeDown = engine == 'podman' ? 'podman-compose -f podman-compose.yml down -v' : 'docker compose down -v --remove-orphans'
         println "=== Using container engine: ${engine} ==="
 
-        // Build all modules
+        // Build all modules, including the variant fat-jars the component tests submit
         exec {
-            commandLine './gradlew', 'clean', 'build', '-x', 'test'
+            commandLine './gradlew', 'clean', 'build', '-x', 'test', 'shadowJar'
         }
 
         // Restart the container stack with improved diagnostics

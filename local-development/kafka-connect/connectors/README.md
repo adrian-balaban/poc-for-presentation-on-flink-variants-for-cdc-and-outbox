@@ -6,13 +6,13 @@ These JSON files are deployed by `deploy-connectors.sh` (or `./gradlew all`).
 
 | File | Server-ID | Server-Name | Variant Name | Topic Prefix |
 |------|-----------|-------------|--------------|--------------|
-| kc-datastream-cdc.json | 5900 | mysql | datastream-cdc | poc.cdc.datastream |
-| kc-table-api-cdc.json | 6000 | mysql-tableapi | table-api-cdc | poc.cdc.tableapi |
-| kc-sql-api-cdc.json | 5800 | mysql-sqlapi | sql-api-cdc | poc.cdc.sqlapi |
-| kc-outbox-cdc.json | 5600 | mysql-outbox | outbox-cdc | poc.cdc.outbox |
-| kc-yaml-pipeline-cdc.json | 5700 | mysql-yaml | yaml-pipeline-cdc | poc.cdc.yaml |
+| kc-datastream-cdc.json | 5510 | mysql | datastream-cdc | poc.cdc.datastream |
+| kc-table-api-cdc.json | 5520 | mysql-tableapi | table-api-cdc | poc.cdc.tableapi |
+| kc-sql-api-cdc.json | 5530 | mysql-sqlapi | sql-api-cdc | poc.cdc.sqlapi |
+| kc-outbox-cdc.json | 5550 | mysql-outbox | outbox-cdc | poc.cdc.outbox |
+| kc-yaml-pipeline-cdc.json | 5540 | mysql-yaml | yaml-pipeline-cdc | poc.cdc.yaml |
 
-To add a new variant: copy an existing file, update the fields above, choose a server-ID from the reserved range, and register it in `CLAUDE.md`.
+To add a new variant: copy an existing file, update the fields above, choose an unused server-ID from the Kafka Connect range (5500–5599), and register it in `CLAUDE.md`.
 
 ## Common settings
 

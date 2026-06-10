@@ -21,7 +21,7 @@ Requires Java 17. Gradle wrapper is included — no local Gradle install needed.
 
 The `all` task orchestrates a complete build-and-test cycle:
 
-1. **Builds all modules** — `./gradlew clean build -x test`
+1. **Builds all modules** — `./gradlew clean build -x test shadowJar` (includes the variant fat-jars the component tests submit)
 2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d` (`down` exit is ignored — "container not found" on first run is normal)
 3. **Waits for services** — polls MySQL + Kafka + Kafka Connect (up to 180 s)
 4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
@@ -90,7 +90,7 @@ MySQL binlog is enabled via `--log-bin=mysql-bin --binlog-format=ROW --binlog-ro
 | variant-flink-sql-api-cdc-job | 5800–5899 |
 | variant-flink-datastream-api-v1-cdc-job | 5900–5999 |
 | variant-flink-table-api-cdc-job | 6000–6099 |
-| _reserved_ | 5500–5599 |
+| Kafka Connect connectors (kc-*) | 5500–5599 |
 
 Ranges must be non-overlapping because Flink CDC 3.x incremental snapshot allocates IDs for parallel readers and restart attempts. A single ID collides on restart because the previous MySQL binlog lease hasn't expired.
 
@@ -143,18 +143,18 @@ Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert K
 | `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 5900–5999 (JM env default) | `poc.cdc.datastream` | ✅ PASS |
 | `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (hardcoded in DDL) | `poc.cdc.table-api` | ✅ PASS |
 | `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (hardcoded in DDL) | `poc.cdc.sql-api.orders` | ✅ PASS |
-| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5900–5999 (JM env default) | `poc.cdc.outbox` | ✅ PASS |
+| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5600–5699 (hardcoded in entry class) | `poc.cdc.outbox` | ✅ PASS |
 | `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.cdc.yaml.orders` | ✅ PASS |
 
 ### Kafka Connect Variants
 
 | Test class | Variant | Server-ID | Status |
 |---|---|---|---|
-| `KafkaConnectDataStreamTest` | kc-datastream-cdc | 5900 | ✅ PASS |
-| `KafkaConnectTableApiTest` | kc-table-api-cdc | 6000 | ✅ PASS |
-| `KafkaConnectSqlApiTest` | kc-sql-api-cdc | 5800 | ✅ PASS |
-| `KafkaConnectOutboxTest` | kc-outbox-cdc | 5600 | ✅ PASS |
-| `KafkaConnectYamlPipelineTest` | kc-yaml-pipeline-cdc | 5700 | ✅ PASS |
+| `KafkaConnectDataStreamTest` | kc-datastream-cdc | 5510 | ✅ PASS |
+| `KafkaConnectTableApiTest` | kc-table-api-cdc | 5520 | ✅ PASS |
+| `KafkaConnectSqlApiTest` | kc-sql-api-cdc | 5530 | ✅ PASS |
+| `KafkaConnectOutboxTest` | kc-outbox-cdc | 5550 | ✅ PASS |
+| `KafkaConnectYamlPipelineTest` | kc-yaml-pipeline-cdc | 5540 | ✅ PASS |
 
 **Stack availability:**
 - If Podman stack is running (MySQL + Kafka + Flink JM): tests pass (✅ green in VS Code)
@@ -162,7 +162,7 @@ Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert K
 - If Flink JM is not available: Flink tests skip gracefully
 - If Kafka Connect is not available: Kafka Connect tests skip gracefully
 
-**Note:** Flink jobs submitted by component tests are **not cancelled** after the test — they remain visible at http://localhost:8081/#/job/running for the lifetime of the stack. `DataStreamCdcTest` and `DataStreamOutboxTest` both use server-ID range `5900–5999` (JobConfig default in flink-jm env); they run sequentially so there is no simultaneous MySQL replica ID conflict.
+**Note:** Flink jobs submitted by component tests are **not cancelled** after the test — they remain visible at http://localhost:8081/#/job/running for the lifetime of the stack. Because all 5 Flink jobs and all 5 Kafka Connect connectors run **simultaneously**, every consumer needs its own server-ID range: the Kafka Connect connectors use the dedicated `5500–5599` range, and `OutboxJob` hardcodes `5600–5699` instead of sharing the `MYSQL_SERVER_ID` default (`5900–5999`) with `DataStreamCdcJob`.
 
 ## Production Deployment
 

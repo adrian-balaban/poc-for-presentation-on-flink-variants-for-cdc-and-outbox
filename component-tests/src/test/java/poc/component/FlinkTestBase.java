@@ -60,6 +60,6 @@ abstract class FlinkTestBase extends ContainerBase {
     /** Resolve the fat-jar path for a variant module relative to the root project dir. */
     protected static Path jarPath(String moduleName) {
         String rootDir = System.getProperty("rootProjectDir", ".");
-        return Paths.get(rootDir, moduleName, "build", "libs", moduleName + ".jar");
+        return Paths.get(rootDir, moduleName, "build", "libs", moduleName + "-all.jar");
     }
 }

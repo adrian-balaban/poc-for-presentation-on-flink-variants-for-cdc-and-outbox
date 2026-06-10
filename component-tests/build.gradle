@@ -29,6 +29,12 @@ dependencies {
 
 test {
     useJUnitPlatform()
+
+    // Flink tests upload these fat-jars to the JobManager — make sure they exist and are fresh
+    dependsOn ':variant-flink-datastream-api-v1-cdc-job:shadowJar'
+    dependsOn ':variant-flink-table-api-cdc-job:shadowJar'
+    dependsOn ':variant-flink-sql-api-cdc-job:shadowJar'
+    dependsOn ':variant-flink-datastream-api-v1-outbox-job:shadowJar'
     testLogging {
         events 'started', 'passed', 'skipped', 'failed'
         exceptionFormat 'full'

@@ -32,7 +32,9 @@ public class OutboxJob {
             .username(config.mysqlUser)
             .password(config.mysqlPassword)
             .serverTimeZone("UTC")
-            .serverId(config.serverId)
+            // Own range, not config.serverId: the shared MYSQL_SERVER_ID default (5900-5999)
+            // belongs to the DataStream CDC job, which runs on the same JM at the same time
+            .serverId("5600-5699")
             .deserializer(new PocJsonDeserializationSchema())
             .build();
 

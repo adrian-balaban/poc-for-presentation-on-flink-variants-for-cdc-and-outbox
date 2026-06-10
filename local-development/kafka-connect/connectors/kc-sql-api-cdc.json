@@ -6,7 +6,7 @@
     "database.port": 3306,
     "database.user": "flink",
     "database.password": "flink",
-    "database.server.id": "5800",
+    "database.server.id": "5530",
     "database.server.name": "mysql-sqlapi",
     "database.include.list": "poc_db",
     "table.include.list": "poc_db.orders,poc_db.customers,poc_db.products",

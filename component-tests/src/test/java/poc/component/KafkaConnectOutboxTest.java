@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Verifies: MySQL outbox_events → Debezium connector → OutboxRoutingTransform SMT
  * → dynamic topic routing (poc.cdc.outbox.<destination>).
  *
- * Server-ID 5600 is reserved for kc-outbox-cdc connector.
+ * Server-ID 5550 is reserved for kc-outbox-cdc connector.
  */
 @Slf4j
 @DisplayName("Kafka Connect Outbox CDC Test")
@@ -79,7 +79,7 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
                 "database.port": 3306,
                 "database.user": "flink",
                 "database.password": "flink",
-                "database.server.id": "5600",
+                "database.server.id": "5550",
                 "database.server.name": "mysql-outbox",
                 "database.include.list": "poc_db",
                 "table.include.list": "poc_db.outbox_events",
