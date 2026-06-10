@@ -47,11 +47,27 @@ main() {
         exit 1
     fi
 
+    # Deploy connectors in parallel to save time
+    local pids=()
     for connector_file in "$CONNECTORS_DIR"/*.json; do
         if [ -f "$connector_file" ]; then
-            deploy_connector "$connector_file"
+            deploy_connector "$connector_file" &
+            pids+=($!)
         fi
     done
+
+    # Wait for all deployments to complete
+    local failed=0
+    for pid in "${pids[@]}"; do
+        if ! wait "$pid"; then
+            ((failed++))
+        fi
+    done
+
+    if [ $failed -gt 0 ]; then
+        echo "✗ $failed connector(s) failed to deploy"
+        exit 1
+    fi
 
     echo "=== Deployment Complete ==="
     echo "Connectors status: $CONNECT_URL/connectors"

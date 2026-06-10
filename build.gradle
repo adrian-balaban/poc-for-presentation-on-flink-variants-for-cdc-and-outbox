@@ -55,15 +55,21 @@ tasks.register('all') { // buildAndTest
     description = 'Build all, restart the container stack (Podman or Docker), and run component tests'
 
     doLast {
-        // Detect the container engine — prefer Podman, fall back to Docker.
-        boolean hasPodman = false
-        try {
-            hasPodman = ['bash', '-c', 'command -v podman-compose >/dev/null 2>&1'].execute().waitFor() == 0
-        } catch (Exception ignored) { }
+        // Determine container engine from gradle.properties (or auto-detect)
+        String configEngine = project.findProperty('container.engine') ?: 'auto'
+        String engine = configEngine
 
-        String engine      = hasPodman ? 'podman' : 'docker'
-        String composeUp   = hasPodman ? 'podman-compose -f podman-compose.yml up -d'   : 'docker compose up -d'
-        String composeDown = hasPodman ? 'podman-compose -f podman-compose.yml down -v' : 'docker compose down -v --remove-orphans'
+        if (engine == 'auto') {
+            // Auto-detect: prefer Podman, fall back to Docker
+            boolean hasPodman = false
+            try {
+                hasPodman = ['bash', '-c', 'command -v podman-compose >/dev/null 2>&1'].execute().waitFor() == 0
+            } catch (Exception ignored) { }
+            engine = hasPodman ? 'podman' : 'docker'
+        }
+
+        String composeUp   = engine == 'podman' ? 'podman-compose -f podman-compose.yml up -d'   : 'docker compose up -d'
+        String composeDown = engine == 'podman' ? 'podman-compose -f podman-compose.yml down -v' : 'docker compose down -v --remove-orphans'
         println "=== Using container engine: ${engine} ==="
 
         // Build all modules
@@ -94,9 +100,11 @@ tasks.register('all') { // buildAndTest
         boolean ready = false
         while (elapsed < maxWait) {
             try {
-                def mysqlOk = "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink".execute().waitFor() == 0
-                def kafkaOk = "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092".execute().waitFor() == 0
-                if (mysqlOk && kafkaOk) {
+                // Merge health checks into single command for efficiency
+                def health = ("${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink && " +
+                              "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092")
+                    .execute().waitFor() == 0
+                if (health) {
                     println "✓ MySQL and Kafka are ready!"
                     ready = true
                     break
