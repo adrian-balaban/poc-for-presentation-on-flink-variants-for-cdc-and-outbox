@@ -2,7 +2,7 @@
 
 ## What this project is
 
-A 5-variant Gradle multi-project POC demonstrating Apache Flink MySQL CDC as a replacement for Kafka Connect CDC connectors. Each subproject is one variant; all share the `common` module and the same Docker infra.
+A 5-variant Gradle multi-project POC demonstrating Apache Flink MySQL CDC as a replacement for Kafka Connect CDC connectors. Each subproject is one variant; all share the `common` module and the same Podman infra.
 
 ## Build
 
@@ -10,21 +10,23 @@ A 5-variant Gradle multi-project POC demonstrating Apache Flink MySQL CDC as a r
 ./gradlew shadowJar          # build all fat-jars
 ./gradlew :variant-flink-datastream-api-v1-cdc-job:shadowJar   # single variant
 ./gradlew test               # run all tests (unit + component)
-./gradlew all                # build all, restart Docker Compose, run component tests
+./gradlew all                # build all, restart Podman Compose, run component tests
 ```
 
 Requires Java 17. Gradle wrapper is included — no local Gradle install needed.
 
-**Note:** Component tests require Docker to be running (`cd docker && docker compose up -d`). If Docker is unavailable, component tests are skipped gracefully (shown as yellow ⭕ in test explorer).
+**Note:** Component tests require Podman to be running (`cd docker && podman-compose -f podman-compose.yml up -d`). If the stack is unavailable, component tests are skipped gracefully (shown as yellow ⭕ in test explorer).
 
 ### Full Integration Test (all)
 
 The `all` task orchestrates a complete build-and-test cycle:
 
 1. **Builds all modules** — `./gradlew clean build -x test`
-2. **Restarts Docker Compose** — `cd docker && docker compose down && docker compose up -d`
-3. **Waits for services** — 5-second pause to allow Docker containers to start
-4. **Runs component tests** — `./gradlew :component-tests:test`
+2. **Restarts Podman Compose** — `cd docker && podman-compose -f podman-compose.yml down -v && ... up -d`
+3. **Waits for services** — polls MySQL + Kafka until healthy
+4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
+5. **Deploys Kafka Connect connectors** — REST API (with `DB_HOST=mysql` for bridge networking)
+6. **Runs component tests** — `./gradlew :component-tests:test`
 
 Usage:
 ```bash
@@ -44,6 +46,8 @@ The task runs all steps sequentially, stopping on any failure. Useful for CI/CD 
 
 All subproject `build.gradle` files reference these via `rootProject.ext.*` — never hardcode versions in subprojects.
 
+**Java versions:** Flink job modules target Java 17. `kafka-connect-smts` targets Java 11 — `cp-kafka-connect:7.6.1` ships JDK 11 and refuses class files compiled for 17.
+
 ## Module map
 
 | Module | Entry class | Notes |
@@ -57,21 +61,15 @@ All subproject `build.gradle` files reference these via `rootProject.ext.*` — 
 
 ## Local infra
 
-**Docker (default):**
 ```bash
-cd docker && docker compose up -d    # MySQL + Kafka + Flink JM+TM + Kafka UI
-cd docker && docker compose down     # tear down (data lost)
-```
-
-**Podman (alternative):**
-```bash
-cd docker && podman-compose -f podman-compose.yml up -d
-cd docker && podman-compose -f podman-compose.yml down -v
+cd docker && podman-compose -f podman-compose.yml up -d    # MySQL + Kafka + Flink JM+TM + Kafka Connect + Kafka UI
+cd docker && podman-compose -f podman-compose.yml down -v  # tear down (data lost)
 ```
 
 Services:
 - Flink Dashboard: http://localhost:8081
 - Kafka UI:        http://localhost:8080
+- Kafka Connect:   http://localhost:8083
 - MySQL:           localhost:3306  user=flink  password=flink  db=poc_db
 
 MySQL binlog is enabled via `--log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL`.
@@ -81,7 +79,7 @@ MySQL binlog is enabled via `--log-bin=mysql-bin --binlog-format=ROW --binlog-ro
 1. Create `variant-<name>/build.gradle` — apply shadow plugin, depend on `:common`, add CDC deps
 2. Add entry class under `src/main/java/poc/<name>/`
 3. Register in `settings.gradle`: `include 'variant-<name>'`
-4. Assign a non-overlapping MySQL server-ID range (see table below) and document it in `docker-compose.yml`
+4. Assign a non-overlapping MySQL server-ID range (see table below) and document it in `podman-compose.yml`
 
 ## Server-ID ranges (do not overlap)
 
@@ -98,7 +96,7 @@ Ranges must be non-overlapping because Flink CDC 3.x incremental snapshot alloca
 
 ## Configuration
 
-All variants read from env vars via `poc.common.config.JobConfig.fromEnv()`. Defaults work against the Docker Compose setup without any extra config.
+All variants read from env vars via `poc.common.config.JobConfig.fromEnv()`. Defaults work against the Podman Compose setup without any extra config.
 
 Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_TABLES`, `MYSQL_SERVER_ID`, `KAFKA_BOOTSTRAP`, `KAFKA_TOPIC_PREFIX`.
 
@@ -108,23 +106,22 @@ Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DAT
 - Do not reuse server-ID ranges across variants — MySQL will reject duplicate replica IDs
 - Do not leave `upgradeMode: stateless` permanently in Flink deployments — every restart would re-snapshot the full table
 - Variant 5 (YAML Pipeline) has no Maven shade module — do not add Java sources to it; it is intentionally zero-code
-- When using Podman: use `podman-compose.yml` (not `docker-compose.yml`) — it has bridge networking + rootless-compatible volume flags
+- Do not compile `kafka-connect-smts` for Java 17 — `cp-kafka-connect:7.6.1` runs Java 11 and refuses class files with major version 61 (`UnsupportedClassVersionError`); keep `sourceCompatibility = VERSION_11` in that subproject
+- When deploying Kafka Connect connectors on Podman bridge, pass `DB_HOST=mysql` to `deploy-connectors.sh` — the Connect container cannot reach MySQL via `localhost`; `./gradlew all` does this automatically
 - When using Podman from a snap-installed VS Code: the snap overrides `XDG_DATA_HOME`, which splits podman storage between VS Code terminals (`~/snap/code/<rev>/.local/share/containers`) and the rest of the system (`~/.local/share/containers`). Symptoms: healthchecks stuck in `(starting)` forever, compose app invisible outside VS Code, stale aardvark-dns entries causing "No route to host" between containers. Fix: pin `graphroot` in `~/.config/containers/storage.conf` (already done on this machine)
 
 ## Component tests
 
-Each Flink variant and Kafka Connect variant has corresponding component tests in the `component-tests` subproject. Tests connect to existing Docker infrastructure (MySQL + Kafka) and run Flink in an embedded local cluster or connect to Kafka Connect REST API.
+Each Flink variant and Kafka Connect variant has corresponding component tests in the `component-tests` subproject. Tests connect to existing Podman infrastructure (MySQL + Kafka) and run Flink in an embedded local cluster or connect to Kafka Connect REST API.
 
 **Prerequisites:**
 ```bash
-cd docker && docker compose up -d    # Start MySQL, Kafka, etc.
-# For Kafka Connect tests only:
-cd docker/kafka-connect && ./build-and-deploy.sh
+cd docker && podman-compose -f podman-compose.yml up -d
 ```
 
 **Run tests:**
 ```bash
-# All tests (unit + component) — component tests auto-skip if Docker unavailable
+# All tests (unit + component) — component tests auto-skip if stack unavailable
 ./gradlew test
 
 # Component tests only
@@ -133,7 +130,7 @@ cd docker/kafka-connect && ./build-and-deploy.sh
 # Single component test
 ./gradlew :component-tests:test --tests "poc.component.DataStreamCdcTest"
 
-# Or run everything (all Flink, Kafka Connect, components, restarts Docker):
+# Or run everything (all Flink, Kafka Connect, components, restarts Podman stack):
 ./gradlew all
 ```
 
@@ -159,9 +156,9 @@ cd docker/kafka-connect && ./build-and-deploy.sh
 
 The 7000–7099 block is reserved exclusively for Flink component tests (not in production ranges above).
 
-**Docker availability:**
-- If Docker is running: tests pass (✅ green in VS Code)
-- If Docker is stopped: tests skip gracefully (⭕ yellow in VS Code)
+**Stack availability:**
+- If Podman stack is running: tests pass (✅ green in VS Code)
+- If Podman stack is stopped: tests skip gracefully (⭕ yellow in VS Code)
 - If Kafka Connect is not available: Kafka Connect tests skip gracefully
 
 ## Production Deployment
@@ -174,15 +171,14 @@ In addition to Flink variants, this POC includes **Kafka Connect** versions of a
 
 **Quick start:**
 ```bash
-cd docker/kafka-connect
-./build-and-deploy.sh
+./gradlew all
 ```
 
 **What's included:**
 - 5 connectors mirroring Flink variants (DataStream, Table API, SQL API, Outbox, YAML Pipeline)
 - Custom SMT code for enrichment and dynamic topic routing
-- Maven project for building SMT JARs
-- Deployment script with health checks
+- Gradle project for building SMT JARs (Java 11 target)
+- Deployment script with health checks and bridge-network hostname support
 - Unit tests for transformations
 
 **Key differences from Flink:**

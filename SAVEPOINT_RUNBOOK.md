@@ -9,7 +9,7 @@ This guide explains how to manage savepoints for safe job upgrades and state rec
 | Task | Command |
 |------|---------|
 | Create savepoint | `flink savepoint <JOB_ID> /path/to/savepoint` |
-| List running jobs | `docker exec flink-jm flink list` |
+| List running jobs | `podman exec flink-jm flink list` |
 | Stop job with savepoint | `flink stop --savepointPath /path/to/savepoint <JOB_ID>` |
 | Resume from savepoint | `flink run -s /path/to/savepoint fat-jar.jar` |
 
@@ -53,7 +53,7 @@ This guide explains how to manage savepoints for safe job upgrades and state rec
 
 ```bash
 # Find the job ID
-docker exec flink-jm flink list
+podman exec flink-jm flink list
 # Output:
 # 261859e8faa1bcc88ef0c282e2d4f76c : Flink DataStream API v.1 CDC Job (RUNNING)
 
@@ -61,7 +61,7 @@ JOB_ID="261859e8faa1bcc88ef0c282e2d4f76c"
 SAVEPOINT_DIR="/tmp/savepoint-2026-06-08"
 
 # Create savepoint (takes 10-30s, waits for next checkpoint)
-docker exec flink-jm flink savepoint "$JOB_ID" "$SAVEPOINT_DIR"
+podman exec flink-jm flink savepoint "$JOB_ID" "$SAVEPOINT_DIR"
 
 # Output: Savepoint completed. Path: file:///tmp/savepoint-2026-06-08
 ```
@@ -76,10 +76,10 @@ docker exec flink-jm flink savepoint "$JOB_ID" "$SAVEPOINT_DIR"
 
 ```bash
 # Check savepoint exists in JM container
-docker exec flink-jm ls -la /tmp/savepoint-2026-06-08
+podman exec flink-jm ls -la /tmp/savepoint-2026-06-08
 
 # Inspect savepoint metadata
-docker exec flink-jm cat /tmp/savepoint-2026-06-08/_metadata
+podman exec flink-jm cat /tmp/savepoint-2026-06-08/_metadata
 ```
 
 ### Phase 3: Cancel Job Cleanly
@@ -87,10 +87,10 @@ docker exec flink-jm cat /tmp/savepoint-2026-06-08/_metadata
 ```bash
 # Stop job, then cancel with the savepoint reference
 # (optional: if you want to save state from final seconds)
-docker exec flink-jm flink cancel "$JOB_ID"
+podman exec flink-jm flink cancel "$JOB_ID"
 
 # Verify job is FINISHED
-docker exec flink-jm flink list
+podman exec flink-jm flink list
 ```
 
 ### Phase 4: Deploy New Version
@@ -101,7 +101,7 @@ cd /home/adrianb/_/claude/WIP-prezentare26062026/flink-cdc-poc
 ./gradlew :variant-flink-datastream-api-v1-cdc-job:shadowJar
 
 # Copy updated JAR to Flink container
-docker cp variant-flink-datastream-api-v1-cdc-job/build/libs/variant-flink-datastream-api-v1-cdc-job.jar \
+podman cp variant-flink-datastream-api-v1-cdc-job/build/libs/variant-flink-datastream-api-v1-cdc-job.jar \
   flink-jm:/opt/flink/jobs/
 ```
 
@@ -112,12 +112,12 @@ JOB_JAR="/opt/flink/jobs/variant-flink-datastream-api-v1-cdc-job.jar"
 SAVEPOINT_PATH="file:///tmp/savepoint-2026-06-08"
 
 # Submit job restoring from savepoint
-docker exec flink-jm flink run \
+podman exec flink-jm flink run \
   -s "$SAVEPOINT_PATH" \
   "$JOB_JAR"
 
 # Verify job is RUNNING
-docker exec flink-jm flink list
+podman exec flink-jm flink list
 ```
 
 **What happens:**
@@ -137,15 +137,15 @@ docker exec flink-jm flink list
 
 ```bash
 # Create savepoint (preserves all state)
-docker exec flink-jm flink savepoint <JOB_ID> /tmp/sp-memory
+podman exec flink-jm flink savepoint <JOB_ID> /tmp/sp-memory
 
 # Stop job
-docker exec flink-jm flink cancel <JOB_ID>
+podman exec flink-jm flink cancel <JOB_ID>
 
 # (Fix code, rebuild, deploy)
 
 # Resume from savepoint — job picks up exactly where it left off
-docker exec flink-jm flink run -s file:///tmp/sp-memory upgraded-job.jar
+podman exec flink-jm flink run -s file:///tmp/sp-memory upgraded-job.jar
 ```
 
 ### Scenario 2: Data Corruption in Kafka Sink
@@ -156,13 +156,13 @@ docker exec flink-jm flink run -s file:///tmp/sp-memory upgraded-job.jar
 ```bash
 # Don't create a new savepoint — use previous one
 # List checkpoints written before corruption
-docker exec flink-jm find /tmp -name "savepoint-*" -mtime -1
+podman exec flink-jm find /tmp -name "savepoint-*" -mtime -1
 
 # Cancel current job (don't save state)
-docker exec flink-jm flink cancel <JOB_ID>
+podman exec flink-jm flink cancel <JOB_ID>
 
 # Resume from clean savepoint (resets job to that point in time)
-docker exec flink-jm flink run -s file:///tmp/savepoint-2026-06-07 job.jar
+podman exec flink-jm flink run -s file:///tmp/savepoint-2026-06-07 job.jar
 
 # Kafka sink will re-emit records — exactly-once semantics prevent duplicates
 ```
@@ -174,14 +174,14 @@ docker exec flink-jm flink run -s file:///tmp/savepoint-2026-06-07 job.jar
 
 ```bash
 # Create savepoint with current parallelism
-docker exec flink-jm flink savepoint <JOB_ID> /tmp/sp-scale
+podman exec flink-jm flink savepoint <JOB_ID> /tmp/sp-scale
 
 # Cancel job
-docker exec flink-jm flink cancel <JOB_ID>
+podman exec flink-jm flink cancel <JOB_ID>
 
 # Submit same job with increased parallelism
 # (Edit MySQL CDC source to use broader server-ID range, e.g., 5900-5949 for 2 readers)
-docker exec flink-jm flink run \
+podman exec flink-jm flink run \
   -s file:///tmp/sp-scale \
   -p 2 \
   scaled-job.jar
@@ -200,7 +200,7 @@ docker exec flink-jm flink run \
 /tmp/savepoint-<timestamp>
 
 # Or bind-mount to host for persistence
-docker compose exec -it flink-jm bash
+podman exec -it flink-jm bash
 mkdir -p /checkpoints
 flink savepoint <JOB_ID> /checkpoints/sp-2026-06-08
 ```
@@ -222,10 +222,10 @@ flink savepoint <JOB_ID> s3://my-bucket/flink/savepoints/sp-2026-06-08
 
 ```bash
 # Job 1 started with server-id: 5900-5999
-docker exec flink-jm flink run job-v1.jar
+podman exec flink-jm flink run job-v1.jar
 
 # Later, restart with different server-id: 5800-5899
-docker exec flink-jm flink run job-v2.jar
+podman exec flink-jm flink run job-v2.jar
 # MySQL binlog leases still hold 5900-5999
 # New job claims 5800-5899 → OK, different ranges
 ```
@@ -234,10 +234,10 @@ docker exec flink-jm flink run job-v2.jar
 
 ```bash
 # Create savepoint (savepoint includes server-id range metadata)
-docker exec flink-jm flink savepoint <JOB_ID> /tmp/sp-1
+podman exec flink-jm flink savepoint <JOB_ID> /tmp/sp-1
 
 # Resume from savepoint — same server-id range is used automatically
-docker exec flink-jm flink run -s /tmp/sp-1 upgraded.jar
+podman exec flink-jm flink run -s /tmp/sp-1 upgraded.jar
 ```
 
 **Key rule:** If using savepoints, let Flink manage server-IDs. The savepoint metadata ensures the same range is used on resume.
@@ -250,14 +250,14 @@ docker exec flink-jm flink run -s /tmp/sp-1 upgraded.jar
 
 ```bash
 # Make sure path exists in JM container
-docker exec flink-jm test -f /tmp/savepoint-2026-06-08/_metadata
+podman exec flink-jm test -f /tmp/savepoint-2026-06-08/_metadata
 
 # If missing, check:
 # 1. Was savepoint actually created? (check JM logs)
-docker logs flink-jm | grep -i savepoint
+podman logs flink-jm | grep -i savepoint
 
 # 2. Did filesystem get wiped? (containers lost on down/up)
-docker compose down  # ← Data in /tmp is lost
+podman-compose -f podman-compose.yml down  # ← Data in /tmp is lost
 ```
 
 ### Issue: "Cannot restore from savepoint — job configuration mismatch"
@@ -267,7 +267,7 @@ docker compose down  # ← Data in /tmp is lost
 # If you added a new MySQL source table, that's incompatible
 
 # Solution: Create a fresh job, don't restore savepoint
-docker exec flink-jm flink run new-job.jar
+podman exec flink-jm flink run new-job.jar
 ```
 
 ### Issue: "Job slow to cancel with savepoint"
@@ -275,7 +275,7 @@ docker exec flink-jm flink run new-job.jar
 ```bash
 # Savepoint waits for current checkpoint to finish
 # Check if checkpoint is stuck
-docker exec flink-jm tail -100f /opt/flink/log/*.log | grep -i checkpoint
+podman exec flink-jm tail -100f /opt/flink/log/*.log | grep -i checkpoint
 
 # Increase checkpoint timeout if needed
 # (see SAVEPOINT_TIMEOUT in job config)

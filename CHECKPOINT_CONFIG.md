@@ -136,7 +136,7 @@ curl http://localhost:8081/jobs/<JOB_ID>/checkpoints
 ### Via JM Logs
 
 ```bash
-docker exec flink-jm tail -f /opt/flink/log/flink-<user>-jobmanager-*.log | grep -i checkpoint
+podman exec flink-jm tail -f /opt/flink/log/flink-<user>-jobmanager-*.log | grep -i checkpoint
 ```
 
 ---
@@ -169,13 +169,13 @@ docker exec flink-jm tail -f /opt/flink/log/flink-<user>-jobmanager-*.log | grep
 **Solutions:**
 ```bash
 # Check job logs
-docker logs flink-jm | grep -i "checkpoint\|timeout"
+podman logs flink-jm | grep -i "checkpoint\|timeout"
 
 # Force cancel job
-docker exec flink-jm flink cancel <JOB_ID>
+podman exec flink-jm flink cancel <JOB_ID>
 
 # Investigate root cause (MySQL, Kafka, network)
-docker exec mysql mysql -u flink -pflink -e "SHOW SLAVE STATUS\G"
+podman exec mysql mysql -u flink -pflink -e "SHOW SLAVE STATUS\G"
 ```
 
 ### Duplicate Messages After Recovery
