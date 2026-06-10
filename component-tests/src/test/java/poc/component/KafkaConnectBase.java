@@ -1,6 +1,7 @@
 package poc.component;
 
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Assumptions;
 
@@ -9,6 +10,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URI;
 import java.time.Duration;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for Kafka Connect component tests.
@@ -107,5 +110,55 @@ public abstract class KafkaConnectBase extends ContainerBase {
             Thread.sleep(1000);
         }
         throw new RuntimeException("Connector " + connectorName + " did not reach RUNNING state");
+    }
+
+    /**
+     * Build Debezium connector config with variant-specific parameters.
+     * Reduces copy-paste of JSON config across test classes.
+     */
+    protected static String buildDebeziumConnectorConfig(
+            String connectorName, String serverId, String serverName,
+            String tableList, String variantName, String topicPrefix) {
+        return String.format("""
+            {
+              "name": "%s",
+              "config": {
+                "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+                "database.hostname": "localhost",
+                "database.port": 3306,
+                "database.user": "flink",
+                "database.password": "flink",
+                "database.server.id": "%s",
+                "database.server.name": "%s",
+                "database.include.list": "poc_db",
+                "table.include.list": "%s",
+                "snapshot.mode": "initial",
+                "transforms": "enrichment",
+                "transforms.enrichment.type": "poc.kafka.connect.EnrichmentTransform",
+                "transforms.enrichment.variant.name": "%s",
+                "transforms.enrichment.topic.prefix": "%s",
+                "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+                "key.converter.schemas.enable": false,
+                "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+                "value.converter.schemas.enable": false,
+                "decimal.handling.mode": "string",
+                "include.schema.changes": false,
+                "topic.prefix": "%s"
+              }
+            }
+            """, connectorName, serverId, serverName, tableList, variantName, topicPrefix, topicPrefix);
+    }
+
+    /**
+     * Assert enrichment metadata on Kafka Connect output.
+     * Reduces duplicate assertions across test classes.
+     */
+    protected static void assertEnrichmentMetadata(
+            String message, String jsonValue, String expectedVariant, String topicPrefix) {
+        assertThat(message).isNotEmpty();
+        JSONObject obj = new JSONObject(message);
+        assertThat(obj.optString("variant")).as("variant field").isEqualTo(expectedVariant);
+        assertThat(obj.optString("topic")).as("topic field").contains(topicPrefix);
+        assertThat(obj.has("transformed_at")).as("transformed_at field present").isTrue();
     }
 }

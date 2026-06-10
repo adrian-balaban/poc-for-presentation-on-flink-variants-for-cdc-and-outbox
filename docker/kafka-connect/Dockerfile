@@ -1,9 +1,7 @@
 FROM docker.io/confluentinc/cp-kafka-connect:7.6.1
 
-# Install Debezium MySQL connector and verify installation
-RUN confluent-hub install --no-prompt debezium/debezium-connector-mysql:latest && \
-    echo "Debezium installation completed" && \
-    ls -la /usr/share/confluent-hub-components/ || echo "confluent-hub-components may be empty"
+# Install Debezium MySQL connector
+RUN confluent-hub install --no-prompt debezium/debezium-connector-mysql:latest
 
 # Copy custom SMT JARs (built with gradle shadowJar)
 COPY kafka-connect-smts/build/libs/kafka-connect-smts-*-with-deps.jar /usr/share/java/custom-smts/

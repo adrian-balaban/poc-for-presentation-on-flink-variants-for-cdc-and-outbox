@@ -1,0 +1,160 @@
+
+> Task :all
+=== Using container engine: podman ===
+Starting a Gradle Daemon, 1 busy and 1 incompatible and 3 stopped Daemons could not be reused, use --status for details
+> Task :common:clean
+> Task :component-tests:clean
+> Task :kafka-connect-smts:clean
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:clean
+> Task :variant-flink-datastream-api-v1-cdc-job:clean
+> Task :variant-flink-datastream-api-v1-outbox-job:clean
+> Task :variant-flink-sql-api-cdc-job:clean
+> Task :variant-flink-table-api-cdc-job:clean
+> Task :common:compileJava
+> Task :common:processResources NO-SOURCE
+> Task :common:classes
+> Task :common:jar
+> Task :common:assemble
+> Task :common:jacocoTestReport SKIPPED
+> Task :common:jacocoTestCoverageVerification SKIPPED
+> Task :common:check
+> Task :common:build
+> Task :component-tests:compileJava NO-SOURCE
+> Task :component-tests:processResources NO-SOURCE
+> Task :component-tests:classes UP-TO-DATE
+> Task :component-tests:jar
+> Task :component-tests:assemble
+> Task :component-tests:check
+> Task :component-tests:build
+
+> Task :kafka-connect-smts:compileJava
+
+> Task :kafka-connect-smts:processResources NO-SOURCE
+> Task :kafka-connect-smts:classes
+> Task :kafka-connect-smts:jar
+> Task :kafka-connect-smts:assemble
+> Task :kafka-connect-smts:check
+> Task :kafka-connect-smts:build
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:compileJava NO-SOURCE
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:processResources
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:classes
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:jar
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:assemble
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:check
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:packagePipeline
+> Task :variant-flink-cdc-yaml-pipeline-cdc-job:build
+
+> Task :variant-flink-datastream-api-v1-cdc-job:compileJava
+
+> Task :variant-flink-datastream-api-v1-cdc-job:processResources NO-SOURCE
+> Task :variant-flink-datastream-api-v1-cdc-job:classes
+> Task :variant-flink-datastream-api-v1-cdc-job:jar
+> Task :variant-flink-datastream-api-v1-cdc-job:assemble
+> Task :variant-flink-datastream-api-v1-cdc-job:jacocoTestReport SKIPPED
+> Task :variant-flink-datastream-api-v1-cdc-job:jacocoTestCoverageVerification SKIPPED
+> Task :variant-flink-datastream-api-v1-cdc-job:check
+> Task :variant-flink-datastream-api-v1-cdc-job:build
+
+> Task :variant-flink-datastream-api-v1-outbox-job:compileJava
+
+> Task :variant-flink-datastream-api-v1-outbox-job:processResources NO-SOURCE
+> Task :variant-flink-datastream-api-v1-outbox-job:classes
+> Task :variant-flink-datastream-api-v1-outbox-job:jar
+> Task :variant-flink-datastream-api-v1-outbox-job:assemble
+> Task :variant-flink-datastream-api-v1-outbox-job:jacocoTestReport SKIPPED
+> Task :variant-flink-datastream-api-v1-outbox-job:jacocoTestCoverageVerification SKIPPED
+> Task :variant-flink-datastream-api-v1-outbox-job:check
+> Task :variant-flink-datastream-api-v1-outbox-job:build
+
+> Task :variant-flink-sql-api-cdc-job:compileJava
+
+> Task :variant-flink-sql-api-cdc-job:processResources NO-SOURCE
+> Task :variant-flink-sql-api-cdc-job:classes
+> Task :variant-flink-sql-api-cdc-job:jar
+> Task :variant-flink-sql-api-cdc-job:assemble
+> Task :variant-flink-sql-api-cdc-job:check
+> Task :variant-flink-sql-api-cdc-job:build
+
+> Task :variant-flink-table-api-cdc-job:compileJava
+
+> Task :variant-flink-table-api-cdc-job:processResources NO-SOURCE
+> Task :variant-flink-table-api-cdc-job:classes
+> Task :variant-flink-table-api-cdc-job:jar
+> Task :variant-flink-table-api-cdc-job:assemble
+> Task :variant-flink-table-api-cdc-job:check
+> Task :variant-flink-table-api-cdc-job:build
+
+BUILD SUCCESSFUL in 6s
+24 actionable tasks: 24 executed
+=== Stopping and cleaning podman stack ===
+flink-cdc-submitter
+flink-tm
+kafka-ui
+kafka-connect
+flink-jm
+kafka
+mysql
+flink-cdc-submitter
+flink-tm
+kafka-ui
+kafka-connect
+flink-jm
+kafka
+mysql
+=== Waiting 5 seconds before restart ===
+=== Starting podman stack ===
+5e7d0232d8222f96fa45dec7d9b9e1fac983d8cc663485da9b3332e7d69c0845
+d66f0ea7ea70e5f21022fc90a652684813dc426012e1d0b40e18bbae205bf399
+6db8f9c2e7c05e96da5497d2b2df9cd0852a284d9953200b19b63e1836582f2d
+91a804b9e5b0868266f7433d12d1255e59ac33e27904737bb350e6917f101cd7
+1b98fea9da20cd449e6d08f0acddbb5b58a930dfc3131518107be928bc654689
+448c74f07130dbc03459aa7628033160c8110e36152abbbca2cf8dafef9c441b
+dc41f3d9f9b6e519c79efd061a17d0ec6ffe9eb408ef1d90b210f3e31536b86e
+Waiting for services to start (up to 90 seconds)...
+Waiting... (5s elapsed)
+Waiting... (10s elapsed)
+✓ MySQL and Kafka are ready!
+=== Building Kafka Connect SMTs ===
+> Task :kafka-connect-smts:compileJava UP-TO-DATE
+> Task :kafka-connect-smts:processResources NO-SOURCE
+> Task :kafka-connect-smts:classes UP-TO-DATE
+> Task :kafka-connect-smts:shadowJar
+
+BUILD SUCCESSFUL in 841ms
+2 actionable tasks: 1 executed, 1 up-to-date
+=== Deploying Kafka Connect connectors ===
+=== Kafka Connect Connector Deployment ===
+⏳ Waiting for Kafka Connect (1/30)...
+⏳ Waiting for Kafka Connect (2/30)...
+⏳ Waiting for Kafka Connect (3/30)...
+⏳ Waiting for Kafka Connect (4/30)...
+⏳ Waiting for Kafka Connect (5/30)...
+⏳ Waiting for Kafka Connect (6/30)...
+⏳ Waiting for Kafka Connect (7/30)...
+⏳ Waiting for Kafka Connect (8/30)...
+⏳ Waiting for Kafka Connect (9/30)...
+⏳ Waiting for Kafka Connect (10/30)...
+⏳ Waiting for Kafka Connect (11/30)...
+⏳ Waiting for Kafka Connect (12/30)...
+⏳ Waiting for Kafka Connect (13/30)...
+⏳ Waiting for Kafka Connect (14/30)...
+⏳ Waiting for Kafka Connect (15/30)...
+⏳ Waiting for Kafka Connect (16/30)...
+⏳ Waiting for Kafka Connect (17/30)...
+⏳ Waiting for Kafka Connect (18/30)...
+⏳ Waiting for Kafka Connect (19/30)...
+⏳ Waiting for Kafka Connect (20/30)...
+⏳ Waiting for Kafka Connect (21/30)...
+⏳ Waiting for Kafka Connect (22/30)...
+⏳ Waiting for Kafka Connect (23/30)...
+⏳ Waiting for Kafka Connect (24/30)...
+⏳ Waiting for Kafka Connect (25/30)...
+⏳ Waiting for Kafka Connect (26/30)...
+⏳ Waiting for Kafka Connect (27/30)...
+⏳ Waiting for Kafka Connect (28/30)...
+⏳ Waiting for Kafka Connect (29/30)...
+⏳ Waiting for Kafka Connect (30/30)...
+✗ Kafka Connect did not become ready after 30 attempts
+
+> Task :all FAILED
+1 actionable task: 1 executed
