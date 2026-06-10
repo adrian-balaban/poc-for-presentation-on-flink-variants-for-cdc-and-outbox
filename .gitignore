@@ -10,6 +10,7 @@ variant-yaml-pipeline/
 *.org
 *.pptx
 log
+ll
 
 # Kafka Connect SMTs
 local-development/kafka-connect-smts/target/
