@@ -34,7 +34,8 @@ class SqlApiCdcTest extends FlinkTestBase {
             s.executeUpdate("INSERT INTO poc_db.customers (name, email) VALUES ('TestUser', 'test@example.com')");
         }
 
-        submitAndWait(JAR, "poc.sqlapi.SqlApiCdcJob", Duration.ofSeconds(30));
+        ensureJobRunning(JAR, "poc.sqlapi.SqlApiCdcJob",
+            "Flink Sql API CDC Job", Duration.ofSeconds(30));
         List<String> messages = pollKafka(ORDERS_TOPIC, 1, Duration.ofSeconds(45));
         assertThat(messages).isNotEmpty();
         assertThat(messages).anyMatch(m -> m.contains("SQL-TEST"));

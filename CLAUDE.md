@@ -162,7 +162,7 @@ Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert K
 - If Flink JM is not available: Flink tests skip gracefully
 - If Kafka Connect is not available: Kafka Connect tests skip gracefully
 
-**Note:** Flink jobs submitted by component tests are **not cancelled** after the test — they remain visible at http://localhost:8081/#/job/running for the lifetime of the stack. Because all 5 Flink jobs and all 5 Kafka Connect connectors run **simultaneously**, every consumer needs its own server-ID range: the Kafka Connect connectors use the dedicated `5500–5599` range, and `OutboxJob` hardcodes `5600–5699` instead of sharing the `MYSQL_SERVER_ID` default (`5900–5999`) with `DataStreamCdcJob`.
+**Note:** Flink jobs submitted by component tests are **not cancelled** after the test — they remain visible at http://localhost:8081/#/job/running for the lifetime of the stack. Tests submit via `FlinkTestBase.ensureJobRunning()`, which reuses an already-RUNNING job of the same name instead of resubmitting — a second instance of the same variant would collide on its MySQL server-id. Because all 5 Flink jobs and all 5 Kafka Connect connectors run **simultaneously**, every consumer needs its own server-ID range: the Kafka Connect connectors use the dedicated `5500–5599` range, and `OutboxJob` hardcodes `5600–5699` instead of sharing the `MYSQL_SERVER_ID` default (`5900–5999`) with `DataStreamCdcJob`.
 
 ## Production Deployment
 

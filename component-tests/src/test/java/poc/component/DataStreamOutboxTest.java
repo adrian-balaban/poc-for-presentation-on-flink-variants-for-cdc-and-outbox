@@ -34,7 +34,8 @@ class DataStreamOutboxTest extends FlinkTestBase {
                 "INSERT INTO poc_db.outbox_events (destination, payload) VALUES ('payments', '{\"order_id\":1}')");
         }
 
-        submitAndWait(JAR, "poc.outbox.OutboxJob", Duration.ofSeconds(30));
+        ensureJobRunning(JAR, "poc.outbox.OutboxJob",
+            "Flink DataStream API v.1 Outbox Job", Duration.ofSeconds(30));
         // outbox_events is seeded with payments/notifications/audit rows and the
         // test inserts another payments row, so the snapshot emits several events.
         List<String> messages = pollKafka(TOPIC, 4, Duration.ofSeconds(45));

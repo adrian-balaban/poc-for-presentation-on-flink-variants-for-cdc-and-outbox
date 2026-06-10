@@ -46,10 +46,18 @@ abstract class FlinkTestBase extends ContainerBase {
     }
 
     /**
-     * Upload the fat-jar, submit the job, and wait until RUNNING.
-     * The job is not cancelled after the test — it stays visible at localhost:8081.
+     * Ensure exactly one RUNNING instance of the job: reuse it if already running,
+     * otherwise upload the fat-jar, submit, and wait until RUNNING.
+     * Jobs are not cancelled after tests, so resubmitting would start a second
+     * instance whose duplicate MySQL server-id collides with the first.
      */
-    protected static String submitAndWait(Path jarPath, String entryClass, Duration waitTimeout) throws Exception {
+    protected static String ensureJobRunning(Path jarPath, String entryClass, String jobName,
+                                             Duration waitTimeout) throws Exception {
+        String existing = flink.findRunningJob(jobName);
+        if (existing != null) {
+            log.info("Job '{}' already RUNNING (jobId={}) — reusing it", jobName, existing);
+            return existing;
+        }
         log.info("Submitting {} to Flink JM", jarPath.getFileName());
         String jarId = flink.uploadJar(jarPath);
         String jobId = flink.submitJob(jarId, entryClass);

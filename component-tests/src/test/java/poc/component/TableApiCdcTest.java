@@ -35,7 +35,8 @@ class TableApiCdcTest extends FlinkTestBase {
                 "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1, 55.55, 'TA-TEST')");
         }
 
-        submitAndWait(JAR, "poc.tableapi.TableApiCdcJob", Duration.ofSeconds(30));
+        ensureJobRunning(JAR, "poc.tableapi.TableApiCdcJob",
+            "Flink Table API CDC Job", Duration.ofSeconds(30));
         List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
         assertThat(messages).isNotEmpty();
         assertThat(messages).anyMatch(m -> m.contains("TA-TEST"));

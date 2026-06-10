@@ -1,6 +1,7 @@
 package poc.component;
 
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -99,6 +100,26 @@ class FlinkRestClient {
         String jobId = new JSONObject(r.body()).getString("jobid");
         log.info("Submitted jarId={} → jobId={}", jarId, jobId);
         return jobId;
+    }
+
+    /**
+     * Return the jobId of a RUNNING job with the given name, or null if none exists.
+     */
+    String findRunningJob(String jobName) throws Exception {
+        HttpResponse<String> r = http.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/jobs/overview"))
+                .timeout(Duration.ofSeconds(5))
+                .GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+        JSONArray jobs = new JSONObject(r.body()).getJSONArray("jobs");
+        for (int i = 0; i < jobs.length(); i++) {
+            JSONObject job = jobs.getJSONObject(i);
+            if (jobName.equals(job.getString("name")) && "RUNNING".equals(job.getString("state"))) {
+                return job.getString("jid");
+            }
+        }
+        return null;
     }
 
     /**

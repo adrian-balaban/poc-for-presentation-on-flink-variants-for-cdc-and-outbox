@@ -1,7 +1,6 @@
 package poc.component;
 
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -26,20 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DataStreamCdcTest extends FlinkTestBase {
 
     private static final Path JAR = jarPath("variant-flink-datastream-api-v1-cdc-job");
+    private static final String JOB_NAME = "Flink DataStream API v.1 CDC Job";
     private static final String TOPIC = "poc.cdc.datastream";
-
-    private static String jarId;
-
-    @BeforeAll
-    static void uploadJar() throws Exception {
-        // Upload once; reused by both tests to avoid duplicate uploads.
-        // Will be null if Flink is not available (tests skipped via @BeforeEach in FlinkTestBase).
-        try {
-            jarId = flink.uploadJar(JAR);
-        } catch (Exception e) {
-            log.warn("Could not upload DataStream jar (Flink may not be available): {}", e.getMessage());
-        }
-    }
 
     @Test
     @Timeout(90)
@@ -49,8 +36,7 @@ class DataStreamCdcTest extends FlinkTestBase {
                 "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1, 11.11, 'DS-TEST')");
         }
 
-        String jobId = flink.submitJob(jarId, "poc.datastream.DataStreamCdcJob");
-        flink.waitForJobRunning(jobId, Duration.ofSeconds(30));
+        ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
         List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
         assertThat(messages).isNotEmpty();
         assertThat(messages).anyMatch(m -> m.contains("DS-TEST"));
@@ -60,8 +46,7 @@ class DataStreamCdcTest extends FlinkTestBase {
     @Test
     @Timeout(90)
     void cdcSource_capturesBinlogInsert_afterSnapshotComplete() throws Exception {
-        String jobId = flink.submitJob(jarId, "poc.datastream.DataStreamCdcJob");
-        flink.waitForJobRunning(jobId, Duration.ofSeconds(30));
+        ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
 
         try (Connection c = flinkConn(); Statement s = c.createStatement()) {
             s.executeUpdate(
