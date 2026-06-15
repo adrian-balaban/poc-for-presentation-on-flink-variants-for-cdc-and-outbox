@@ -14,17 +14,19 @@ public class JobConfig implements java.io.Serializable {
     public final String kafkaBootstrap;
     public final String kafkaTopicPrefix;
     public final String serverId;
+    public final String outboxServerId;
 
     private JobConfig(Builder b) {
-        this.mysqlHost       = b.mysqlHost;
-        this.mysqlPort       = b.mysqlPort;
-        this.mysqlUser       = b.mysqlUser;
-        this.mysqlPassword   = b.mysqlPassword;
-        this.mysqlDatabase   = b.mysqlDatabase;
-        this.mysqlTables     = b.mysqlTables;
-        this.kafkaBootstrap  = b.kafkaBootstrap;
-        this.kafkaTopicPrefix= b.kafkaTopicPrefix;
-        this.serverId        = b.serverId;
+        this.mysqlHost        = b.mysqlHost;
+        this.mysqlPort        = b.mysqlPort;
+        this.mysqlUser        = b.mysqlUser;
+        this.mysqlPassword    = b.mysqlPassword;
+        this.mysqlDatabase    = b.mysqlDatabase;
+        this.mysqlTables      = b.mysqlTables;
+        this.kafkaBootstrap   = b.kafkaBootstrap;
+        this.kafkaTopicPrefix = b.kafkaTopicPrefix;
+        this.serverId         = b.serverId;
+        this.outboxServerId   = b.outboxServerId;
     }
 
     public static JobConfig fromEnv() {
@@ -45,6 +47,7 @@ public class JobConfig implements java.io.Serializable {
             .kafkaBootstrap(env("KAFKA_BOOTSTRAP", "localhost:9092", lookup))
             .kafkaTopicPrefix(env("KAFKA_TOPIC_PREFIX", "poc.cdc", lookup))
             .serverId(env("MYSQL_SERVER_ID", "5900-5999", lookup))
+            .outboxServerId(env("MYSQL_OUTBOX_SERVER_ID", "5600-5699", lookup))
             .build();
     }
 
@@ -57,7 +60,7 @@ public class JobConfig implements java.io.Serializable {
         String mysqlHost = "localhost";
         int    mysqlPort = 3306;
         String mysqlUser, mysqlPassword, mysqlDatabase, mysqlTables;
-        String kafkaBootstrap, kafkaTopicPrefix, serverId;
+        String kafkaBootstrap, kafkaTopicPrefix, serverId, outboxServerId;
 
         public Builder mysqlHost(String v)        { this.mysqlHost = v;        return this; }
         public Builder mysqlPort(int v)            { this.mysqlPort = v;        return this; }
@@ -68,6 +71,7 @@ public class JobConfig implements java.io.Serializable {
         public Builder kafkaBootstrap(String v)    { this.kafkaBootstrap = v;   return this; }
         public Builder kafkaTopicPrefix(String v)  { this.kafkaTopicPrefix = v; return this; }
         public Builder serverId(String v)          { this.serverId = v;         return this; }
+        public Builder outboxServerId(String v)    { this.outboxServerId = v;   return this; }
         public JobConfig build()                   { return new JobConfig(this); }
     }
 }

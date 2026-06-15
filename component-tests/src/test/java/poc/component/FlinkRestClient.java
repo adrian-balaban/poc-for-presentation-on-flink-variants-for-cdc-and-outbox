@@ -112,6 +112,9 @@ class FlinkRestClient {
                 .timeout(Duration.ofSeconds(5))
                 .GET().build(),
             HttpResponse.BodyHandlers.ofString());
+        if (r.statusCode() != 200) {
+            throw new RuntimeException("Failed to fetch job overview (" + r.statusCode() + "): " + r.body());
+        }
         JSONArray jobs = new JSONObject(r.body()).getJSONArray("jobs");
         for (int i = 0; i < jobs.length(); i++) {
             JSONObject job = jobs.getJSONObject(i);
@@ -149,6 +152,9 @@ class FlinkRestClient {
                 .timeout(Duration.ofSeconds(5))
                 .GET().build(),
             HttpResponse.BodyHandlers.ofString());
+        if (r.statusCode() != 200) {
+            throw new RuntimeException("Failed to fetch job state (" + r.statusCode() + "): " + r.body());
+        }
         return new JSONObject(r.body()).getString("state");
     }
 }
