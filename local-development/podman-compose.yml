@@ -102,6 +102,9 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.rpc.port: 6123
         taskmanager.numberOfTaskSlots: 8
+        # Flink CDC Pipeline API runs MySQL schema discovery on the JM coordinator
+        # before deploying tasks — default 10s slot timeout expires during that phase.
+        taskmanager.slot.timeout: 60000
         rest.bind-address: 0.0.0.0
         rest.port: 8081
       # JobConfig.fromEnv() defaults for jobs submitted via REST (bridge networking)
