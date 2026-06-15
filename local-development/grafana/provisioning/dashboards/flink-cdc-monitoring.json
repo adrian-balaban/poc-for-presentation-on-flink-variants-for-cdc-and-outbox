@@ -1,0 +1,215 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": false,
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "Alert state changes",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Flink CDC POC — mirrors Datadog monitors. Panels 1-3 shipped; panels 4-7 pending Spike S1 (Flink metric parity investigation).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Shipped — mirrors Datadog (3 monitors)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 3 }
+            ]
+          },
+          "mappings": [],
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Restart Loop — numRestarts (5 min) [threshold >3]",
+      "description": "Mirrors Datadog: flink.job.numRestarts change() > 3 per job. Alert = restart loop.",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "increase(flink_jobmanager_job_numRestarts[5m])",
+          "legendFormat": "{{job_name}}",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 120000 },
+              { "color": "red", "value": 180000 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 1 },
+      "id": 2,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Checkpoint Duration [threshold >180 s]",
+      "description": "Mirrors Datadog: flink.jobmanager.job.lastCheckpointDuration > 180000 ms.",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "flink_jobmanager_job_lastCheckpointDuration",
+          "legendFormat": "{{job_name}}",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 3 }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 1 },
+      "id": 3,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "title": "Checkpoint Failures (5 min) [threshold >3]",
+      "description": "Mirrors Datadog: flink.jobmanager.job.numberOfFailedCheckpoints change() > 3.",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m])",
+          "legendFormat": "{{job_name}}",
+          "refId": "A"
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 101,
+      "title": "Pending Spike S1 — KC monitors #4-#7 (no Flink equivalent yet)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+      "id": 4,
+      "options": { "content": "## KC Monitor #4 — Millis Behind Source\n\n**Status:** OPEN — pending Spike S1\n\nFlink source latency metric not yet identified. Spike S1 investigates whether Flink exposes Debezium JMX equivalents via Flink metric reporters.\n\n**KC metric:** `milli.behind.source` (warn 60 s / crit 300 s)", "mode": "markdown" },
+      "title": "Millis Behind Source — pending S1",
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+      "id": 5,
+      "options": { "content": "## KC Monitor #5 — Database Disconnects\n\n**Status:** OPEN — pending Spike S1\n\nMySQL source connection failure counter not yet confirmed available.\n\n**KC metric:** `number.of.disconnects` change() > 0 in 5 min", "mode": "markdown" },
+      "title": "Database Disconnects — pending S1",
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+      "id": 6,
+      "options": { "content": "## KC Monitor #6 — Malformed Transactions\n\n**Status:** OPEN — pending Spike S1\n\nDeserialization error count metric not yet confirmed.\n\n**KC metric:** `not.well.formed.transactions` change() > 0 in 5 min", "mode": "markdown" },
+      "title": "Malformed Transactions — pending S1",
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+      "id": 7,
+      "options": { "content": "## KC Monitor #7 — DB Connected\n\n**Status:** OPEN — pending Spike S1\n\nMySQL source connection status not yet confirmed as a Flink-exposed metric.\n\n**KC metric:** `db_connected` < 1 in 5 min", "mode": "markdown" },
+      "title": "DB Connected — pending S1",
+      "type": "text"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+      "id": 102,
+      "title": "JVM / Runtime",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 13 },
+      "id": 10,
+      "options": { "legend": { "displayMode": "list" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "flink_jobmanager_Status_JVM_Memory_Heap_Used",
+          "legendFormat": "JM heap used",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "flink_taskmanager_Status_JVM_Memory_Heap_Used",
+          "legendFormat": "TM heap used — {{tm_id}}",
+          "refId": "B"
+        }
+      ],
+      "title": "JVM Heap Used",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 13 },
+      "id": 11,
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "flink_jobmanager_job_numRestarts",
+          "legendFormat": "{{job_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Job Restarts (cumulative)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["flink", "cdc", "poc"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Flink CDC POC Monitoring",
+  "uid": "flink-cdc-poc-monitoring",
+  "version": 1
+}

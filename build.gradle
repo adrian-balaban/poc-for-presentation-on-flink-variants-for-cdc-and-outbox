@@ -104,7 +104,7 @@ tasks.register('all') { // buildAndTest
             commandLine 'bash', '-c', "cd local-development && ${composeUp}"
         }
 
-        // Wait for MySQL, Kafka, and Kafka Connect to be ready.
+        // Wait for MySQL, Kafka, Kafka Connect, Flink, Prometheus, and Grafana to be ready.
         // Engine health status is unreliable under podman-compose, so probe services directly.
         // 180s timeout: Kafka Connect plugin scanning + Debezium download on first build
         // can take 90s+, especially on cold starts.
@@ -114,6 +114,8 @@ tasks.register('all') { // buildAndTest
         boolean mysqlKafkaReady = false
         boolean kafkaConnectReady = false
         boolean flinkReady = false
+        boolean prometheusReady = false
+        boolean grafanaReady = false
         while (elapsed < maxWait) {
             try {
                 if (!mysqlKafkaReady) {
@@ -133,13 +135,23 @@ tasks.register('all') { // buildAndTest
                         .execute().waitFor() == 0
                     if (flinkReady) println "✓ Flink JobManager is ready!"
                 }
-                if (mysqlKafkaReady && kafkaConnectReady && flinkReady) break
+                if (!prometheusReady) {
+                    prometheusReady = ['bash', '-c', 'curl -sf http://localhost:9090/-/healthy >/dev/null 2>&1']
+                        .execute().waitFor() == 0
+                    if (prometheusReady) println "✓ Prometheus is ready!"
+                }
+                if (!grafanaReady) {
+                    grafanaReady = ['bash', '-c', 'curl -sf http://localhost:3000/api/health >/dev/null 2>&1']
+                        .execute().waitFor() == 0
+                    if (grafanaReady) println "✓ Grafana is ready!"
+                }
+                if (mysqlKafkaReady && kafkaConnectReady && flinkReady && prometheusReady && grafanaReady) break
             } catch (Exception e) {
                 // Continue waiting, services might still be starting
             }
             elapsed += 5
             if (elapsed < maxWait) {
-                println "Waiting... (${elapsed}s elapsed, MySQL+Kafka=${mysqlKafkaReady}, KafkaConnect=${kafkaConnectReady}, Flink=${flinkReady})"
+                println "Waiting... (${elapsed}s elapsed, MySQL+Kafka=${mysqlKafkaReady}, KC=${kafkaConnectReady}, Flink=${flinkReady}, Prometheus=${prometheusReady}, Grafana=${grafanaReady})"
                 Thread.sleep(5000)
             }
         }
@@ -156,6 +168,27 @@ tasks.register('all') { // buildAndTest
                     "Run: cd local-development && podman-compose -f podman-compose.yml up -d kafka-connect")
             }
             println "WARNING: Kafka Connect REST not responding but container exists — deploy-connectors.sh will retry."
+        }
+        if (!prometheusReady) println "WARNING: Prometheus metrics not ready — dashboards may be empty."
+        if (!grafanaReady) println "WARNING: Grafana not ready — dashboard provisioning may be incomplete."
+
+        // Provision Grafana datasource + dashboard + alert rules via Terraform
+        // Requires: terraform CLI on PATH. Skipped with a warning if not found.
+        println '=== Applying Terraform (Grafana datasource + dashboard + alerts) ==='
+        boolean hasTerraform = false
+        try {
+            hasTerraform = ['bash', '-c', 'command -v terraform >/dev/null 2>&1'].execute().waitFor() == 0
+        } catch (Exception ignored) { }
+
+        if (!hasTerraform) {
+            println "WARNING: terraform not found on PATH — skipping Grafana alert provisioning. Run 'cd local-development/terraform && terraform init && terraform apply' manually."
+        } else if (!grafanaReady) {
+            println "WARNING: Grafana not healthy — skipping Terraform apply."
+        } else {
+            exec {
+                commandLine 'bash', '-c', 'cd local-development/terraform && terraform init -input=false && terraform apply -auto-approve -input=false'
+            }
+            println '✓ Terraform apply complete — Grafana datasource, dashboard and alert rules provisioned.'
         }
 
         // Build Kafka Connect SMTs with Gradle

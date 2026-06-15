@@ -62,17 +62,71 @@ All subproject `build.gradle` files reference these via `rootProject.ext.*` — 
 ## Local infra
 
 ```bash
-cd local-development && podman-compose -f podman-compose.yml up -d    # MySQL + Kafka + Flink JM+TM + Kafka Connect + Kafka UI
-cd local-development && podman-compose -f podman-compose.yml down -v  # tear down (data lost)
+cd local-development && podman-compose -f podman-compose.yml up -d --build    # MySQL + Kafka + Flink JM+TM + Kafka Connect + Kafka UI + Prometheus + Grafana
+cd local-development && podman-compose -f podman-compose.yml down -v         # tear down (data lost)
 ```
 
 Services:
 - Flink Dashboard: http://localhost:8081
 - Kafka UI:        http://localhost:8080
 - Kafka Connect:   http://localhost:8083
+- Grafana:         http://localhost:3001 (admin/admin)
+- Prometheus:      http://localhost:9090
 - MySQL:           localhost:3306  user=flink  password=flink  db=poc_db
 
 MySQL binlog is enabled via `--log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL`.
+
+## Monitoring — Prometheus metrics & Grafana dashboards
+
+All Flink services (JobManager + TaskManager) export Prometheus metrics natively via the `flink-metrics-prometheus` plugin. The local stack includes Prometheus scraper and Grafana for dashboard/alerting.
+
+### Metrics export
+
+- **Flink JobManager** — http://localhost:9249/metrics (port 9249 on bridge network)
+- **Flink TaskManager** — http://localhost:9250/metrics (on host; internally 9249 on bridge)
+
+Metrics are scraped by Prometheus every 15 seconds and stored locally.
+
+### Grafana dashboard
+
+**Dashboard URL:** http://localhost:3001/d/flink-cdc-poc-monitoring (admin/admin)
+
+Managed by Terraform (`terraform/dashboard.tf` reads `grafana/provisioning/dashboards/flink-cdc-monitoring.json`). Panels:
+- 3 stat panels — Restart Loop, Checkpoint Duration, Checkpoint Failures (mirrors `rtdp-datadog-tf`)
+- 4 text placeholders — KC monitors #4–#7, pending Spike S1
+- 2 timeseries — JVM heap, job restarts
+
+### Alert rules
+
+**Alerts URL:** http://localhost:3001/alerting/list
+
+Three rules managed by Terraform (`terraform/alerts.tf`):
+
+| Alert | Threshold | Severity |
+|-------|-----------|----------|
+| Flink Restart Loop | `increase(numRestarts[5m])` > 3 | critical |
+| Flink Checkpoint Duration High | `lastCheckpointDuration` > 180 000 ms | warning |
+| Flink Checkpoint Failures | `increase(numberOfFailedCheckpoints[5m])` > 3 | critical |
+
+Contact point: `flink-cdc-poc-email`. Notification policy groups by `alertname` + `job_name`.
+
+Each rule has `__dashboardUid__ = "flink-cdc-poc-monitoring"` and `__panelId__` set (1/2/3), so alert state changes appear as annotation markers on the corresponding stat panels. The dashboard JSON includes an "Alert state changes" annotation layer for timeseries panels.
+
+**Do not change the Grafana admin password through the UI.** Terraform uses `admin:admin`. If changed accidentally: `podman exec grafana grafana cli admin reset-admin-password admin && podman restart grafana`.
+
+### Terraform
+
+`./gradlew all` runs `terraform apply -auto-approve` automatically after Grafana is healthy. To apply manually:
+
+```bash
+cd local-development/terraform
+terraform init   # first time only; downloads grafana/grafana provider ~3.4
+terraform apply
+```
+
+`terraform apply` is idempotent — safe to re-run. State in `terraform/terraform.tfstate` (local backend).
+
+Resources managed: Prometheus datasource (uid `prometheus`) · dashboard · folder "Flink CDC POC" · 3 alert rules · contact point · notification policy.
 
 ## Adding a new variant
 

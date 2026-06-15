@@ -122,6 +122,78 @@ DELETE FROM orders WHERE id = 1;
 
 - **Flink Dashboard** → http://localhost:8081 — running jobs, task slots
 - **Kafka UI** → http://localhost:8080 — topics `poc.cdc.*`
+- **Grafana** → http://localhost:3001 — Flink metrics dashboards (admin/admin)
+- **Prometheus** → http://localhost:9090 — raw metrics scrapes
+
+---
+
+## Monitoring — Prometheus + Grafana
+
+The POC includes a full Prometheus + Grafana monitoring stack that mirrors the production `rtdp-datadog-tf` approach using Terraform.
+
+### Services
+
+- **Prometheus** (port 9090) — scrapes Flink JobManager + TaskManager metrics every 15 seconds
+- **Grafana** (port 3001) — dashboards and alert rules (admin/admin)
+
+Both are included in `podman-compose.yml` and start automatically with `podman-compose up -d --build`.
+
+**Dashboard:** http://localhost:3001/d/flink-cdc-poc-monitoring
+
+### Dashboard panels
+
+Dashboard is Terraform-managed (`local-development/terraform/dashboard.tf` reads `flink-cdc-monitoring.json`):
+
+- **3 shipped monitors** (stat panels) — mirrors `rtdp-datadog-tf`:
+  1. Restart Loop — `flink.job.numRestarts` change > 3 per job
+  2. Checkpoint Duration — `flink.jobmanager.job.lastCheckpointDuration` > 180 s
+  3. Checkpoint Failures — `flink.jobmanager.job.numberOfFailedCheckpoints` change > 3
+
+- **4 open items** (text placeholders) — pending Spike S1 (Flink metric parity investigation):
+  - KC Monitor #4: Millis Behind Source (source latency)
+  - KC Monitor #5: Database Disconnects (connection failures)
+  - KC Monitor #6: Malformed Transactions (deserialization errors)
+  - KC Monitor #7: DB Connected (connection status)
+
+- **JVM monitoring** — heap usage (bytes), job restarts cumulative (timeseries)
+
+### Alert rules
+
+Three Grafana alert rules provisioned by Terraform (`local-development/terraform/alerts.tf`), mirroring the monitors already shipped in `rtdp-datadog-tf`:
+
+| Alert | PromQL | Threshold | Severity | For |
+|-------|--------|-----------|----------|-----|
+| Flink Restart Loop | `increase(flink_jobmanager_job_numRestarts[5m])` | > 3 | critical | 1 m |
+| Flink Checkpoint Duration High | `flink_jobmanager_job_lastCheckpointDuration` | > 180 000 ms | warning | 2 m |
+| Flink Checkpoint Failures | `increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m])` | > 3 | critical | 1 m |
+
+Alerts fire to the `flink-cdc-poc-email` contact point. View and silence at http://localhost:3001/alerting/list.
+
+Each alert rule is linked to its dashboard panel via `__dashboardUid__` / `__panelId__` annotations. When an alert fires or resolves, Grafana writes an annotation marker directly onto the corresponding stat panel at http://localhost:3001/d/flink-cdc-poc-monitoring. The dashboard also has an "Alert state changes" annotation layer (red vertical lines) that appears on all timeseries panels.
+
+| Alert | Linked panel |
+|-------|-------------|
+| Flink Restart Loop | Panel 1 — Restart Loop stat |
+| Flink Checkpoint Duration High | Panel 2 — Checkpoint Duration stat |
+| Flink Checkpoint Failures | Panel 3 — Checkpoint Failures stat |
+
+> **Note:** Do not change the Grafana admin password through the UI — Terraform authenticates as `admin:admin` and will fail with 401 on the next apply. If the password is accidentally changed, reset it with `podman exec grafana grafana cli admin reset-admin-password admin` then `podman restart grafana`.
+
+### Terraform
+
+Dashboard and alert rules are fully managed by Terraform — `./gradlew all` runs `terraform apply` automatically after Grafana is healthy.
+
+To apply manually:
+
+```bash
+cd local-development/terraform
+terraform init
+terraform apply
+```
+
+`terraform apply` is idempotent — safe to re-run at any time.
+
+Resources managed: Prometheus datasource · dashboard · folder · 3 alert rules · contact point · notification policy.
 
 ---
 
