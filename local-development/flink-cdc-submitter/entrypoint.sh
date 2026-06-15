@@ -17,5 +17,15 @@ JOBMANAGER_HOST="${JOBMANAGER_HOST:-localhost}"
 # Replace the address line immediately following the `rest:` key (nested 2.x YAML).
 sed -i "/^rest:/{n;s/address:.*/address: ${JOBMANAGER_HOST}/}" "${FLINK_HOME}/conf/config.yaml"
 
+# Wait for at least one TaskManager to register with the JobManager before
+# submitting — the JM healthcheck passes before TM registration completes,
+# so submitting immediately causes slot-allocation timeouts.
+echo "Waiting for TaskManager to register with JobManager..."
+until curl -sf "http://${JOBMANAGER_HOST}:8081/taskmanagers" \
+      | grep -q '"slotsNumber"'; do
+  sleep 2
+done
+echo "TaskManager registered. Submitting pipeline..."
+
 envsubst < /pipeline.yaml > /tmp/pipeline-resolved.yaml
 exec flink-cdc.sh /tmp/pipeline-resolved.yaml

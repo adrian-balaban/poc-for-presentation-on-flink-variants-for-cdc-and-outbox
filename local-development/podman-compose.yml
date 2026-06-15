@@ -101,7 +101,7 @@ services:
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.rpc.port: 6123
-        taskmanager.numberOfTaskSlots: 5
+        taskmanager.numberOfTaskSlots: 8
         rest.bind-address: 0.0.0.0
         rest.port: 8081
       # JobConfig.fromEnv() defaults for jobs submitted via REST (bridge networking)
@@ -138,7 +138,7 @@ services:
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.rpc.port: 6123
-        taskmanager.numberOfTaskSlots: 5
+        taskmanager.numberOfTaskSlots: 8
     depends_on:
       - flink-jobmanager
 
