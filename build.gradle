@@ -21,6 +21,7 @@ ext {
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'checkstyle'
 
     java {
         sourceCompatibility = JavaVersion.toVersion(rootProject.ext.javaVersion)
@@ -41,6 +42,12 @@ subprojects {
         useJUnitPlatform()
     }
 
+    checkstyle {
+        toolVersion = '9.3'
+        ignoreFailures = false
+        showViolations = true
+    }
+
     // Global resolution strategy for lz4-java conflict
     configurations.all {
         resolutionStrategy {
@@ -48,6 +55,11 @@ subprojects {
             exclude group: 'at.yawk.lz4', module: 'lz4-java'
         }
     }
+}
+
+tasks.register('codeQuality') {
+    group = 'analysis'
+    description = 'Run Checkstyle code quality checks on all subprojects'
 }
 
 tasks.register('all') { // buildAndTest

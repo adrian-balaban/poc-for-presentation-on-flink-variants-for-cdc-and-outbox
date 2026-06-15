@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Include categories for analysis -->
+    <Match>
+        <Category value="CORRECTNESS"/>
+    </Match>
+    <Match>
+        <Category value="BAD_PRACTICE"/>
+    </Match>
+    <Match>
+        <Category value="PERFORMANCE"/>
+    </Match>
+    <Match>
+        <Category value="SECURITY"/>
+    </Match>
+
+    <!-- Security patterns from FindSecBugs plugin -->
+    <Match>
+        <Bug pattern="SQL_INJECTION"/>
+    </Match>
+    <Match>
+        <Bug pattern="SQL_INJECTION_HIBERNATE"/>
+    </Match>
+    <Match>
+        <Bug pattern="SQL_INJECTION_JDO"/>
+    </Match>
+    <Match>
+        <Bug pattern="SQL_INJECTION_JPA"/>
+    </Match>
+    <Match>
+        <Bug pattern="COMMAND_INJECTION"/>
+    </Match>
+    <Match>
+        <Bug pattern="XXE_DOCUMENT"/>
+    </Match>
+    <Match>
+        <Bug pattern="XXE_SAXPARSER"/>
+    </Match>
+    <Match>
+        <Bug pattern="WEAK_CRYPTOGRAPHY"/>
+    </Match>
+    <Match>
+        <Bug pattern="INSECURE_RANDOM"/>
+    </Match>
+    <Match>
+        <Bug pattern="HARD_CODED_PASSWORD"/>
+    </Match>
+    <Match>
+        <Bug pattern="HARD_CODED_SQL"/>
+    </Match>
+</FindBugsFilter>

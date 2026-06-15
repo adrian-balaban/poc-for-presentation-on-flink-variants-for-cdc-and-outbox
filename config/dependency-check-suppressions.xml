@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.2.1.xsd">
+    <!-- Add CVE suppressions here if needed
+    Example format:
+    <suppress until="2026-12-31">
+        <notes><![CDATA[
+        Reason for suppression (e.g., vulnerability does not affect our usage).
+        ]]></notes>
+        <cve>CVE-2024-XXXXX</cve>
+    </suppress>
+    -->
+</suppressions>

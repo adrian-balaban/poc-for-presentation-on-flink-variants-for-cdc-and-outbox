@@ -192,6 +192,20 @@ In addition to Flink variants, this POC includes **Kafka Connect** versions of a
 
 See [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) and [local-development/KAFKA_CONNECT_QUICKSTART.md](./local-development/KAFKA_CONNECT_QUICKSTART.md).
 
+## Code Quality Analysis
+
+**Checkstyle** — Code style and formatting rules (imports, naming, indentation)
+```bash
+./gradlew codeQuality          # Run on all subprojects
+./gradlew :MODULE:checkstyleMain  # Single module
+```
+
+Reports are generated in `build/reports/checkstyle/` for each subproject.
+
+**Configuration:** `config/checkstyle/checkstyle.xml` — customize rules here (default includes unused import detection).
+
+To add SpotBugs or OWASP Dependency Check in the future, see the archived configuration files in `config/`.
+
 ## See Also
 
 - [**CHECKPOINT_CONFIG.md**](./CHECKPOINT_CONFIG.md) — Flink 2.2 checkpoint semantics, monitoring, troubleshooting
