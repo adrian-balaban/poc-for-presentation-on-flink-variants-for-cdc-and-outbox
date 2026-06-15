@@ -7,6 +7,8 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -22,6 +24,8 @@ import java.util.Map;
  *   - destination.field: Field name containing the destination (default: "destination")
  */
 public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Transformation<R> {
+
+    private static final Logger log = LoggerFactory.getLogger(OutboxRoutingTransform.class);
 
     private static final String TOPIC_PREFIX = "topic.prefix";
     private static final String DESTINATION_FIELD = "destination.field";
@@ -96,6 +100,7 @@ public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Trans
                 obj.put("_routed_at", System.currentTimeMillis());
                 return obj.toString();
             } catch (Exception e) {
+                log.error("Failed to add routing metadata for topic {}: {} — passing record through un-routed", topic, e.getMessage());
                 return value;
             }
         } else if (value instanceof Struct) {

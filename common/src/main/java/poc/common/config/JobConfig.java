@@ -72,6 +72,15 @@ public class JobConfig implements java.io.Serializable {
         public Builder kafkaTopicPrefix(String v)  { this.kafkaTopicPrefix = v; return this; }
         public Builder serverId(String v)          { this.serverId = v;         return this; }
         public Builder outboxServerId(String v)    { this.outboxServerId = v;   return this; }
-        public JobConfig build()                   { return new JobConfig(this); }
+        public JobConfig build() {
+            if (mysqlHost == null || mysqlHost.isBlank()) throw new IllegalStateException("mysqlHost is required");
+            if (mysqlUser == null || mysqlUser.isBlank()) throw new IllegalStateException("mysqlUser is required");
+            if (mysqlPassword == null) throw new IllegalStateException("mysqlPassword is required");
+            if (mysqlDatabase == null || mysqlDatabase.isBlank()) throw new IllegalStateException("mysqlDatabase is required");
+            if (mysqlTables == null || mysqlTables.isBlank()) throw new IllegalStateException("mysqlTables is required");
+            if (kafkaBootstrap == null || kafkaBootstrap.isBlank()) throw new IllegalStateException("kafkaBootstrap is required");
+            if (kafkaTopicPrefix == null || kafkaTopicPrefix.isBlank()) throw new IllegalStateException("kafkaTopicPrefix is required");
+            return new JobConfig(this);
+        }
     }
 }

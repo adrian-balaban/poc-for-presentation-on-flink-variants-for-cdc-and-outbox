@@ -33,14 +33,21 @@ deploy_connector() {
     local payload
     payload=$(sed "s/\"database.hostname\": \"localhost\"/\"database.hostname\": \"${DB_HOST}\"/" "$connector_file")
 
-    if curl -sf -X POST "$CONNECT_URL/connectors" \
+    local response
+    local http_code
+    response=$(curl -s -o /tmp/connect_response_$$.json -w "%{http_code}" -X POST "$CONNECT_URL/connectors" \
         -H "Content-Type: application/json" \
-        -d "$payload" > /dev/null 2>&1; then
+        -d "$payload")
+    http_code="$response"
+    if [ "$http_code" = "201" ]; then
         echo "✓ Deployed: $connector_name"
     else
-        echo "✗ Failed to deploy: $connector_name"
+        echo "✗ Failed to deploy: $connector_name (HTTP $http_code)"
+        cat /tmp/connect_response_$$.json 2>/dev/null && echo
+        rm -f /tmp/connect_response_$$.json
         return 1
     fi
+    rm -f /tmp/connect_response_$$.json
 }
 
 main() {

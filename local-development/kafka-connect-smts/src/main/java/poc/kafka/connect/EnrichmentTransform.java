@@ -7,6 +7,8 @@ import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -20,6 +22,8 @@ import java.util.Map;
  *   - topic.prefix: Kafka topic prefix (e.g., "poc.cdc.datastream")
  */
 public class EnrichmentTransform<R extends ConnectRecord<R>> implements Transformation<R> {
+
+    private static final Logger log = LoggerFactory.getLogger(EnrichmentTransform.class);
 
     private static final String VARIANT_NAME = "variant.name";
     private static final String TOPIC_PREFIX = "topic.prefix";
@@ -82,7 +86,9 @@ public class EnrichmentTransform<R extends ConnectRecord<R>> implements Transfor
         try {
             Struct source = (Struct) struct.get("source");
             if (source != null) return (String) source.get("table");
-        } catch (Exception ignored) { }
+        } catch (Exception e) {
+            log.warn("Failed to extract table from Struct: {}", e.getMessage());
+        }
         return "unknown";
     }
 
@@ -104,6 +110,7 @@ public class EnrichmentTransform<R extends ConnectRecord<R>> implements Transfor
             obj.put("transformed_at", System.currentTimeMillis());
             return obj.toString();
         } catch (Exception e) {
+            log.error("Failed to enrich JSON for topic {}: {} — passing record through un-enriched", newTopic, e.getMessage());
             return json;
         }
     }

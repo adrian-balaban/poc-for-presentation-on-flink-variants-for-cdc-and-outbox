@@ -310,6 +310,33 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ---
 
+## Slide 11b — POC Evidence: Live Screenshots
+
+**All 5 Flink variants running simultaneously on localhost — captured during the live POC.**
+
+### Flink Dashboard — 5/5 Jobs RUNNING
+
+![Flink Dashboard — 5 variants running simultaneously](images/slides/flink-dashboard.png)
+
+> All five CDC variants (DataStream, Table API, SQL API, Outbox, YAML Pipeline) live in one
+> Flink cluster. Each has its own MySQL server-ID range; zero collisions.
+
+### Kafka UI — poc Cluster (32 topics, 109 partitions)
+
+![Kafka UI — poc cluster overview](images/slides/kafka-ui.png)
+
+> Topics auto-created by CDC connectors. 32 topics = per-table topics for all 5 variants
+> plus schema-history and signal topics.
+
+### Kafka Connect REST API — 5 KC Connectors (side-by-side comparison)
+
+![Kafka Connect — 5 connectors list](images/slides/kafka-connect.png)
+
+> KC connectors run in parallel for output comparison only. Server-IDs in the reserved
+> `5500–5599` range to avoid collision with the Flink variants.
+
+---
+
 ## Slide 12 — Improvements the New Approach Addresses
 
 - **Reduced blast radius** — each tribe's Flink job is isolated; failure can't cascade
@@ -524,13 +551,13 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 
 ### Local Monitoring Endpoints
 
-| URL | What |
-|-----|------|
-| `http://localhost:8081` | Flink Dashboard (running jobs, task slots, checkpoints) |
-| `http://localhost:8080` | Kafka UI (topics, messages) |
-| `http://localhost:8083` | Kafka Connect REST API |
-| `http://localhost:3306` | MySQL (user: `flink`, password: `flink`, db: `poc_db`) |
-| `localhost:9092` | Kafka (external; topics: `poc.cdc.*`) |
+| URL | What | Screenshot |
+|-----|------|------------|
+| `http://localhost:8081` | Flink Dashboard (running jobs, task slots, checkpoints) | ![](images/slides/flink-dashboard.png) |
+| `http://localhost:8080` | Kafka UI (topics, messages) | ![](images/slides/kafka-ui.png) |
+| `http://localhost:8083` | Kafka Connect REST API | ![](images/slides/kafka-connect.png) |
+| `http://localhost:3306` | MySQL (user: `flink`, password: `flink`, db: `poc_db`) | — |
+| `localhost:9092` | Kafka (external; topics: `poc.cdc.*`) | — |
 
 ---
 

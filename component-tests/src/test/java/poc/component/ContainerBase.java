@@ -139,6 +139,10 @@ public abstract class ContainerBase {
                 records.forEach(r -> messages.add(r.value()));
             }
         }
+        if (messages.size() < minCount) {
+            log.warn("pollKafka timed out on topic '{}': got {}/{} messages within {}",
+                topic, messages.size(), minCount, timeout);
+        }
         return messages;
     }
 }

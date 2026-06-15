@@ -35,6 +35,9 @@ class FlinkRestClient {
                     .GET().build(),
                 HttpResponse.BodyHandlers.ofString());
             return r.statusCode() == 200;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         } catch (Exception e) {
             return false;
         }

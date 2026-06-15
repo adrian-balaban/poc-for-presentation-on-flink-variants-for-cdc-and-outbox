@@ -81,7 +81,7 @@ public abstract class KafkaConnectBase extends ContainerBase {
             HttpResponse.BodyHandlers.ofString());
         if (existsCheck.statusCode() != 200) {
             // Connector doesn't exist yet — create a stub so we can use the offsets-reset API.
-            httpClient.send(
+            HttpResponse<String> stubResp = httpClient.send(
                 HttpRequest.newBuilder()
                     .uri(URI.create(KAFKA_CONNECT_URL + "/connectors"))
                     .timeout(Duration.ofSeconds(10))
@@ -89,25 +89,38 @@ public abstract class KafkaConnectBase extends ContainerBase {
                     .POST(HttpRequest.BodyPublishers.ofString(connectorConfig))
                     .build(),
                 HttpResponse.BodyHandlers.ofString());
+            if (stubResp.statusCode() != 201 && stubResp.statusCode() != 409) {
+                throw new RuntimeException("Failed to create stub connector " + connectorName
+                    + " (" + stubResp.statusCode() + "): " + stubResp.body());
+            }
             Thread.sleep(2000);
         }
         // Stop → delete offsets → delete connector.
-        httpClient.send(
+        HttpResponse<String> stopResp = httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/stop"))
                 .timeout(Duration.ofSeconds(10)).PUT(HttpRequest.BodyPublishers.noBody()).build(),
             HttpResponse.BodyHandlers.ofString());
+        if (stopResp.statusCode() != 200 && stopResp.statusCode() != 204) {
+            log.warn("Stop request for {} returned {}: {}", connectorName, stopResp.statusCode(), stopResp.body());
+        }
         Thread.sleep(1500);
-        httpClient.send(
+        HttpResponse<String> offsetResp = httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/offsets"))
                 .timeout(Duration.ofSeconds(10)).DELETE().build(),
             HttpResponse.BodyHandlers.ofString());
-        httpClient.send(
+        if (offsetResp.statusCode() != 200 && offsetResp.statusCode() != 204) {
+            log.warn("Offset delete for {} returned {}: {}", connectorName, offsetResp.statusCode(), offsetResp.body());
+        }
+        HttpResponse<String> deleteResp = httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName))
                 .timeout(Duration.ofSeconds(10)).DELETE().build(),
             HttpResponse.BodyHandlers.ofString());
+        if (deleteResp.statusCode() != 204) {
+            log.warn("Delete connector {} returned {}: {}", connectorName, deleteResp.statusCode(), deleteResp.body());
+        }
         Thread.sleep(1000);
 
         // Recreate fresh with no stored offsets.
@@ -160,7 +173,9 @@ public abstract class KafkaConnectBase extends ContainerBase {
                     log.info("Connector {} is RUNNING (connector + all tasks)", connectorName);
                     return;
                 }
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                log.warn("Failed to parse connector status for {}: {}", connectorName, e.getMessage());
+            }
             Thread.sleep(1000);
         }
         throw new RuntimeException("Connector " + connectorName + " did not reach RUNNING state. Status: "

@@ -23,7 +23,7 @@ The `all` task orchestrates a complete build-and-test cycle:
 
 1. **Builds all modules** — `./gradlew clean build -x test shadowJar` (includes the variant fat-jars the component tests submit)
 2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d` (`down` exit is ignored — "container not found" on first run is normal)
-3. **Waits for services** — polls MySQL + Kafka + Kafka Connect (up to 180 s)
+3. **Waits for services** — polls MySQL + Kafka + Kafka Connect + Flink (up to 180 s); if Flink container doesn't exist (image build failure) the task throws with a diagnostic message rather than silently skipping
 4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
 5. **Deploys Kafka Connect connectors** — REST API (with `DB_HOST=mysql` for bridge networking)
 6. **Runs component tests** — `./gradlew :component-tests:test`
