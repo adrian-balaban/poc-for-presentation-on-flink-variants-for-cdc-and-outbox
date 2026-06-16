@@ -21,10 +21,8 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 env.getCheckpointConfig().setCheckpointTimeout(60_000);
 env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
-// State backend — use in-memory for demo, RocksDB for production
-// For Flink 2.2, state backend config is simplified:
-// env.setStateBackend(new HashMapStateBackend());  // In-memory, for dev/demo
-// For production: use cluster configuration or JobManager config
+// State backend is configured in FLINK_PROPERTIES (cluster config), not code.
+// Checkpoints automatically persist to the configured state.checkpoints.dir (MinIO locally, S3 in prod)
 ```
 
 ### Why This Configuration?
@@ -36,6 +34,41 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 | `MaxConcurrentCheckpoints` | 1 | CDC jobs snapshot during checkpoint; only one at a time |
 | `CheckpointTimeout` | 60_000 ms | Source snapshot takes time; must exceed the 30s interval to give headroom under load |
 | `MinPauseBetweenCheckpoints` | 5_000 ms | Prevents checkpoint storms after one finishes |
+
+---
+
+## State Backend & Checkpoint Storage
+
+### Local (Dev/Demo) — MinIO S3
+
+The local Podman Compose stack includes **MinIO** for S3-compatible checkpoint storage (http://localhost:9000). Flink JobManager and TaskManager are configured with:
+
+```yaml
+state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+state.savepoints.dir: s3://flink-checkpoints/savepoints
+s3.endpoint: http://minio:9000
+s3.path.style.access: "true"
+s3.access-key: minioadmin
+s3.secret-key: minioadmin
+```
+
+This matches production (AWS S3 with IRSA) and allows local testing of checkpoint recovery and savepoint workflows. The MinIO web console is at http://localhost:9001 (user: `minioadmin` / password: `minioadmin`).
+
+**Bootstrap:** MinIO is started by `podman-compose up`. The `flink-checkpoints` bucket is created automatically on first checkpoint write (Flink creates missing buckets).
+
+### Production — AWS S3 with IRSA
+
+Replace the MinIO config with:
+
+```yaml
+state.checkpoints.dir: s3://<your-checkpoint-bucket>/checkpoints/<job-id>
+state.savepoints.dir: s3://<your-checkpoint-bucket>/savepoints/<job-id>
+s3.endpoint: https://s3.amazonaws.com
+s3.path.style.access: "false"
+# Credentials via IRSA — no hardcoded keys
+```
+
+See [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-scale-74-connectors-migration.md) for production Flink deployment patterns with S3 and IRSA.
 
 ---
 

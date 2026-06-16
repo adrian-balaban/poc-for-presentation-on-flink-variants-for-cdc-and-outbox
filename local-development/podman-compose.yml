@@ -27,6 +27,9 @@ networks:
   poc-net:
     driver: bridge
 
+volumes:
+  minio-data:
+
 services:
 
   mysql:
@@ -103,13 +106,17 @@ services:
         jobmanager.rpc.address: flink-jobmanager
         jobmanager.rpc.port: 6123
         taskmanager.numberOfTaskSlots: 8
-        # Flink CDC Pipeline API runs MySQL schema discovery on the JM coordinator
-        # before deploying tasks — default 10s slot timeout expires during that phase.
         taskmanager.slot.timeout: 60000
         rest.bind-address: 0.0.0.0
         rest.port: 8081
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
+        state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+        state.savepoints.dir: s3://flink-checkpoints/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: "true"
+        s3.access-key: minioadmin
+        s3.secret-key: minioadmin
       # JobConfig.fromEnv() defaults for jobs submitted via REST (bridge networking)
       MYSQL_HOST: mysql
       MYSQL_PORT: "3306"
@@ -123,6 +130,8 @@ services:
       mysql:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test: curl -sf http://localhost:8081/overview
@@ -149,8 +158,15 @@ services:
         taskmanager.slot.timeout: 60000
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
+        state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+        state.savepoints.dir: s3://flink-checkpoints/savepoints
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: "true"
+        s3.access-key: minioadmin
+        s3.secret-key: minioadmin
     depends_on:
       - flink-jobmanager
+      - minio
 
   flink-cdc-submitter:
     build:
@@ -210,6 +226,26 @@ services:
       SERVER_PORT: 8080
     depends_on:
       - kafka
+
+  minio:
+    image: docker.io/minio/minio:latest
+    container_name: minio
+    networks:
+      - poc-net
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data:Z
+    healthcheck:
+      test: curl -f http://localhost:9000/minio/health/live
+      interval: 10s
+      retries: 5
+      start_period: 10s
 
   prometheus:
     image: docker.io/prom/prometheus:v2.52.0
