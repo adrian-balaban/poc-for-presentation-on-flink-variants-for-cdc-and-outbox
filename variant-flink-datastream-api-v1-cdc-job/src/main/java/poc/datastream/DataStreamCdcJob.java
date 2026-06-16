@@ -16,7 +16,7 @@ import poc.common.sink.KafkaSinkFactory;
  * CdcEventRouter, and writes to Kafka. Gives full Java control over enrichment
  * and topic routing — the most flexible of the five variants.
  *
- * Server-ID range 5900-5999 is reserved for this variant (see docker-compose.yml).
+ * Server-ID range 5900-5999 is reserved for this variant (see podman-compose.yml).
  */
 public class DataStreamCdcJob {
 

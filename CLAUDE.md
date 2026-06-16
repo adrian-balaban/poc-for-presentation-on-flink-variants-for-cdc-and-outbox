@@ -152,7 +152,9 @@ Ranges must be non-overlapping because Flink CDC 3.x incremental snapshot alloca
 
 All variants read from env vars via `poc.common.config.JobConfig.fromEnv()`. Defaults work against the Podman Compose setup without any extra config.
 
-Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_TABLES`, `MYSQL_SERVER_ID`, `KAFKA_BOOTSTRAP`, `KAFKA_TOPIC_PREFIX`.
+Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_TABLES`, `KAFKA_BOOTSTRAP`, `KAFKA_TOPIC_PREFIX`.
+
+Per-variant server-ID ranges are also env-overridable (defaults match the [server-ID table](#server-id-ranges-do-not-overlap)): `MYSQL_SERVER_ID` (DataStream, `5900-5999`), `MYSQL_OUTBOX_SERVER_ID` (Outbox, `5600-5699`), `MYSQL_TABLE_API_SERVER_ID` (Table API, `6000-6099`), `MYSQL_SQL_API_ORDERS_SERVER_ID` (SQL API orders, `5800-5849`), `MYSQL_SQL_API_CUSTOMERS_SERVER_ID` (SQL API customers, `5850-5899`). All are validated as non-blank in `JobConfig.Builder.build()`.
 
 ## What to avoid
 
@@ -190,14 +192,14 @@ cd local-development && podman-compose -f podman-compose.yml up -d
 
 ### Flink Variants
 
-Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert Kafka output, then cancel. Server-IDs used are those hardcoded in each entry class (production ranges).
+Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert Kafka output, then cancel. Server-IDs come from `JobConfig` defaults (production ranges), overridable per the env vars in [Configuration](#configuration).
 
 | Test class | Variant | Server-ID range | Kafka topic | Status |
 |---|---|---|---|---|
-| `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 5900–5999 (JM env default) | `poc.cdc.datastream` | ✅ PASS |
-| `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (hardcoded in DDL) | `poc.cdc.table-api` | ✅ PASS |
-| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (hardcoded in DDL) | `poc.cdc.sql-api.orders` | ✅ PASS |
-| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5600–5699 (hardcoded in entry class) | `poc.cdc.outbox` | ✅ PASS |
+| `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 5900–5999 (`MYSQL_SERVER_ID` default) | `poc.cdc.datastream` | ✅ PASS |
+| `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (`MYSQL_TABLE_API_SERVER_ID` default) | `poc.cdc.table-api` | ✅ PASS |
+| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (`MYSQL_SQL_API_*_SERVER_ID` defaults) | `poc.cdc.sql-api.orders` | ✅ PASS |
+| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5600–5699 (`MYSQL_OUTBOX_SERVER_ID` default) | `poc.cdc.outbox` | ✅ PASS |
 | `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.cdc.yaml.orders` | ✅ PASS |
 
 ### Kafka Connect Variants
@@ -216,7 +218,7 @@ Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert K
 - If Flink JM is not available: Flink tests skip gracefully
 - If Kafka Connect is not available: Kafka Connect tests skip gracefully
 
-**Note:** Flink jobs submitted by component tests are **not cancelled** after the test — they remain visible at http://localhost:8081/#/job/running for the lifetime of the stack. Tests submit via `FlinkTestBase.ensureJobRunning()`, which reuses an already-RUNNING job of the same name instead of resubmitting — a second instance of the same variant would collide on its MySQL server-id. Because all 5 Flink jobs and all 5 Kafka Connect connectors run **simultaneously**, every consumer needs its own server-ID range: the Kafka Connect connectors use the dedicated `5500–5599` range, and `OutboxJob` hardcodes `5600–5699` instead of sharing the `MYSQL_SERVER_ID` default (`5900–5999`) with `DataStreamCdcJob`.
+**Note:** Flink jobs submitted by component tests are **not cancelled** after the test — they remain visible at http://localhost:8081/#/job/running for the lifetime of the stack. Tests submit via `FlinkTestBase.ensureJobRunning()`, which reuses an already-RUNNING job of the same name instead of resubmitting — a second instance of the same variant would collide on its MySQL server-id. Because all 5 Flink jobs and all 5 Kafka Connect connectors run **simultaneously**, every consumer needs its own server-ID range: the Kafka Connect connectors use the dedicated `5500–5599` range, and `OutboxJob` defaults to its own `5600–5699` range (via `MYSQL_OUTBOX_SERVER_ID`) instead of sharing the `MYSQL_SERVER_ID` default (`5900–5999`) with `DataStreamCdcJob`.
 
 ## Production Deployment
 

@@ -13,8 +13,8 @@ import java.time.*;
 import java.util.*;
 
 /**
- * Base class for component tests that use existing Docker infrastructure.
- * Tests connect to MySQL + Kafka already running via docker-compose.
+ * Base class for component tests that use existing container infrastructure.
+ * Tests connect to MySQL + Kafka already running via podman-compose.
  * This avoids Testcontainers Docker client initialization issues.
  *
  * Server-ID ranges reserved for component tests: 7000–7099 (not in CLAUDE.md prod ranges).
@@ -75,7 +75,7 @@ public abstract class ContainerBase {
 
     private static void initSchema() throws SQLException {
         try (Connection c = createConnection(); Statement s = c.createStatement()) {
-            // Tables already exist in docker-compose setup. Just verify connectivity.
+            // Tables already exist in podman-compose setup. Just verify connectivity.
             s.executeQuery("SELECT COUNT(*) FROM poc_db.orders");
             log.info("Schema verification successful - tables exist");
         }
