@@ -25,7 +25,7 @@ public class CdcEventRouter extends ProcessFunction<String, String> {
         String enriched = lastBrace < 0 ? event
             : new StringBuilder(event)
                 .replace(lastBrace, lastBrace + 1,
-                    ",\"variant\":\"datastream-cdc\",\"topic\":\"" + topicPrefix + ".datastream\",\"DS-TEST\":true}")
+                    ",\"variant\":\"datastream-cdc\",\"topic\":\"" + topicPrefix + ".datastream\"}")
                 .toString();
         out.collect(enriched);
     }
