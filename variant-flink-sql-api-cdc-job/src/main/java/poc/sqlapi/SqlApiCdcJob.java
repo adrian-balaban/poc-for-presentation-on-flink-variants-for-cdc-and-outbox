@@ -6,6 +6,8 @@ import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import poc.common.config.JobConfig;
 
+import static poc.common.validation.DdlValidator.requireSafeDdl;
+
 /**
  * Variant 3 — SQL API CDC
  *
@@ -13,25 +15,21 @@ import poc.common.config.JobConfig;
  * into a single JobGraph — one checkpoint, one recovery unit. Minimal Java
  * boilerplate (~210 lines in real connector, mostly DDL strings).
  *
- * Server-ID range 5800-5899 is reserved for this variant.
+ * Server-ID ranges come from {@code JobConfig#sqlApiOrdersServerId} and
+ * {@code JobConfig#sqlApiCustomersServerId}.
  */
 public class SqlApiCdcJob {
 
-    static void requireSafeDdl(String value, String name) {
-        if (value != null && (value.contains("'") || value.contains("\\"))) {
-            throw new IllegalArgumentException(
-                "Config value for " + name + " contains \"'\" or \"\\\" — unsafe to embed in Flink DDL");
-        }
-    }
-
     public static void main(String[] args) {
         JobConfig config = JobConfig.fromEnv();
-        requireSafeDdl(config.mysqlHost,        "MYSQL_HOST");
-        requireSafeDdl(config.mysqlUser,        "MYSQL_USER");
-        requireSafeDdl(config.mysqlPassword,    "MYSQL_PASSWORD");
-        requireSafeDdl(config.mysqlDatabase,    "MYSQL_DATABASE");
-        requireSafeDdl(config.kafkaBootstrap,   "KAFKA_BOOTSTRAP");
-        requireSafeDdl(config.kafkaTopicPrefix, "KAFKA_TOPIC_PREFIX");
+        requireSafeDdl(config.mysqlHost,                 "MYSQL_HOST");
+        requireSafeDdl(config.mysqlUser,                 "MYSQL_USER");
+        requireSafeDdl(config.mysqlPassword,             "MYSQL_PASSWORD");
+        requireSafeDdl(config.mysqlDatabase,              "MYSQL_DATABASE");
+        requireSafeDdl(config.kafkaBootstrap,             "KAFKA_BOOTSTRAP");
+        requireSafeDdl(config.kafkaTopicPrefix,           "KAFKA_TOPIC_PREFIX");
+        requireSafeDdl(config.sqlApiOrdersServerId,       "sqlApiOrdersServerId");
+        requireSafeDdl(config.sqlApiCustomersServerId,    "sqlApiCustomersServerId");
 
         StreamExecutionEnvironment env      = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment     tableEnv = StreamTableEnvironment.create(env);
@@ -63,10 +61,11 @@ public class SqlApiCdcJob {
                 'password'         = '%s',
                 'database-name'    = '%s',
                 'table-name'       = 'orders',
-                'server-id'        = '5800-5849',
+                'server-id'        = '%s',
                 'server-time-zone' = 'UTC'
             )""", config.mysqlHost, config.mysqlPort,
-                   config.mysqlUser, config.mysqlPassword, config.mysqlDatabase));
+                   config.mysqlUser, config.mysqlPassword, config.mysqlDatabase,
+                   config.sqlApiOrdersServerId));
 
         tableEnv.executeSql(String.format("""
             CREATE TABLE src_customers (
@@ -82,10 +81,11 @@ public class SqlApiCdcJob {
                 'password'         = '%s',
                 'database-name'    = '%s',
                 'table-name'       = 'customers',
-                'server-id'        = '5850-5899',
+                'server-id'        = '%s',
                 'server-time-zone' = 'UTC'
             )""", config.mysqlHost, config.mysqlPort,
-                   config.mysqlUser, config.mysqlPassword, config.mysqlDatabase));
+                   config.mysqlUser, config.mysqlPassword, config.mysqlDatabase,
+                   config.sqlApiCustomersServerId));
 
         // ── Sinks ─────────────────────────────────────────────────────────────
 

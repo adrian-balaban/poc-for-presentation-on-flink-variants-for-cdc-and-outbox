@@ -15,6 +15,9 @@ public class JobConfig implements java.io.Serializable {
     public final String kafkaTopicPrefix;
     public final String serverId;
     public final String outboxServerId;
+    public final String tableApiServerId;
+    public final String sqlApiOrdersServerId;
+    public final String sqlApiCustomersServerId;
 
     private JobConfig(Builder b) {
         this.mysqlHost        = b.mysqlHost;
@@ -27,6 +30,9 @@ public class JobConfig implements java.io.Serializable {
         this.kafkaTopicPrefix = b.kafkaTopicPrefix;
         this.serverId         = b.serverId;
         this.outboxServerId   = b.outboxServerId;
+        this.tableApiServerId       = b.tableApiServerId;
+        this.sqlApiOrdersServerId   = b.sqlApiOrdersServerId;
+        this.sqlApiCustomersServerId = b.sqlApiCustomersServerId;
     }
 
     public static JobConfig fromEnv() {
@@ -48,6 +54,9 @@ public class JobConfig implements java.io.Serializable {
             .kafkaTopicPrefix(env("KAFKA_TOPIC_PREFIX", "poc.cdc", lookup))
             .serverId(env("MYSQL_SERVER_ID", "5900-5999", lookup))
             .outboxServerId(env("MYSQL_OUTBOX_SERVER_ID", "5600-5699", lookup))
+            .tableApiServerId(env("MYSQL_TABLE_API_SERVER_ID", "6000-6099", lookup))
+            .sqlApiOrdersServerId(env("MYSQL_SQL_API_ORDERS_SERVER_ID", "5800-5849", lookup))
+            .sqlApiCustomersServerId(env("MYSQL_SQL_API_CUSTOMERS_SERVER_ID", "5850-5899", lookup))
             .build();
     }
 
@@ -60,7 +69,12 @@ public class JobConfig implements java.io.Serializable {
         String mysqlHost = "localhost";
         int    mysqlPort = 3306;
         String mysqlUser, mysqlPassword, mysqlDatabase, mysqlTables;
-        String kafkaBootstrap, kafkaTopicPrefix, serverId, outboxServerId;
+        String kafkaBootstrap, kafkaTopicPrefix;
+        String serverId               = "5900-5999";
+        String outboxServerId         = "5600-5699";
+        String tableApiServerId       = "6000-6099";
+        String sqlApiOrdersServerId   = "5800-5849";
+        String sqlApiCustomersServerId = "5850-5899";
 
         public Builder mysqlHost(String v)        { this.mysqlHost = v;        return this; }
         public Builder mysqlPort(int v)            { this.mysqlPort = v;        return this; }
@@ -70,8 +84,11 @@ public class JobConfig implements java.io.Serializable {
         public Builder mysqlTables(String v)       { this.mysqlTables = v;      return this; }
         public Builder kafkaBootstrap(String v)    { this.kafkaBootstrap = v;   return this; }
         public Builder kafkaTopicPrefix(String v)  { this.kafkaTopicPrefix = v; return this; }
-        public Builder serverId(String v)          { this.serverId = v;         return this; }
-        public Builder outboxServerId(String v)    { this.outboxServerId = v;   return this; }
+        public Builder serverId(String v)                  { this.serverId = v;                  return this; }
+        public Builder outboxServerId(String v)             { this.outboxServerId = v;            return this; }
+        public Builder tableApiServerId(String v)           { this.tableApiServerId = v;          return this; }
+        public Builder sqlApiOrdersServerId(String v)       { this.sqlApiOrdersServerId = v;       return this; }
+        public Builder sqlApiCustomersServerId(String v)    { this.sqlApiCustomersServerId = v;    return this; }
         public JobConfig build() {
             if (mysqlHost == null || mysqlHost.isBlank()) throw new IllegalStateException("mysqlHost is required");
             if (mysqlUser == null || mysqlUser.isBlank()) throw new IllegalStateException("mysqlUser is required");
@@ -80,6 +97,11 @@ public class JobConfig implements java.io.Serializable {
             if (mysqlTables == null || mysqlTables.isBlank()) throw new IllegalStateException("mysqlTables is required");
             if (kafkaBootstrap == null || kafkaBootstrap.isBlank()) throw new IllegalStateException("kafkaBootstrap is required");
             if (kafkaTopicPrefix == null || kafkaTopicPrefix.isBlank()) throw new IllegalStateException("kafkaTopicPrefix is required");
+            if (serverId == null || serverId.isBlank()) throw new IllegalStateException("serverId is required");
+            if (outboxServerId == null || outboxServerId.isBlank()) throw new IllegalStateException("outboxServerId is required");
+            if (tableApiServerId == null || tableApiServerId.isBlank()) throw new IllegalStateException("tableApiServerId is required");
+            if (sqlApiOrdersServerId == null || sqlApiOrdersServerId.isBlank()) throw new IllegalStateException("sqlApiOrdersServerId is required");
+            if (sqlApiCustomersServerId == null || sqlApiCustomersServerId.isBlank()) throw new IllegalStateException("sqlApiCustomersServerId is required");
             return new JobConfig(this);
         }
     }

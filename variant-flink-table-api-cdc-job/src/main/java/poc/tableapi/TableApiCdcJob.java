@@ -5,6 +5,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import poc.common.config.JobConfig;
 
+import static poc.common.validation.DdlValidator.requireSafeDdl;
+
 /**
  * Variant 2 — Table API CDC
  *
@@ -12,16 +14,9 @@ import poc.common.config.JobConfig;
  * Flink handles deserialization automatically. Good for connectors that may grow
  * SQL joins or aggregations. ~220 lines in the real connector vs ~100 for DataStream.
  *
- * Server-ID range 6000-6099 is reserved for this variant.
+ * Server-ID range comes from {@code JobConfig#tableApiServerId}.
  */
 public class TableApiCdcJob {
-
-    static void requireSafeDdl(String value, String name) {
-        if (value != null && (value.contains("'") || value.contains("\\"))) {
-            throw new IllegalArgumentException(
-                "Config value for " + name + " contains \"'\" or \"\\\" — unsafe to embed in Flink DDL");
-        }
-    }
 
     public static void main(String[] args) {
         JobConfig config = JobConfig.fromEnv();
@@ -31,6 +26,7 @@ public class TableApiCdcJob {
         requireSafeDdl(config.mysqlDatabase,    "MYSQL_DATABASE");
         requireSafeDdl(config.kafkaBootstrap,   "KAFKA_BOOTSTRAP");
         requireSafeDdl(config.kafkaTopicPrefix, "KAFKA_TOPIC_PREFIX");
+        requireSafeDdl(config.tableApiServerId, "tableApiServerId");
 
         StreamExecutionEnvironment    env      = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment        tableEnv = StreamTableEnvironment.create(env);
@@ -61,13 +57,13 @@ public class TableApiCdcJob {
                 'password'          = '%s',
                 'database-name'     = '%s',
                 'table-name'        = 'orders',
-                'server-id'         = '6000-6099',
+                'server-id'         = '%s',
                 'server-time-zone'  = 'UTC'
             )
             """,
             config.mysqlHost, config.mysqlPort,
             config.mysqlUser, config.mysqlPassword,
-            config.mysqlDatabase
+            config.mysqlDatabase, config.tableApiServerId
         ));
 
         // Sink DDL — upsert-kafka writes the full row as JSON

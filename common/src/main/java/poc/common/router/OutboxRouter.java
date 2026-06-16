@@ -2,6 +2,8 @@ package poc.common.router;
 
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import poc.common.config.JobConfig;
 
 /**
@@ -12,6 +14,8 @@ import poc.common.config.JobConfig;
  * per-topic fan-out. For the POC we log the routing decision.
  */
 public class OutboxRouter extends ProcessFunction<String, String> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OutboxRouter.class);
 
     private final JobConfig config;
 
@@ -25,7 +29,7 @@ public class OutboxRouter extends ProcessFunction<String, String> {
         String topic = config.kafkaTopicPrefix + ".outbox." + destination;
         // In production: use side outputs (one per destination) for per-topic exactly-once routing.
         // ctx.output(sideOutputTag(destination), event)
-        System.out.printf("[OutboxRouter] event → topic=%s  payload=%s%n", topic, event);
+        LOG.info("event → topic={}  payload={}", topic, event);
         out.collect(event);
     }
 
