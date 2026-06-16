@@ -13,6 +13,7 @@ dependencies {
     implementation "com.mysql:mysql-connector-j:8.3.0"
     testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
     testImplementation "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
+    testImplementation 'org.slf4j:slf4j-simple:1.7.36'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.assertj:assertj-core:3.25.3'
     testImplementation 'org.projectlombok:lombok:1.18.30'

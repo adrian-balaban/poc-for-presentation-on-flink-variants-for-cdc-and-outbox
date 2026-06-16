@@ -9,6 +9,7 @@ dependencies {
     compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
     compileOnly "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
     testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+    testImplementation 'org.slf4j:slf4j-simple:1.7.36'
 }
 
 shadowJar {

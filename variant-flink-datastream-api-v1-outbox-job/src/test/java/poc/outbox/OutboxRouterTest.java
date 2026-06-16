@@ -16,16 +16,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OutboxRouterTest {
 
-    private final ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    private final ByteArrayOutputStream stderr = new ByteArrayOutputStream();
     private PrintStream original;
 
-    @BeforeEach void captureStdout() {
-        original = System.out;
-        System.setOut(new PrintStream(stdout));
+    @BeforeEach void captureStderr() {
+        original = System.err;
+        System.setErr(new PrintStream(stderr));
     }
 
-    @AfterEach void restoreStdout() {
-        System.setOut(original);
+    @AfterEach void restoreStderr() {
+        System.setErr(original);
     }
 
     private static JobConfig config() {
@@ -100,7 +100,7 @@ class OutboxRouterTest {
 
         router.processElement(event, null, NOOP);
 
-        String log = stdout.toString();
+        String log = stderr.toString();
         assertTrue(log.contains("poc.cdc.outbox.payments"), "topic should contain prefix + outbox + destination");
         assertTrue(log.contains(event), "log should contain the raw event");
     }
@@ -111,7 +111,7 @@ class OutboxRouterTest {
 
         router.processElement("{\"no-dest\":true}", null, NOOP);
 
-        assertTrue(stdout.toString().contains("poc.cdc.outbox.unknown"));
+        assertTrue(stderr.toString().contains("poc.cdc.outbox.unknown"));
     }
 
     @Test
@@ -127,7 +127,7 @@ class OutboxRouterTest {
 
         router.processElement("{\"destination\":\"audit\"}", null, NOOP);
 
-        assertTrue(stdout.toString().contains("custom.outbox.audit"));
+        assertTrue(stderr.toString().contains("custom.outbox.audit"));
     }
 
     @Test
