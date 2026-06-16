@@ -21,6 +21,21 @@ aims to address, and the trade-offs involved. The talk also highlights
 
 ---
 
+## Slide 1b — Agenda (45 minutes)
+
+1. **Where we are** (2 min) — The client context, 95 connectors on one cluster
+2. **Why it hurts** (3 min) — Challenges: blast radius, licensing, no per-tribe lever
+3. **The POC** (10 min) — 5 Flink variants running simultaneously; code comparison
+4. **The solution** (5 min) — Shared-job model: one image, Helm-only per tribe
+5. **Architecture & collision avoidance** (8 min) — K8s deployment, server-ID ranges, monitoring
+6. **The trade-offs** (5 min) — What changes, what remains, new operational surface
+7. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others
+8. **Open questions** (3 min) — 7 spikes, Phase 0 timeline
+
+**Q&A: 15 minutes**
+
+---
+
 ## Slide 2 — The Client Context (Where We Are Today)
 
 **Real client experience: Confluent Kafka Cloud at scale**
@@ -78,32 +93,18 @@ We built **5 variants** in a single repo (`model-flink-job` PR #61) and ran them
 > (`JobConfig`, `CheckpointConfigurer`, deserializer, routers, `KafkaSinkFactory`) —
 > entry classes contain only variant-specific wiring.
 
-### POC Module Structure (`flink-cdc-poc`)
-
-```
-flink-cdc-poc/
-├── common/                             # JobConfig, CheckpointConfigurer, deserializer, CdcEventRouter, OutboxRouter, KafkaSinkFactory
-├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (49 lines, server-ID 5900–5999)
-├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (93 lines, server-ID 6000–6099)
-├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (136 lines, server-ID 5800–5899)
-├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (53 lines, server-ID 5600–5699)
-├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (55 lines,  server-ID 5700–5709)
-├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
-│                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
-│                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest
-└── local-development/
-    ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
-    ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
-    ├── flink-cdc-submitter/            # runs flink-cdc.sh for YAML Pipeline variant
-    ├── kafka-connect/                  # Debezium + custom SMTs; 5 connector JSON configs
-    └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
-```
-
 ---
 
 ## Slide 6 — Decision Matrix: Which Variant for Which Connector?
 
 ![Connector Decision Tree: Which Variant for Which Connector?](images/connector-decision-tree.svg)
+
+| Connector Shape | Recommended Variant | Why |
+|----------------|--------------------|----|
+| Outbox (transactional, per-row routing) | DataStream | Table/SQL API can't do per-row routing |
+| CDC with custom enrichment/transformation | DataStream CDC | Java access to `CdcEventRouter` + custom `MapFunction` |
+| Simple CDC (table → topic, no transform) | YAML Pipeline/SQL API | Zero Java; SQL API already building shade modules |
+| CDC with future SQL joins/aggregation | Table API | Unlocks Flink's Table API ecosystem (type-safe Java) |
 
 ---
 
@@ -184,34 +185,27 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 - `<jobName>-rest` ClusterIP Service
 - `FlinkStateSnapshot` CR
 
-### Collision Avoidance — Each Variant Gets Its Own Lane
-
-| Axis | Allocation |
-|------|------------|
-| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
-| MySQL schema | `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db` |
-| Kafka topic prefix | `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*` |
-| S3 checkpoint paths | Auto-namespaced by `jobId` — shared bucket, safe |
-
-**Kafka Connect (POC side-by-side)** uses the reserved `5500–5599` range:
-
-| KC Connector | Server-ID |
-|-------------|-----------|
-| kc-datastream-cdc | 5510 |
-| kc-table-api-cdc | 5520 |
-| kc-sql-api-cdc | 5530 |
-| kc-yaml-pipeline-cdc | 5540 |
-| kc-outbox-cdc | 5550 |
-
-> **Why ranges, not single IDs?** Flink CDC 3.x incremental snapshot allocates IDs for
-> parallel readers + restart attempts. A single int collides on restart because the
-> previous MySQL binlog lease hasn't timed out.
+> **Details on collision avoidance and server-ID ranges:** see Appendix section
+> "Collision Avoidance — Each Variant Gets Its Own Lane"
 
 ---
 
 ## Slide 10 — CDC Snapshotting: Before vs After
 
-![CDC Snapshotting Flow: Today vs Post-Migration](images/cdc-snapshotting-flow.svg)
+**Post-Migration:** re-snapshotting is now native to Flink CDC.
+
+<div class="mermaid">
+sequenceDiagram
+  participant Op as Operator
+  participant ArgoCD
+  participant Flink as Flink CDC Job
+  participant MySQL as MySQL binlog
+
+  Op->>ArgoCD: upgradeMode: stateless + bump restartNonce
+  ArgoCD->>Flink: delete checkpoint state + restart
+  Flink->>MySQL: full initial snapshot (automatic)
+  Op->>ArgoCD: revert upgradeMode: last-state
+</div>
 
 **What disappears:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, signal Kafka topic
 — **3 Java classes and 1 Kafka topic eliminated**.
@@ -219,7 +213,9 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 > **Caution:** `stateless` is a one-shot re-snapshot lever — always revert to `last-state`.
 > Left on permanently, **every** restart re-snapshots the full table.
 
-### Checkpoint Configuration (production-ready)
+---
+
+## Slide 10b — Checkpoint Configuration (production-ready)
 
 All five variants share one extraction point — `CheckpointConfigurer.applyExactlyOnce(env)` —
 rather than repeating the five calls below in every entry class:
@@ -242,7 +238,7 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ---
 
-## Slide 11 — POC Evidence
+## Slide 12 — POC Evidence
 
 | Verification | Result |
 |-------------|--------|
@@ -250,13 +246,13 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 | All 8 modules compile | Clean |
 | Format (Spotify fmt) | Compliant |
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
-| Per-variant component tests | Configured (gated by `FLINK_JOB_TYPE` in Jenkins) |
+| Per-variant component tests | Configured |
 | StatementSet → 1 JobGraph | Verified (SQL API + Table API) |
 | All 5 variants running simultaneously | Verified (localhost:8081 Flink Dashboard) |
 
 ---
 
-## Slide 11b — POC Evidence: Live Screenshots
+## Slide 12b — POC Evidence: Live Screenshots
 
 **All 5 Flink variants running simultaneously on localhost — captured during the live POC.**
 
@@ -283,7 +279,7 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ---
 
-## Slide 12 — Improvements the New Approach Addresses
+## Slide 13 — Improvements the New Approach Addresses
 
 - **Reduced blast radius** — each tribe's Flink job is isolated; failure can't cascade
 - **Clear ownership** — tribe owns their connector repo and deploy cadence
@@ -296,7 +292,7 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ---
 
-## Slide 13 — The Trade-offs
+## Slide 14 — The Trade-offs
 
 - KC doesn't disappear entirely (21 SFTP/SingleStore connectors remain — two systems to run)
 - Field-level encryption complexity transfers — connectors using custom CDC SMTs must replicate encryption logic in Flink `MapFunction`
@@ -306,13 +302,25 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ---
 
-## Slide 14 — Alternatives Considered & Reasoning
+## Slide 15 — Alternatives Considered & Reasoning
 
 ![Alternatives Analysis: Why Flink CDC Shared-Job Model?](images/alternatives-analysis.svg)
 
+| Option | Why Not Chosen |
+|--------|---------------|
+| Stay on Confluent Kafka Cloud (status quo) | Blast radius, licensing cost, no per-tribe lever — the pain remains |
+| Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden |
+| Per-tribe dedicated KC clusters | Solves isolation but multiplies cost and operational overhead 26× |
+| Flink CDC — per-tribe Java fork | True isolation, but every tribe maintains Java + a release pipeline |
+| **Flink CDC — shared-job model (chosen)** | Isolation + no per-tribe Java; one base image, Helm-only overrides |
+
+> **Reasoning:** Flink CDC is the only option that removes blast radius **and** licensing
+> cost. Within Flink, the shared-job model keeps the isolation win without forcing 26
+> teams to each own Java code — the lowest-friction path to the same guarantees.
+
 ---
 
-## Slide 15 — Open Spikes
+## Slide 16 — Open Spikes
 
 | ID | Topic | Why It Matters | Timebox |
 |----|-------|---------------|---------|
@@ -328,7 +336,7 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ---
 
-## Slide 16 — Centralised Monitoring: KC and Flink
+## Slide 17 — Centralised Monitoring: KC and Flink
 
 **POC coverage** (local): Flink Dashboard (:8081) + Kafka UI (:8080) cover the same signals as Datadog — restarts, checkpoint duration, checkpoint failures.
 
@@ -338,10 +346,100 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ---
 
+## Slide 18 — Recommendation & Next Steps
+
+### The Case for Flink CDC (Shared-Job Model)
+
+✅ **Solves the root pain:**
+- Blast radius contained to single tribe — no cascade rebalances
+- Per-tribe ownership — each tribe controls their CDC schedule
+- Zero licensing cost — Apache 2.0 Flink + Flink CDC
+- One code path — Platform Team maintains shared image; 74 tribes override Helm values only
+
+✅ **Proven in POC:**
+- 5 variants running simultaneously without collision
+- Native Flink checkpointing — no custom signal plumbing
+- Per-job exactly-once semantics — no shared state
+- Component tests ✅, unit tests ✅, all 8 modules ✅
+
+### Phase 0 Timeline
+
+| Spike | Days | Blocker? | Parallelisable |
+|-------|------|----------|---|
+| S1/S10 — Flink metric parity | 3 | Monitoring design | ✓ |
+| S2 — Memory pressure @ 15M rows | 2 | Phase 1 go-live | ✓ |
+| S3 — Outbox multi-topic @ scale | 2 | Phase 1 go-live | ✓ |
+| S4 — Snapshot status signals | 2 | Phase 3 (optional) | ✓ |
+| **Total parallelisable: ~3 days in-critical-path** | | | |
+
+### Recommended Path Forward
+
+1. **Immediate** — Approve Phase 0 and parallel spike schedule
+2. **Week 1–2** — Run S1–S4 in parallel; resolve go/no-go blockers (S2, S3)
+3. **Week 3** — Prepare cutover playbooks; shadow 1 connector (Phase 1a pilot)
+4. **Month 2** — Pilot Phase 1 (10–15 connectors); measure lag, monitoring coverage
+5. **Month 3+** — Phase 2 & 3 per schedule; migrate remaining 60–65 connectors
+
+### Questions for Stakeholders
+
+- Can we commit to Phase 0 timeline (≤3 weeks critical path)?
+- Is per-tribe Helm-based deployment acceptable, or do we need a UI/GitOps layer?
+- Monitoring: acceptable to use Flink Dashboard + custom Datadog metrics until S1/S10 resolves?
+
+---
+
 ## APPENDIX — Backup Slides (Not Part of the 45-Minute Talk)
 
 > The three lists below are reference material for Q&A only. Do not present them live —
 > they are here so you can jump to a specific table if asked a detailed infra question.
+
+---
+
+## Detailed Reference — POC Module Structure & Collision Avoidance
+
+### POC Module Structure (`flink-cdc-poc`)
+
+```
+flink-cdc-poc/
+├── common/                             # JobConfig, CheckpointConfigurer, deserializer, CdcEventRouter, OutboxRouter, KafkaSinkFactory
+├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (49 lines, server-ID 5900–5999)
+├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (93 lines, server-ID 6000–6099)
+├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (136 lines, server-ID 5800–5899)
+├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (53 lines, server-ID 5600–5699)
+├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (55 lines,  server-ID 5700–5709)
+├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
+│                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
+│                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest
+└── local-development/
+    ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
+    ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
+    ├── flink-cdc-submitter/            # runs flink-cdc.sh for YAML Pipeline variant
+    ├── kafka-connect/                  # Debezium + custom SMTs; 5 connector JSON configs
+    └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
+```
+
+### Collision Avoidance — Each Variant Gets Its Own Lane
+
+| Axis | Allocation |
+|------|------------|
+| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
+| MySQL schema | `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db` |
+| Kafka topic prefix | `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*` |
+| S3 checkpoint paths | Auto-namespaced by `jobId` — shared bucket, safe |
+
+**Kafka Connect (POC side-by-side)** uses the reserved `5500–5599` range:
+
+| KC Connector | Server-ID |
+|-------------|-----------|
+| kc-datastream-cdc | 5510 |
+| kc-table-api-cdc | 5520 |
+| kc-sql-api-cdc | 5530 |
+| kc-yaml-pipeline-cdc | 5540 |
+| kc-outbox-cdc | 5550 |
+
+> **Why ranges, not single IDs?** Flink CDC 3.x incremental snapshot allocates IDs for
+> parallel readers + restart attempts. A single int collides on restart because the
+> previous MySQL binlog lease hasn't timed out.
 
 ---
 
@@ -389,18 +487,12 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
   - `flink-stream-api-base-image`
   - `flink-table-api-base-image`
   - `flink-sql-api-base-image`
-- Per-variant fat-jar images: 5 Docker images; one-per-PR via Jenkins; Shadow plugin
+- Per-variant fat-jar images: 5 Docker images; Shadow plugin
 
 ### Object Storage (S3)
 
 - Shared S3 bucket for checkpoints/savepoints — auto-namespaced by `jobId`
 - Per-job `checkpointing.dir` paths must not overlap
-
-### CI/CD
-
-- **Jenkins** — `FLINK_JOB_TYPE` selects variant per PR; `sed` replaces image placeholders; `yq` deletes unused `applicationJobs` entries; master cron rotates all 5
-- **ArgoCD** — `FlinkDeployment` CR lifecycle; `restartNonce` + `upgradeMode` for re-snapshots
-- **Component tests** — per-variant, hit `<name>-rest:8081`, verify via Kafka polling
 
 ### Observability (Datadog via Terraform)
 
@@ -519,7 +611,6 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | In-memory / local (no S3 in compose); same code config (30 s interval, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (image build, `yq` delete, variant select) + ArgoCD (deploy/restart) | `./gradlew all` (build → compose restart → deploy connectors → CTs) |
 | **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` |
-| **Images** | Per-variant fat-jar images built by Jenkins; separate base images per API type | Shadow-JAR fat-jars built locally; bundled into JM/TM container at runtime |
 | **Java version** | 17 (Flink jobs); SMT not applicable (no KC in production Flink path) | 17 (Flink jobs); 11 (KC SMTs — cp-kafka-connect 7.6.1 constraint) |
 | **IAM / Security** | RDS IAM tokens, IRSA, binlog lease management | No IAM; plain `flink`/`flink` credentials; no rotation testing possible |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` in ArgoCD (post-migration) | Cancel job, delete state, re-submit (`flink cancel <JOB_ID>` + `flink run`) |
