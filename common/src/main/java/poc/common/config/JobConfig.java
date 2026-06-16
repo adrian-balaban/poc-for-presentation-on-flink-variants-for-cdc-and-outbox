@@ -5,6 +5,15 @@ import java.util.function.Function;
 public class JobConfig implements java.io.Serializable {
     private static final long serialVersionUID = 1L;
 
+    // Default per-variant server-ID ranges (mirror the table in CLAUDE.md). Referenced
+    // by both the Builder field initialisers and the fromEnv() env-lookup fallbacks so
+    // the two code paths can never drift apart.
+    static final String DEFAULT_SERVER_ID                  = "5900-5999";
+    static final String DEFAULT_OUTBOX_SERVER_ID           = "5600-5699";
+    static final String DEFAULT_TABLE_API_SERVER_ID        = "6000-6099";
+    static final String DEFAULT_SQL_API_ORDERS_SERVER_ID   = "5800-5849";
+    static final String DEFAULT_SQL_API_CUSTOMERS_SERVER_ID = "5850-5899";
+
     public final String mysqlHost;
     public final int    mysqlPort;
     public final String mysqlUser;
@@ -52,11 +61,11 @@ public class JobConfig implements java.io.Serializable {
             .mysqlTables(env("MYSQL_TABLES", "poc_db.orders", lookup))
             .kafkaBootstrap(env("KAFKA_BOOTSTRAP", "localhost:9092", lookup))
             .kafkaTopicPrefix(env("KAFKA_TOPIC_PREFIX", "poc.cdc", lookup))
-            .serverId(env("MYSQL_SERVER_ID", "5900-5999", lookup))
-            .outboxServerId(env("MYSQL_OUTBOX_SERVER_ID", "5600-5699", lookup))
-            .tableApiServerId(env("MYSQL_TABLE_API_SERVER_ID", "6000-6099", lookup))
-            .sqlApiOrdersServerId(env("MYSQL_SQL_API_ORDERS_SERVER_ID", "5800-5849", lookup))
-            .sqlApiCustomersServerId(env("MYSQL_SQL_API_CUSTOMERS_SERVER_ID", "5850-5899", lookup))
+            .serverId(env("MYSQL_SERVER_ID", DEFAULT_SERVER_ID, lookup))
+            .outboxServerId(env("MYSQL_OUTBOX_SERVER_ID", DEFAULT_OUTBOX_SERVER_ID, lookup))
+            .tableApiServerId(env("MYSQL_TABLE_API_SERVER_ID", DEFAULT_TABLE_API_SERVER_ID, lookup))
+            .sqlApiOrdersServerId(env("MYSQL_SQL_API_ORDERS_SERVER_ID", DEFAULT_SQL_API_ORDERS_SERVER_ID, lookup))
+            .sqlApiCustomersServerId(env("MYSQL_SQL_API_CUSTOMERS_SERVER_ID", DEFAULT_SQL_API_CUSTOMERS_SERVER_ID, lookup))
             .build();
     }
 
@@ -70,11 +79,11 @@ public class JobConfig implements java.io.Serializable {
         int    mysqlPort = 3306;
         String mysqlUser, mysqlPassword, mysqlDatabase, mysqlTables;
         String kafkaBootstrap, kafkaTopicPrefix;
-        String serverId               = "5900-5999";
-        String outboxServerId         = "5600-5699";
-        String tableApiServerId       = "6000-6099";
-        String sqlApiOrdersServerId   = "5800-5849";
-        String sqlApiCustomersServerId = "5850-5899";
+        String serverId               = DEFAULT_SERVER_ID;
+        String outboxServerId         = DEFAULT_OUTBOX_SERVER_ID;
+        String tableApiServerId       = DEFAULT_TABLE_API_SERVER_ID;
+        String sqlApiOrdersServerId   = DEFAULT_SQL_API_ORDERS_SERVER_ID;
+        String sqlApiCustomersServerId = DEFAULT_SQL_API_CUSTOMERS_SERVER_ID;
 
         public Builder mysqlHost(String v)        { this.mysqlHost = v;        return this; }
         public Builder mysqlPort(int v)            { this.mysqlPort = v;        return this; }
