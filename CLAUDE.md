@@ -15,6 +15,17 @@ A 5-variant Gradle multi-project POC demonstrating Apache Flink MySQL CDC as a r
 
 Requires Java 17. Gradle wrapper is included — no local Gradle install needed.
 
+### Code formatting (Spotless — Google Java Format)
+
+All Java code must be formatted with Google Java Format via [Spotless](https://github.com/diffplug/spotless).
+
+```bash
+./gradlew fmt       # Format all Java files (auto-fix)
+./gradlew fmtCheck  # Check formatting without applying changes
+```
+
+Formatting is enforced in the `check` task — `./gradlew build` will fail if code is unformatted. IDE integration: most IDEs (VS Code, IntelliJ) have formatter plugins; the easiest flow is to run `./gradlew fmt` before committing.
+
 **Note:** Component tests require Podman to be running (`cd local-development && podman-compose -f podman-compose.yml up -d`). If the stack is unavailable, component tests are skipped gracefully (shown as yellow ⭕ in test explorer).
 
 ### Full Integration Test (all)

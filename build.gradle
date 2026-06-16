@@ -9,6 +9,10 @@ buildscript {
     }
 }
 
+plugins {
+    id 'com.diffplug.spotless' version '6.25.0'
+}
+
 // Shadow and pitest are applied per-subproject via apply plugin: '...'
 
 ext {
@@ -22,6 +26,7 @@ ext {
 subprojects {
     apply plugin: 'java'
     apply plugin: 'checkstyle'
+    apply plugin: 'com.diffplug.spotless'
 
     java {
         sourceCompatibility = JavaVersion.toVersion(rootProject.ext.javaVersion)
@@ -48,6 +53,20 @@ subprojects {
         showViolations = true
     }
 
+    spotless {
+        java {
+            target 'src/**/*.java'
+            googleJavaFormat('1.21.0')
+            removeUnusedImports()
+            trimTrailingWhitespace()
+            endWithNewline()
+        }
+    }
+
+    tasks.named('check').configure {
+        dependsOn spotlessCheck
+    }
+
     // Global resolution strategy for lz4-java conflict
     configurations.all {
         resolutionStrategy {
@@ -60,6 +79,18 @@ subprojects {
 tasks.register('codeQuality') {
     group = 'analysis'
     description = 'Run Checkstyle code quality checks on all subprojects'
+}
+
+tasks.register('fmt') {
+    group = 'formatting'
+    description = 'Format all Java code with Spotless (Google Java Format)'
+    dependsOn 'spotlessApply'
+}
+
+tasks.register('fmtCheck') {
+    group = 'formatting'
+    description = 'Check Java formatting without applying changes'
+    dependsOn 'spotlessCheck'
 }
 
 tasks.register('all') { // buildAndTest
