@@ -24,6 +24,10 @@ class JobConfigTest {
         assertEquals("localhost:9092", cfg.kafkaBootstrap);
         assertEquals("poc.cdc",       cfg.kafkaTopicPrefix);
         assertEquals("5900-5999",     cfg.serverId);
+        assertEquals("5600-5699",     cfg.outboxServerId);
+        assertEquals("6000-6099",     cfg.tableApiServerId);
+        assertEquals("5800-5849",     cfg.sqlApiOrdersServerId);
+        assertEquals("5850-5899",     cfg.sqlApiCustomersServerId);
     }
 
     @Test
@@ -39,16 +43,20 @@ class JobConfigTest {
 
     @Test
     void envValues_overrideDefaults() {
-        Map<String, String> env = Map.of(
-            "MYSQL_HOST",      "db.internal",
-            "MYSQL_PORT",      "3307",
-            "MYSQL_USER",      "admin",
-            "MYSQL_PASSWORD",  "secret",
-            "MYSQL_DATABASE",  "mydb",
-            "MYSQL_TABLES",    "mydb.events",
-            "KAFKA_BOOTSTRAP", "kafka:9092",
-            "KAFKA_TOPIC_PREFIX", "my.prefix",
-            "MYSQL_SERVER_ID", "1000-1099"
+        Map<String, String> env = Map.ofEntries(
+            Map.entry("MYSQL_HOST",      "db.internal"),
+            Map.entry("MYSQL_PORT",      "3307"),
+            Map.entry("MYSQL_USER",      "admin"),
+            Map.entry("MYSQL_PASSWORD",  "secret"),
+            Map.entry("MYSQL_DATABASE",  "mydb"),
+            Map.entry("MYSQL_TABLES",    "mydb.events"),
+            Map.entry("KAFKA_BOOTSTRAP", "kafka:9092"),
+            Map.entry("KAFKA_TOPIC_PREFIX", "my.prefix"),
+            Map.entry("MYSQL_SERVER_ID", "1000-1099"),
+            Map.entry("MYSQL_OUTBOX_SERVER_ID", "1100-1199"),
+            Map.entry("MYSQL_TABLE_API_SERVER_ID", "1200-1299"),
+            Map.entry("MYSQL_SQL_API_ORDERS_SERVER_ID", "1300-1349"),
+            Map.entry("MYSQL_SQL_API_CUSTOMERS_SERVER_ID", "1350-1399")
         );
 
         JobConfig cfg = JobConfig.fromEnv(env::get);
@@ -62,6 +70,10 @@ class JobConfigTest {
         assertEquals("kafka:9092",    cfg.kafkaBootstrap);
         assertEquals("my.prefix",     cfg.kafkaTopicPrefix);
         assertEquals("1000-1099",     cfg.serverId);
+        assertEquals("1100-1199",     cfg.outboxServerId);
+        assertEquals("1200-1299",     cfg.tableApiServerId);
+        assertEquals("1300-1349",     cfg.sqlApiOrdersServerId);
+        assertEquals("1350-1399",     cfg.sqlApiCustomersServerId);
     }
 
     @Test
@@ -143,6 +155,56 @@ class JobConfigTest {
     }
 
     @Test
+    void build_throws_whenServerIdNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().serverId(null).build());
+    }
+
+    @Test
+    void build_throws_whenServerIdBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().serverId("  ").build());
+    }
+
+    @Test
+    void build_throws_whenOutboxServerIdNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().outboxServerId(null).build());
+    }
+
+    @Test
+    void build_throws_whenOutboxServerIdBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().outboxServerId("  ").build());
+    }
+
+    @Test
+    void build_throws_whenTableApiServerIdNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().tableApiServerId(null).build());
+    }
+
+    @Test
+    void build_throws_whenTableApiServerIdBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().tableApiServerId("  ").build());
+    }
+
+    @Test
+    void build_throws_whenSqlApiOrdersServerIdNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().sqlApiOrdersServerId(null).build());
+    }
+
+    @Test
+    void build_throws_whenSqlApiOrdersServerIdBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().sqlApiOrdersServerId("  ").build());
+    }
+
+    @Test
+    void build_throws_whenSqlApiCustomersServerIdNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().sqlApiCustomersServerId(null).build());
+    }
+
+    @Test
+    void build_throws_whenSqlApiCustomersServerIdBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().sqlApiCustomersServerId("  ").build());
+    }
+
+    @Test
     void builder_setsAllFields() {
         JobConfig cfg = new JobConfig.Builder()
             .mysqlHost("h")
@@ -154,6 +216,10 @@ class JobConfigTest {
             .kafkaBootstrap("k:9092")
             .kafkaTopicPrefix("pfx")
             .serverId("1-9")
+            .outboxServerId("2-9")
+            .tableApiServerId("3-9")
+            .sqlApiOrdersServerId("4-9")
+            .sqlApiCustomersServerId("5-9")
             .build();
 
         assertEquals("h",      cfg.mysqlHost);
@@ -165,5 +231,9 @@ class JobConfigTest {
         assertEquals("k:9092", cfg.kafkaBootstrap);
         assertEquals("pfx",    cfg.kafkaTopicPrefix);
         assertEquals("1-9",    cfg.serverId);
+        assertEquals("2-9",    cfg.outboxServerId);
+        assertEquals("3-9",    cfg.tableApiServerId);
+        assertEquals("4-9",    cfg.sqlApiOrdersServerId);
+        assertEquals("5-9",    cfg.sqlApiCustomersServerId);
     }
 }
