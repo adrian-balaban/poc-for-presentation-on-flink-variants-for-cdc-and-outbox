@@ -36,7 +36,7 @@ This guide explains how to manage savepoints for safe job upgrades and state rec
 
 ---
 
-## Checkpoint vs Savepoint
+## Flink Checkpoint vs Savepoint
 
 | Aspect | Checkpoint | Savepoint |
 |--------|------------|-----------|
