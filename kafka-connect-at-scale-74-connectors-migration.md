@@ -68,7 +68,7 @@ aims to address, and the trade-offs involved. The talk also highlights
 
 ## Slide 4 — Scope of the Migration
 
-**What we're migrating:** 74 CDC (MySQL binlog) connectors → Apache Flink MySQL CDC Connector
+**What we're migrating:** 74 MySQL connectors → Apache Flink MySQL CDC Connector
 
 **What stays on Kafka Connect:** 21 SFTP + SingleStore connectors (Flink has no equivalent)
 
@@ -78,8 +78,8 @@ aims to address, and the trade-offs involved. The talk also highlights
 
 ## Slide 5 — The POC: Five Flink Variants
 
-We built **5 variants** in a single repo (`model-flink-job` PR #61) and ran them
-**simultaneously** in one Flink cluster.
+We built **5 variants** and ran them
+**simultaneously**.
 
 | # | Variant | Entry-Class Size | Output Format | Java Required |
 |---|---------|-----------|---------------|---------------|
@@ -151,7 +151,7 @@ pipeline:
 
 **One base image. 74 tribes. Zero Java per tribe.**
 
-Flink Platform Team owns and maintains a single parametrisable DataStream CDC image.
+Flink Platform Team owns and maintains parametrisable images for the 5 variants.
 Each tribe gets their connector by overriding Helm values only — no fork, no Java, no release pipeline.
 
 ![K8s Deployment Topology: Shared Job Model](images/k8s-deployment-topology.svg)
@@ -304,17 +304,17 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 ## Slide 15 — Alternatives Considered & Reasoning
 
-![Alternatives Analysis: Why Flink CDC Shared-Job Model?](images/alternatives-analysis.svg)
+![Alternatives Analysis: Why Flink Shared-Job Model?](images/alternatives-analysis.svg)
 
 | Option | Why Not Chosen |
 |--------|---------------|
 | Stay on Confluent Kafka Cloud (status quo) | Blast radius, licensing cost, no per-tribe lever — the pain remains |
-| Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden |
+| Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden (is not a managed service as Confluent |
 | Per-tribe dedicated KC clusters | Solves isolation but multiplies cost and operational overhead 26× |
-| Flink CDC — per-tribe Java fork | True isolation, but every tribe maintains Java + a release pipeline |
-| **Flink CDC — shared-job model (chosen)** | Isolation + no per-tribe Java; one base image, Helm-only overrides |
+| Flink — per-tribe Java fork | True isolation, but every tribe maintains Java + a release pipeline |
+| **Flink — shared-job model (chosen)** | Isolation + no per-tribe Java; one base image, Helm-only overrides |
 
-> **Reasoning:** Flink CDC is the only option that removes blast radius **and** licensing
+> **Reasoning:** Flink is the only option that removes blast radius **and** licensing
 > cost. Within Flink, the shared-job model keeps the isolation win without forcing 26
 > teams to each own Java code — the lowest-friction path to the same guarantees.
 
