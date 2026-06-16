@@ -34,9 +34,11 @@ check.dependsOn jacocoTestCoverageVerification
 
 pitest {
     junit5PluginVersion = '1.2.1'
-    targetClasses       = ['poc.outbox.OutboxRouter']
+    // OutboxRouter lives in :common — point PIT at that module's main source set
+    // so it can mutate the class while running this module's (more thorough) tests.
+    mainSourceSets      = [project(':common').sourceSets.main]
+    targetClasses       = ['poc.common.router.OutboxRouter']
     targetTests         = ['poc.outbox.*']
-    excludedClasses     = ['poc.outbox.OutboxJob']
     mutationThreshold   = 100
     coverageThreshold   = 0
     outputFormats       = ['HTML', 'XML']

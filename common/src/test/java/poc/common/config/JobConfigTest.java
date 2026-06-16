@@ -70,6 +70,78 @@ class JobConfigTest {
         assertNotNull(JobConfig.fromEnv());
     }
 
+    private static JobConfig.Builder validBuilder() {
+        return new JobConfig.Builder()
+            .mysqlHost("h").mysqlUser("u").mysqlPassword("p")
+            .mysqlDatabase("db").mysqlTables("t")
+            .kafkaBootstrap("k:9092").kafkaTopicPrefix("pfx");
+    }
+
+    @Test
+    void build_throws_whenMysqlHostNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlHost(null).build());
+    }
+
+    @Test
+    void build_throws_whenMysqlHostBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlHost("  ").build());
+    }
+
+    @Test
+    void build_throws_whenMysqlUserNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlUser(null).build());
+    }
+
+    @Test
+    void build_throws_whenMysqlUserBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlUser("  ").build());
+    }
+
+    @Test
+    void build_throws_whenMysqlPasswordNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlPassword(null).build());
+    }
+
+    @Test
+    void build_throws_whenMysqlDatabaseNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlDatabase(null).build());
+    }
+
+    @Test
+    void build_throws_whenMysqlDatabaseBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlDatabase("  ").build());
+    }
+
+    @Test
+    void build_throws_whenMysqlTablesNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlTables(null).build());
+    }
+
+    @Test
+    void build_throws_whenMysqlTablesBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().mysqlTables("  ").build());
+    }
+
+    @Test
+    void build_throws_whenKafkaBootstrapNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().kafkaBootstrap(null).build());
+    }
+
+    @Test
+    void build_throws_whenKafkaBootstrapBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().kafkaBootstrap("  ").build());
+    }
+
+    @Test
+    void build_throws_whenKafkaTopicPrefixNull() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().kafkaTopicPrefix(null).build());
+    }
+
+    @Test
+    void build_throws_whenKafkaTopicPrefixBlank() {
+        assertThrows(IllegalStateException.class, () -> validBuilder().kafkaTopicPrefix("  ").build());
+    }
+
     @Test
     void builder_setsAllFields() {
         JobConfig cfg = new JobConfig.Builder()

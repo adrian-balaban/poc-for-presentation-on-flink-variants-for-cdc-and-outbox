@@ -9,6 +9,8 @@ import poc.common.router.OutboxRouter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -40,6 +42,12 @@ class OutboxRouterTest {
         @Override public void collect(String record) {}
         @Override public void close() {}
     };
+
+    private static class ListCollector<T> implements Collector<T> {
+        final List<T> out = new ArrayList<>();
+        @Override public void collect(T record) { out.add(record); }
+        @Override public void close() {}
+    }
 
     // ── extractField ──────────────────────────────────────────────────────────
 
@@ -73,6 +81,14 @@ class OutboxRouterTest {
     void extractField_handlesEmptyValue() {
         OutboxRouter router = new OutboxRouter(config());
         assertEquals("", router.extractField("{\"destination\":\"\"}", "destination"));
+    }
+
+    @Test
+    void extractField_skipsEscapedQuoteInsideValue() {
+        OutboxRouter router = new OutboxRouter(config());
+        // value contains an escaped quote (\") — must not stop scanning there.
+        // Validates the `end += 2` skip on line 41 of OutboxRouter.
+        assertEquals("pay\\\"ments", router.extractField("{\"destination\":\"pay\\\"ments\"}", "destination"));
     }
 
     // ── processElement ────────────────────────────────────────────────────────
@@ -112,5 +128,17 @@ class OutboxRouterTest {
         router.processElement("{\"destination\":\"audit\"}", null, NOOP);
 
         assertTrue(stdout.toString().contains("custom.outbox.audit"));
+    }
+
+    @Test
+    void processElement_collectsTheOriginalEvent() throws Exception {
+        OutboxRouter router = new OutboxRouter(config());
+        ListCollector<String> collector = new ListCollector<>();
+        String event = "{\"destination\":\"payments\"}";
+
+        router.processElement(event, null, collector);
+
+        assertEquals(1, collector.out.size());
+        assertEquals(event, collector.out.get(0), "router must pass the original event through unchanged");
     }
 }

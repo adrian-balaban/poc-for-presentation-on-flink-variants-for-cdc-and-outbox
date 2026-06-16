@@ -65,6 +65,18 @@ class CdcEventRouterTest {
     }
 
     @Test
+    void processElement_handlesBraceAtStartOfString() throws Exception {
+        // lastIndexOf('}') == 0 — validates CONDITIONALS_BOUNDARY mutation on lastBrace < 0
+        CdcEventRouter router = new CdcEventRouter(config("p"));
+        ListCollector<String> collector = new ListCollector<>();
+
+        router.processElement("}", null, collector);
+
+        String enriched = collector.out.get(0);
+        assertTrue(enriched.contains("\"variant\":\"datastream-cdc\""), "brace at index 0 must still be replaced");
+    }
+
+    @Test
     void processElement_emitsExactlyOneRecord() throws Exception {
         CdcEventRouter router = new CdcEventRouter(config("p"));
         ListCollector<String> collector = new ListCollector<>();
