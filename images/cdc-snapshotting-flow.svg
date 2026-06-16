@@ -1,0 +1,135 @@
+<svg viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="600" y="30" font-size="24" font-weight="bold" text-anchor="middle" fill="#333">CDC Snapshotting: Before vs After Migration</text>
+
+  <!-- BEFORE Section -->
+  <g id="before">
+    <text x="300" y="70" font-size="16" font-weight="bold" fill="#c92a2a">TODAY: Kafka Connect + Legacy Flink CDC Streamer</text>
+
+    <!-- Step boxes -->
+    <!-- Step 1 -->
+    <rect x="50" y="100" width="180" height="80" fill="#ffe0e0" stroke="#ff6b6b" stroke-width="2" rx="6"/>
+    <text x="140" y="125" font-size="11" font-weight="bold" text-anchor="middle" fill="#c92a2a">Step 1: Operator</text>
+    <text x="140" y="142" font-size="9" text-anchor="middle" fill="#333">Bump restartNonce</text>
+    <text x="140" y="156" font-size="9" text-anchor="middle" fill="#333">in Helm values</text>
+    <text x="140" y="170" font-size="8" text-anchor="middle" fill="#666">triggerResnapshot=true</text>
+
+    <!-- Step 2 -->
+    <rect x="250" y="100" width="180" height="80" fill="#ffe0e0" stroke="#ff6b6b" stroke-width="2" rx="6"/>
+    <text x="340" y="125" font-size="11" font-weight="bold" text-anchor="middle" fill="#c92a2a">Step 2: Flink Job</text>
+    <text x="340" y="142" font-size="9" text-anchor="middle" fill="#333">OneShotUnbounded</text>
+    <text x="340" y="156" font-size="9" text-anchor="middle" fill="#333">Source emits</text>
+    <text x="340" y="170" font-size="8" text-anchor="middle" fill="#666">trigger event</text>
+
+    <!-- Step 3 -->
+    <rect x="450" y="100" width="180" height="80" fill="#ffe0e0" stroke="#ff6b6b" stroke-width="2" rx="6"/>
+    <text x="540" y="125" font-size="11" font-weight="bold" text-anchor="middle" fill="#c92a2a">Step 3: Signal Processor</text>
+    <text x="540" y="142" font-size="9" text-anchor="middle" fill="#333">Compare nonce</text>
+    <text x="540" y="156" font-size="9" text-anchor="middle" fill="#333">vs state</text>
+    <text x="540" y="170" font-size="8" text-anchor="middle" fill="#666">SignalMessage</text>
+
+    <!-- Step 4 -->
+    <rect x="650" y="100" width="180" height="80" fill="#ffe0e0" stroke="#ff6b6b" stroke-width="2" rx="6"/>
+    <text x="740" y="125" font-size="11" font-weight="bold" text-anchor="middle" fill="#c92a2a">Step 4: Signal Topic</text>
+    <text x="740" y="142" font-size="9" text-anchor="middle" fill="#333">Kafka topic</text>
+    <text x="740" y="156" font-size="9" text-anchor="middle" fill="#333">private.debezium</text>
+    <text x="740" y="170" font-size="8" text-anchor="middle" fill="#666">.signal.connector.v1</text>
+
+    <!-- Step 5 -->
+    <rect x="850" y="100" width="180" height="80" fill="#ffe0e0" stroke="#ff6b6b" stroke-width="2" rx="6"/>
+    <text x="940" y="125" font-size="11" font-weight="bold" text-anchor="middle" fill="#c92a2a">Step 5: KC Debezium</text>
+    <text x="940" y="142" font-size="9" text-anchor="middle" fill="#333">Re-snapshot tables</text>
+    <text x="940" y="156" font-size="9" text-anchor="middle" fill="#333">(full scan)</text>
+    <text x="940" y="170" font-size="8" text-anchor="middle" fill="#666">delays binlog</text>
+
+    <!-- Arrows between steps -->
+    <path d="M 230 140 L 250 140" stroke="#ff6b6b" stroke-width="2" fill="none" marker-end="url(#arrowred)"/>
+    <path d="M 430 140 L 450 140" stroke="#ff6b6b" stroke-width="2" fill="none" marker-end="url(#arrowred)"/>
+    <path d="M 630 140 L 650 140" stroke="#ff6b6b" stroke-width="2" fill="none" marker-end="url(#arrowred)"/>
+    <path d="M 830 140 L 850 140" stroke="#ff6b6b" stroke-width="2" fill="none" marker-end="url(#arrowred)"/>
+
+    <!-- Complexity box -->
+    <rect x="50" y="210" width="980" height="100" fill="#fff5f5" stroke="#ff6b6b" stroke-width="1" stroke-dasharray="5,5" rx="4"/>
+    <text x="60" y="235" font-size="11" font-weight="bold" fill="#c92a2a">⚠️ Complexity & Cost:</text>
+    <text x="60" y="255" font-size="10" fill="#333">• 3 Java classes: OneShotUnboundedSource, SnapshotSignalProcessFunction, SignalMessage</text>
+    <text x="60" y="272" font-size="10" fill="#333">• 1 additional Kafka topic (signal topic with retention overhead)</text>
+    <text x="60" y="289" font-size="10" fill="#333">• Coordination latency: operator → Helm → Flink → Kafka → Debezium (~30 seconds minimum)</text>
+    <text x="60" y="306" font-size="10" fill="#333">• Every restart triggers a **full table scan** via Debezium's snapshot logic</text>
+  </g>
+
+  <!-- Divider -->
+  <line x1="50" y1="340" x2="1050" y2="340" stroke="#ccc" stroke-width="2" stroke-dasharray="10,5"/>
+
+  <!-- AFTER Section -->
+  <g id="after">
+    <text x="300" y="380" font-size="16" font-weight="bold" fill="#2b8a3e">POST-MIGRATION: Flink CDC (Model-flink-job)</text>
+
+    <!-- Step boxes - simplified -->
+    <!-- Step 1 -->
+    <rect x="50" y="410" width="240" height="90" fill="#e6ffed" stroke="#51cf66" stroke-width="2" rx="6"/>
+    <text x="170" y="435" font-size="11" font-weight="bold" text-anchor="middle" fill="#2b8a3e">Step 1: Operator</text>
+    <text x="170" y="452" font-size="9" text-anchor="middle" fill="#333">Set upgradeMode: stateless</text>
+    <text x="170" y="466" font-size="9" text-anchor="middle" fill="#333">+ bump restartNonce</text>
+    <text x="170" y="480" font-size="8" text-anchor="middle" fill="#666">in ArgoCD values</text>
+    <text x="170" y="493" font-size="8" text-anchor="middle" fill="#666">(one lever, two knobs)</text>
+
+    <!-- Step 2 -->
+    <rect x="330" y="410" width="240" height="90" fill="#e6ffed" stroke="#51cf66" stroke-width="2" rx="6"/>
+    <text x="450" y="435" font-size="11" font-weight="bold" text-anchor="middle" fill="#2b8a3e">Step 2: ArgoCD</text>
+    <text x="450" y="452" font-size="9" text-anchor="middle" fill="#333">Delete checkpoint state</text>
+    <text x="450" y="466" font-size="9" text-anchor="middle" fill="#333">+ restart Flink Job</text>
+    <text x="450" y="480" font-size="8" text-anchor="middle" fill="#666">(pod termination)</text>
+    <text x="450" y="493" font-size="8" text-anchor="middle" fill="#666"></text>
+
+    <!-- Step 3 -->
+    <rect x="610" y="410" width="240" height="90" fill="#e6ffed" stroke="#51cf66" stroke-width="2" rx="6"/>
+    <text x="730" y="435" font-size="11" font-weight="bold" text-anchor="middle" fill="#2b8a3e">Step 3: Flink CDC</text>
+    <text x="730" y="452" font-size="9" text-anchor="middle" fill="#333">Full initial snapshot</text>
+    <text x="730" y="466" font-size="9" text-anchor="middle" fill="#333">(automatic, built-in)</text>
+    <text x="730" y="480" font-size="8" text-anchor="middle" fill="#666">Reads MySQL binlog</text>
+    <text x="730" y="493" font-size="8" text-anchor="middle" fill="#666">from beginning</text>
+
+    <!-- Arrows -->
+    <path d="M 290 455 L 330 455" stroke="#51cf66" stroke-width="2" fill="none" marker-end="url(#arrowgreen)"/>
+    <path d="M 570 455 L 610 455" stroke="#51cf66" stroke-width="2" fill="none" marker-end="url(#arrowgreen)"/>
+
+    <!-- Revert step -->
+    <rect x="890" y="410" width="180" height="90" fill="#fdf8e6" stroke="#fab005" stroke-width="2" rx="6"/>
+    <text x="980" y="435" font-size="11" font-weight="bold" text-anchor="middle" fill="#d9480f">Step 4: Revert</text>
+    <text x="980" y="452" font-size="9" text-anchor="middle" fill="#333">Set upgradeMode:</text>
+    <text x="980" y="466" font-size="9" text-anchor="middle" fill="#333">last-state</text>
+    <text x="980" y="480" font-size="8" text-anchor="middle" fill="#666">(re-enable checkpoints)</text>
+    <text x="980" y="493" font-size="8" text-anchor="middle" fill="#666">back to normal</text>
+
+    <path d="M 850 455 L 890 455" stroke="#fab005" stroke-width="2" fill="none" marker-end="url(#arrowyellow)"/>
+
+    <!-- Simplicity box -->
+    <rect x="50" y="530" width="1020" height="130" fill="#f0fdf4" stroke="#51cf66" stroke-width="2" rx="4"/>
+    <text x="60" y="560" font-size="11" font-weight="bold" fill="#2b8a3e">✓ Simplicity & Cost:</text>
+    <text x="60" y="580" font-size="10" fill="#333">• Zero custom Java classes — built into Flink CDC 3.6.0</text>
+    <text x="60" y="597" font-size="10" fill="#333">• No additional Kafka topics — eliminates signal topic overhead</text>
+    <text x="60" y="614" font-size="10" fill="#333">• One operator gesture: "set upgradeMode=stateless" (synchronous, atomic via ArgoCD)</text>
+    <text x="60" y="631" font-size="10" fill="#333">• Snapshot is automatic, native to Flink CDC — no custom orchestration</text>
+    <text x="60" y="648" font-size="10" fill="#333">• ⚠️ CAUTION: stateless is a one-shot lever — always revert to last-state after. Left on permanently, every restart re-snapshots.</text>
+  </g>
+
+  <!-- Comparison summary -->
+  <g id="summary" transform="translate(50, 680)">
+    <text x="0" y="0" font-size="11" font-weight="bold" fill="#333">Key Difference:</text>
+    <text x="0" y="18" font-size="10" fill="#c92a2a">BEFORE: Complex orchestration via 3 Java classes + signal topic + Kafka → Debezium</text>
+    <text x="0" y="33" font-size="10" fill="#2b8a3e">AFTER: Native Flink CDC behavior triggered by ArgoCD state delete</text>
+  </g>
+
+  <!-- Markers -->
+  <defs>
+    <marker id="arrowred" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#ff6b6b"/>
+    </marker>
+    <marker id="arrowgreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#51cf66"/>
+    </marker>
+    <marker id="arrowyellow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#fab005"/>
+    </marker>
+  </defs>
+</svg>

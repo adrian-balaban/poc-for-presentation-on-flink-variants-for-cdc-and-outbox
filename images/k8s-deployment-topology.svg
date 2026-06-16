@@ -1,0 +1,123 @@
+<svg viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="600" y="30" font-size="24" font-weight="bold" text-anchor="middle" fill="#333">K8s Deployment: Shared Job Model</text>
+
+  <!-- Container Registry -->
+  <rect x="50" y="80" width="280" height="120" fill="#e7f5ff" stroke="#4c6ef5" stroke-width="2" rx="8"/>
+  <text x="190" y="105" font-size="14" font-weight="bold" text-anchor="middle" fill="#1971c2">Container Registry</text>
+
+  <rect x="70" y="125" width="240" height="60" fill="#ffffff" stroke="#4c6ef5" stroke-width="1" rx="4"/>
+  <text x="190" y="145" font-size="12" font-weight="bold" text-anchor="middle" fill="#1971c2">flink-stream-api-base-image</text>
+  <text x="190" y="163" font-size="10" text-anchor="middle" fill="#666">(Flink Platform Team)</text>
+  <text x="190" y="176" font-size="9" text-anchor="middle" fill="#888">1 image, ~500MB</text>
+
+  <!-- Arrow down -->
+  <path d="M 190 200 L 190 240" stroke="#4c6ef5" stroke-width="2" fill="none" marker-end="url(#arrowblue)"/>
+
+  <!-- Helm Chart Layer -->
+  <rect x="50" y="240" width="280" height="140" fill="#fff3bf" stroke="#fab005" stroke-width="2" rx="8"/>
+  <text x="190" y="265" font-size="14" font-weight="bold" text-anchor="middle" fill="#d9480f">Helm Chart: flink-base-chart</text>
+
+  <text x="65" y="290" font-size="11" fill="#333">applicationJobs:</text>
+  <text x="75" y="307" font-size="10" fill="#666">- tribe-a-cdc</text>
+  <text x="75" y="322" font-size="10" fill="#666">- tribe-b-cdc</text>
+  <text x="75" y="337" font-size="10" fill="#666">- ... tribe-z-cdc</text>
+  <text x="75" y="352" font-size="10" fill="#666">Values override per tribe</text>
+
+  <!-- K8s Cluster -->
+  <rect x="400" y="80" width="700" height="500" fill="#f8f9fa" stroke="#495057" stroke-width="2" rx="8"/>
+  <text x="750" y="105" font-size="14" font-weight="bold" text-anchor="middle" fill="#495057">Kubernetes Cluster</text>
+
+  <!-- Tribe A Namespace -->
+  <g id="tribe-a">
+    <rect x="420" y="130" width="200" height="200" fill="#e7f5ff" stroke="#1971c2" stroke-width="2" rx="6"/>
+    <text x="520" y="155" font-size="12" font-weight="bold" text-anchor="middle" fill="#1971c2">Tribe A (flink-cdc-0)</text>
+
+    <!-- FlinkDeployment -->
+    <rect x="435" y="170" width="170" height="35" fill="#ffffff" stroke="#1971c2" stroke-width="1" rx="3"/>
+    <text x="520" y="191" font-size="10" text-anchor="middle" fill="#1971c2">FlinkDeployment CR</text>
+
+    <!-- JobManager Pod -->
+    <rect x="435" y="215" width="80" height="35" fill="#b3e5fc" stroke="#0277bd" stroke-width="1" rx="2"/>
+    <text x="475" y="232" font-size="9" text-anchor="middle" fill="#01579b">JobManager</text>
+    <text x="475" y="244" font-size="8" text-anchor="middle" fill="#01579b">:8081</text>
+
+    <!-- TaskManager Pod -->
+    <rect x="525" y="215" width="80" height="35" fill="#b3e5fc" stroke="#0277bd" stroke-width="1" rx="2"/>
+    <text x="565" y="232" font-size="9" text-anchor="middle" fill="#01579b">TaskManager</text>
+    <text x="565" y="244" font-size="8" text-anchor="middle" fill="#01579b">8 slots</text>
+
+    <!-- Service -->
+    <rect x="435" y="260" width="170" height="30" fill="#fff9c4" stroke="#fbc02d" stroke-width="1" rx="2"/>
+    <text x="520" y="279" font-size="9" text-anchor="middle" fill="#f57f17">tribe-a-cdc-rest:8081</text>
+  </g>
+
+  <!-- Tribe B Namespace -->
+  <g id="tribe-b">
+    <rect x="650" y="130" width="200" height="200" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="6"/>
+    <text x="750" y="155" font-size="12" font-weight="bold" text-anchor="middle" fill="#7b1fa2">Tribe B (flink-cdc-1)</text>
+
+    <!-- FlinkDeployment -->
+    <rect x="665" y="170" width="170" height="35" fill="#ffffff" stroke="#7b1fa2" stroke-width="1" rx="3"/>
+    <text x="750" y="191" font-size="10" text-anchor="middle" fill="#7b1fa2">FlinkDeployment CR</text>
+
+    <!-- JobManager Pod -->
+    <rect x="665" y="215" width="80" height="35" fill="#e1bee7" stroke="#512da8" stroke-width="1" rx="2"/>
+    <text x="705" y="232" font-size="9" text-anchor="middle" fill="#4a148c">JobManager</text>
+    <text x="705" y="244" font-size="8" text-anchor="middle" fill="#4a148c">:8081</text>
+
+    <!-- TaskManager Pod -->
+    <rect x="755" y="215" width="80" height="35" fill="#e1bee7" stroke="#512da8" stroke-width="1" rx="2"/>
+    <text x="795" y="232" font-size="9" text-anchor="middle" fill="#4a148c">TaskManager</text>
+    <text x="795" y="244" font-size="8" text-anchor="middle" fill="#4a148c">8 slots</text>
+
+    <!-- Service -->
+    <rect x="665" y="260" width="170" height="30" fill="#fff9c4" stroke="#fbc02d" stroke-width="1" rx="2"/>
+    <text x="750" y="279" font-size="9" text-anchor="middle" fill="#f57f17">tribe-b-cdc-rest:8081</text>
+  </g>
+
+  <!-- More Tribes -->
+  <g id="tribe-more">
+    <text x="880" y="230" font-size="16" font-weight="bold" fill="#666">...</text>
+    <text x="880" y="270" font-size="11" fill="#666">74 tribes total</text>
+  </g>
+
+  <!-- Persistent Storage -->
+  <rect x="420" y="360" width="660" height="60" fill="#f1f3f5" stroke="#868e96" stroke-width="1" rx="4"/>
+  <text x="750" y="380" font-size="11" font-weight="bold" text-anchor="middle" fill="#495057">Persistent Storage Layer</text>
+  <text x="750" y="400" font-size="10" text-anchor="middle" fill="#666">S3 Checkpoint Bucket (auto-namespaced by jobId)</text>
+  <text x="750" y="414" font-size="9" text-anchor="middle" fill="#888">Each job: /flink-checkpoints/{jobId}/{uuid}/</text>
+
+  <!-- Configuration -->
+  <rect x="420" y="450" width="660" height="110" fill="#e8f5e9" stroke="#388e3c" stroke-width="1" rx="4"/>
+  <text x="750" y="470" font-size="11" font-weight="bold" text-anchor="middle" fill="#1b5e20">Per-Tribe Configuration (Helm Values)</text>
+
+  <text x="430" y="495" font-size="9" fill="#333">MYSQL_HOST: tribe-db.internal</text>
+  <text x="430" y="510" font-size="9" fill="#333">MYSQL_DATABASE: tribe_a_schema</text>
+  <text x="430" y="525" font-size="9" fill="#333">MYSQL_SERVER_ID: 5900-5999</text>
+  <text x="600" y="495" font-size="9" fill="#333">KAFKA_BOOTSTRAP: kafka:9092</text>
+  <text x="600" y="510" font-size="9" fill="#333">KAFKA_TOPIC_PREFIX: tribe-a.cdc</text>
+  <text x="600" y="525" font-size="9" fill="#333">CHECKPOINT_DIR: s3://bucket/jobid/</text>
+
+  <!-- Arrow from Helm to K8s -->
+  <path d="M 330 310 L 400 380" stroke="#fab005" stroke-width="2" fill="none" marker-end="url(#arrowyellow)"/>
+
+  <!-- Legend -->
+  <g id="legend" transform="translate(420, 570)">
+    <rect x="0" y="0" width="12" height="12" fill="#e7f5ff" stroke="#1971c2" stroke-width="1"/>
+    <text x="20" y="10" font-size="10" fill="#333">Isolated namespace per tribe</text>
+
+    <rect x="280" y="0" width="12" height="12" fill="#f1f3f5" stroke="#868e96" stroke-width="1"/>
+    <text x="300" y="10" font-size="10" fill="#333">Shared infrastructure (S3, Kafka)</text>
+  </g>
+
+  <!-- Markers -->
+  <defs>
+    <marker id="arrowblue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#4c6ef5"/>
+    </marker>
+    <marker id="arrowyellow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#fab005"/>
+    </marker>
+  </defs>
+</svg>

@@ -1,0 +1,196 @@
+<svg viewBox="0 0 1400 800" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="700" y="30" font-size="24" font-weight="bold" text-anchor="middle" fill="#333">Connector Classification: Which Variant for Which Connector?</text>
+
+  <!-- Root decision -->
+  <rect x="550" y="70" width="300" height="60" fill="#e7f5ff" stroke="#1971c2" stroke-width="2" rx="8"/>
+  <text x="700" y="100" font-size="13" font-weight="bold" text-anchor="middle" fill="#1971c2">What is the connector's</text>
+  <text x="700" y="117" font-size="13" font-weight="bold" text-anchor="middle" fill="#1971c2">primary responsibility?</text>
+
+  <!-- Arrow down -->
+  <path d="M 700 130 L 700 160" stroke="#666" stroke-width="2" fill="none" marker-end="url(#arrowgray)"/>
+
+  <!-- Level 2: Connector Type -->
+  <!-- Outbox Branch -->
+  <g id="outbox-branch">
+    <path d="M 700 160 L 300 200" stroke="#ffa94d" stroke-width="2" fill="none"/>
+    <rect x="150" y="200" width="300" height="70" fill="#fff3bf" stroke="#fab005" stroke-width="2" rx="8"/>
+    <text x="300" y="220" font-size="12" font-weight="bold" text-anchor="middle" fill="#d9480f">Outbox Pattern</text>
+    <text x="300" y="240" font-size="10" text-anchor="middle" fill="#333">Transactional writes</text>
+    <text x="300" y="254" font-size="10" text-anchor="middle" fill="#333">Multi-destination routing</text>
+
+    <!-- Arrow down -->
+    <path d="M 300 270 L 300 300" stroke="#fab005" stroke-width="2" fill="none" marker-end="url(#arrowyellow)"/>
+
+    <!-- Recommendation -->
+    <rect x="150" y="300" width="300" height="90" fill="#d3f9d8" stroke="#51cf66" stroke-width="3" rx="8"/>
+    <text x="300" y="325" font-size="12" font-weight="bold" text-anchor="middle" fill="#2b8a3e">→ OUTBOX VARIANT</text>
+    <text x="300" y="345" font-size="9" text-anchor="middle" fill="#333">DataStream API</text>
+    <text x="300" y="362" font-size="9" text-anchor="middle" fill="#333">Per-row routing via OutboxRouter</text>
+    <text x="300" y="379" font-size="9" text-anchor="middle" fill="#666">Server-ID: 5600–5699</text>
+
+    <!-- Reasoning -->
+    <text x="150" y="415" font-size="9" fill="#666" font-style="italic">Why: Table/SQL API can't route per-row;</text>
+    <text x="150" y="430" font-size="9" fill="#666" font-style="italic">DataStream gives full control</text>
+  </g>
+
+  <!-- CDC + Transform Branch -->
+  <g id="cdc-transform-branch">
+    <path d="M 700 160 L 700 200" stroke="#4c6ef5" stroke-width="2" fill="none"/>
+    <rect x="550" y="200" width="300" height="70" fill="#e7f5ff" stroke="#1971c2" stroke-width="2" rx="8"/>
+    <text x="700" y="220" font-size="12" font-weight="bold" text-anchor="middle" fill="#1971c2">CDC with</text>
+    <text x="700" y="240" font-size="12" font-weight="bold" text-anchor="middle" fill="#1971c2">Transformations/Enrichment</text>
+
+    <!-- Arrow down -->
+    <path d="M 700 270 L 700 300" stroke="#4c6ef5" stroke-width="2" fill="none" marker-end="url(#arrowblue)"/>
+
+    <!-- Recommendation -->
+    <rect x="550" y="300" width="300" height="90" fill="#d3f9d8" stroke="#51cf66" stroke-width="3" rx="8"/>
+    <text x="700" y="325" font-size="12" font-weight="bold" text-anchor="middle" fill="#2b8a3e">→ DATASTREAM CDC VARIANT</text>
+    <text x="700" y="345" font-size="9" text-anchor="middle" fill="#333">Custom MapFunction + CdcEventRouter</text>
+    <text x="700" y="362" font-size="9" text-anchor="middle" fill="#333">Direct access to Java APIs</text>
+    <text x="700" y="379" font-size="9" text-anchor="middle" fill="#666">Server-ID: 5900–5999</text>
+
+    <!-- Reasoning -->
+    <text x="550" y="415" font-size="9" fill="#666" font-style="italic">Why: Need full control over</text>
+    <text x="550" y="430" font-size="9" fill="#666" font-style="italic">transformation logic</text>
+  </g>
+
+  <!-- Simple CDC Branch -->
+  <g id="simple-cdc-branch">
+    <path d="M 700 160 L 1100 200" stroke="#a78bfa" stroke-width="2" fill="none"/>
+    <rect x="950" y="200" width="300" height="70" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="8"/>
+    <text x="1100" y="220" font-size="12" font-weight="bold" text-anchor="middle" fill="#7b1fa2">Simple CDC</text>
+    <text x="1100" y="240" font-size="10" text-anchor="middle" fill="#333">Table → Topic</text>
+    <text x="1100" y="254" font-size="10" text-anchor="middle" fill="#333">No transformation needed</text>
+
+    <!-- Arrow down for simple split -->
+    <path d="M 1100 270 L 1100 300" stroke="#7b1fa2" stroke-width="2" fill="none" marker-end="url(#arrowpurple)"/>
+
+    <!-- Sub-decision -->
+    <rect x="950" y="300" width="300" height="70" fill="#f8f0ff" stroke="#a78bfa" stroke-width="1" rx="6"/>
+    <text x="1100" y="320" font-size="10" font-weight="bold" text-anchor="middle" fill="#5f3dc4">Do you need future SQL joins</text>
+    <text x="1100" y="336" font-size="10" font-weight="bold" text-anchor="middle" fill="#5f3dc4">or aggregations?</text>
+
+    <!-- No → YAML/SQL -->
+    <path d="M 950 330 L 850 380" stroke="#a78bfa" stroke-width="2" fill="none"/>
+    <text x="900" y="350" font-size="9" fill="#666">No</text>
+
+    <rect x="700" y="380" width="300" height="90" fill="#d3f9d8" stroke="#51cf66" stroke-width="3" rx="8"/>
+    <text x="850" y="405" font-size="12" font-weight="bold" text-anchor="middle" fill="#2b8a3e">→ YAML or SQL API</text>
+    <text x="850" y="425" font-size="9" text-anchor="middle" fill="#333">Zero Java required</text>
+    <text x="850" y="442" font-size="9" text-anchor="middle" fill="#666">SQL API: 5800–5899 | YAML: 5700–5709</text>
+
+    <!-- Yes → Table API -->
+    <path d="M 1100 370 L 1100 380" stroke="#a78bfa" stroke-width="2" fill="none"/>
+    <text x="1120" y="375" font-size="9" fill="#666">Yes</text>
+
+    <rect x="950" y="380" width="300" height="90" fill="#d3f9d8" stroke="#51cf66" stroke-width="3" rx="8"/>
+    <text x="1100" y="405" font-size="12" font-weight="bold" text-anchor="middle" fill="#2b8a3e">→ TABLE API VARIANT</text>
+    <text x="1100" y="425" font-size="9" text-anchor="middle" fill="#333">Type-safe Java + SQL ecosystem</text>
+    <text x="1100" y="442" font-size="9" text-anchor="middle" fill="#666">Server-ID: 6000–6099</text>
+  </g>
+
+  <!-- Summary Table at bottom -->
+  <g id="summary-table">
+    <text x="50" y="520" font-size="13" font-weight="bold" fill="#333">Quick Reference: Server-ID Ranges</text>
+
+    <!-- Table headers -->
+    <rect x="50" y="540" width="150" height="30" fill="#f1f3f5" stroke="#868e96" stroke-width="1"/>
+    <text x="125" y="560" font-size="10" font-weight="bold" text-anchor="middle" fill="#333">Variant</text>
+
+    <rect x="200" y="540" width="200" height="30" fill="#f1f3f5" stroke="#868e96" stroke-width="1"/>
+    <text x="300" y="560" font-size="10" font-weight="bold" text-anchor="middle" fill="#333">Primary Use</text>
+
+    <rect x="400" y="540" width="150" height="30" fill="#f1f3f5" stroke="#868e96" stroke-width="1"/>
+    <text x="475" y="560" font-size="10" font-weight="bold" text-anchor="middle" fill="#333">Server-ID Range</text>
+
+    <rect x="550" y="540" width="150" height="30" fill="#f1f3f5" stroke="#868e96" stroke-width="1"/>
+    <text x="625" y="560" font-size="10" font-weight="bold" text-anchor="middle" fill="#333">Java Required</text>
+
+    <!-- Row 1: Outbox -->
+    <rect x="50" y="570" width="150" height="25" fill="#fff9c4" stroke="#868e96" stroke-width="1"/>
+    <text x="125" y="587" font-size="9" text-anchor="middle" fill="#333">Outbox</text>
+
+    <rect x="200" y="570" width="200" height="25" fill="#fff9c4" stroke="#868e96" stroke-width="1"/>
+    <text x="300" y="587" font-size="9" text-anchor="middle" fill="#333">Per-row multi-destination</text>
+
+    <rect x="400" y="570" width="150" height="25" fill="#fff9c4" stroke="#868e96" stroke-width="1"/>
+    <text x="475" y="587" font-size="9" text-anchor="middle" fill="#333">5600–5699</text>
+
+    <rect x="550" y="570" width="150" height="25" fill="#fff9c4" stroke="#868e96" stroke-width="1"/>
+    <text x="625" y="587" font-size="9" text-anchor="middle" fill="#333">Yes</text>
+
+    <!-- Row 2: DataStream CDC -->
+    <rect x="50" y="595" width="150" height="25" fill="#e7f5ff" stroke="#868e96" stroke-width="1"/>
+    <text x="125" y="612" font-size="9" text-anchor="middle" fill="#333">DataStream CDC</text>
+
+    <rect x="200" y="595" width="200" height="25" fill="#e7f5ff" stroke="#868e96" stroke-width="1"/>
+    <text x="300" y="612" font-size="9" text-anchor="middle" fill="#333">Custom transformation</text>
+
+    <rect x="400" y="595" width="150" height="25" fill="#e7f5ff" stroke="#868e96" stroke-width="1"/>
+    <text x="475" y="612" font-size="9" text-anchor="middle" fill="#333">5900–5999</text>
+
+    <rect x="550" y="595" width="150" height="25" fill="#e7f5ff" stroke="#868e96" stroke-width="1"/>
+    <text x="625" y="612" font-size="9" text-anchor="middle" fill="#333">Yes</text>
+
+    <!-- Row 3: Table API -->
+    <rect x="50" y="620" width="150" height="25" fill="#f3e5f5" stroke="#868e96" stroke-width="1"/>
+    <text x="125" y="637" font-size="9" text-anchor="middle" fill="#333">Table API</text>
+
+    <rect x="200" y="620" width="200" height="25" fill="#f3e5f5" stroke="#868e96" stroke-width="1"/>
+    <text x="300" y="637" font-size="9" text-anchor="middle" fill="#333">Future SQL joins/agg</text>
+
+    <rect x="400" y="620" width="150" height="25" fill="#f3e5f5" stroke="#868e96" stroke-width="1"/>
+    <text x="475" y="637" font-size="9" text-anchor="middle" fill="#333">6000–6099</text>
+
+    <rect x="550" y="620" width="150" height="25" fill="#f3e5f5" stroke="#868e96" stroke-width="1"/>
+    <text x="625" y="637" font-size="9" text-anchor="middle" fill="#333">Yes</text>
+
+    <!-- Row 4: SQL API -->
+    <rect x="50" y="645" width="150" height="25" fill="#e6ffed" stroke="#868e96" stroke-width="1"/>
+    <text x="125" y="662" font-size="9" text-anchor="middle" fill="#333">SQL API</text>
+
+    <rect x="200" y="645" width="200" height="25" fill="#e6ffed" stroke="#868e96" stroke-width="1"/>
+    <text x="300" y="662" font-size="9" text-anchor="middle" fill="#333">Simple table → topic</text>
+
+    <rect x="400" y="645" width="150" height="25" fill="#e6ffed" stroke="#868e96" stroke-width="1"/>
+    <text x="475" y="662" font-size="9" text-anchor="middle" fill="#333">5800–5899</text>
+
+    <rect x="550" y="645" width="150" height="25" fill="#e6ffed" stroke="#868e96" stroke-width="1"/>
+    <text x="625" y="662" font-size="9" text-anchor="middle" fill="#333">Minimal</text>
+
+    <!-- Row 5: YAML Pipeline -->
+    <rect x="50" y="670" width="150" height="25" fill="#fdf8e6" stroke="#868e96" stroke-width="1"/>
+    <text x="125" y="687" font-size="9" text-anchor="middle" fill="#333">YAML Pipeline</text>
+
+    <rect x="200" y="670" width="200" height="25" fill="#fdf8e6" stroke="#868e96" stroke-width="1"/>
+    <text x="300" y="687" font-size="9" text-anchor="middle" fill="#333">Simple table → topic</text>
+
+    <rect x="400" y="670" width="150" height="25" fill="#fdf8e6" stroke="#868e96" stroke-width="1"/>
+    <text x="475" y="687" font-size="9" text-anchor="middle" fill="#333">5700–5709</text>
+
+    <rect x="550" y="670" width="150" height="25" fill="#fdf8e6" stroke="#868e96" stroke-width="1"/>
+    <text x="625" y="687" font-size="9" text-anchor="middle" fill="#333">No</text>
+
+    <!-- Rule note -->
+    <text x="50" y="720" font-size="9" fill="#666" font-style="italic">Rule: Non-overlapping ranges prevent MySQL binlog lease collisions on restart.</text>
+    <text x="50" y="735" font-size="9" fill="#666" font-style="italic">Each variant allocates parallel reader IDs within its range; overlap = crashes.</text>
+  </g>
+
+  <!-- Markers -->
+  <defs>
+    <marker id="arrowgray" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+    </marker>
+    <marker id="arrowyellow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#fab005"/>
+    </marker>
+    <marker id="arrowblue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1971c2"/>
+    </marker>
+    <marker id="arrowpurple" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#7b1fa2"/>
+    </marker>
+  </defs>
+</svg>
