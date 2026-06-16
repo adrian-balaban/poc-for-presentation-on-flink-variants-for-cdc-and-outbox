@@ -1,9 +1,9 @@
 package poc.sqlapi;
 
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import poc.common.checkpoint.CheckpointConfigurer;
 import poc.common.config.JobConfig;
 
 import static poc.common.validation.DdlValidator.requireSafeDdl;
@@ -35,11 +35,7 @@ public class SqlApiCdcJob {
         StreamTableEnvironment     tableEnv = StreamTableEnvironment.create(env);
 
         // Checkpoint configuration for exactly-once CDC semantics
-        env.enableCheckpointing(30_000);
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-        env.getCheckpointConfig().setCheckpointTimeout(60_000);
-        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+        CheckpointConfigurer.applyExactlyOnce(env);
 
         tableEnv.getConfig().getConfiguration().setString("pipeline.name", "Flink Sql API CDC Job");
 

@@ -2,8 +2,8 @@ package poc.datastream;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.cdc.connectors.mysql.source.MySqlSource;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import poc.common.checkpoint.CheckpointConfigurer;
 import poc.common.config.JobConfig;
 import poc.common.deserializer.PocJsonDeserializationSchema;
 import poc.common.router.CdcEventRouter;
@@ -38,11 +38,7 @@ public class DataStreamCdcJob {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Checkpoint configuration for exactly-once CDC semantics
-        env.enableCheckpointing(30_000);
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-        env.getCheckpointConfig().setCheckpointTimeout(60_000);
-        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+        CheckpointConfigurer.applyExactlyOnce(env);
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
            .process(new CdcEventRouter(config))
