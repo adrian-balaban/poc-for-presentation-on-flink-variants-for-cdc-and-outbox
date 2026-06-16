@@ -6,6 +6,8 @@ A working proof-of-concept demonstrating:
 
 Each variant is an independent Gradle subproject that builds its own fat-jar and connects to the same MySQL + Kafka infra.
 
+See also [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-scale-74-connectors-migration.md), a presentation covering a real-world Kafka Connect @ Scale migration case study (74 connectors).
+
 ---
 
 ## Variants
