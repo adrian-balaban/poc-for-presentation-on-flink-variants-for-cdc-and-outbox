@@ -1,7 +1,19 @@
-// Component tests submit Flink fat-jars to the real JobManager container (localhost:8081)
-// via the Flink REST API and verify results via Kafka polling.
-// Run with:  ./gradlew :component-tests:test
-// or:        ./gradlew :component-tests:test --tests "poc.component.DataStreamCdcTest"
+// Component tests: two categories
+//
+// 1. INTEGRATION TESTS (require Podman stack)
+//    Submit Flink fat-jars to the real JobManager container (localhost:8081)
+//    via the Flink REST API and verify results via Kafka polling.
+//    Examples: DataStreamCdcTest, TableApiCdcTest, etc.
+//
+// 2. LOCAL UNIT TESTS (fast, no containers needed)
+//    Test CDC transformation logic in isolation without external services.
+//    Run instantly during development for fast feedback.
+//    Examples: DataStreamCdcMiniClusterTest, OutboxRouterMiniClusterTest
+//
+// Run with:
+//   ./gradlew :component-tests:test                              # All tests
+//   ./gradlew :component-tests:test --tests "poc.component.DataStreamCdcTest"  # Integration only
+//   ./gradlew :component-tests:test --tests "*MiniClusterTest"   # Local tests only
 
 dependencies {
     // Shared config / sink factory
@@ -15,6 +27,11 @@ dependencies {
         exclude group: 'at.yawk.lz4', module: 'lz4-java'
     }
     testImplementation 'org.lz4:lz4-java:1.8.0'
+
+    // Flink streaming API & testing (MiniCluster for in-process testing)
+    testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+    testImplementation "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
+    testImplementation "org.apache.flink:flink-test-utils:${rootProject.ext.flinkVersion}"
 
     // JSON parsing (Kafka Connect REST API + Flink REST response parsing)
     testImplementation 'org.json:json:20231013'
