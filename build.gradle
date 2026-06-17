@@ -41,6 +41,7 @@ subprojects {
     }
 
     repositories {
+        maven { url = uri("${rootDir}/local-maven-repo") }
         maven {
             url = uri("http://repo1.maven.org/maven2")
             allowInsecureProtocol = true
