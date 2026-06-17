@@ -17,13 +17,10 @@ JOBMANAGER_HOST="${JOBMANAGER_HOST:-localhost}"
 # Replace the address line immediately following the `rest:` key (nested 2.x YAML).
 sed -i "/^rest:/{n;s/address:.*/address: ${JOBMANAGER_HOST}/}" "${FLINK_HOME}/conf/config.yaml"
 
-# Apply FLINK_PROPERTIES to the local Flink config (the base image entrypoint is
-# bypassed by this custom entrypoint, so we process it here).  The submitter's
-# local Flink client config is what gets embedded in the submitted job graph —
-# checkpoint settings must be here for the YAML pipeline job to pick them up.
-if [ -n "${FLINK_PROPERTIES}" ]; then
-  printf "%s\n" "${FLINK_PROPERTIES}" >> "${FLINK_HOME}/conf/config.yaml"
-fi
+# Note: FLINK_PROPERTIES is processed by flink-cdc.sh via $FLINK_HOME/bin/config.sh
+# which sources it and appends to config.yaml automatically. Do NOT manually append
+# here — doing so causes duplicate YAML keys (fatal to SnakeYAML) when config.sh
+# appends the same env var a second time during startup.
 
 # Ensure the S3 checkpoint bucket exists before submitting.
 # podman-compose 1.0.6 does not support service_completed_successfully, so we

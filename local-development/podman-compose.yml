@@ -108,7 +108,7 @@ services:
         taskmanager.numberOfTaskSlots: 8
         taskmanager.slot.timeout: 60000
         rest.bind-address: 0.0.0.0
-        rest.port: 8081
+        rest.bind-port: 8081
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
         execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
@@ -123,6 +123,7 @@ services:
         s3.path.style.access: true
         s3.access-key: minioadmin
         s3.secret-key: minioadmin
+      AWS_JAVA_V1_DISABLE_DEPRECATION_ANNOUNCEMENT: "true"
       # JobConfig.fromEnv() defaults for jobs submitted via REST (bridge networking)
       MYSQL_HOST: mysql
       MYSQL_PORT: "3306"
@@ -176,6 +177,7 @@ services:
         s3.path.style.access: true
         s3.access-key: minioadmin
         s3.secret-key: minioadmin
+      AWS_JAVA_V1_DISABLE_DEPRECATION_ANNOUNCEMENT: "true"
     depends_on:
       - flink-jobmanager
       - minio

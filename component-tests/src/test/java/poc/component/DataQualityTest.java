@@ -113,7 +113,7 @@ class DataQualityTest extends FlinkTestBase {
             Duration.ofSeconds(45),
             m -> {
               JSONObject a = afterOf(m);
-              return a != null && a.optLong("customer_id") == 3000;
+              return a != null && a.optLong("customer_id") == 3000 && a.isNull("status");
             });
 
     assertThat(msg).as("expected CDC message for customer_id=3000").isNotNull();
