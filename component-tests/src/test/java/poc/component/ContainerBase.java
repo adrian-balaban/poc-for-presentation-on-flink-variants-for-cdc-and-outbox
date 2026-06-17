@@ -3,6 +3,7 @@ package poc.component;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -154,5 +155,41 @@ public abstract class ContainerBase {
           timeout);
     }
     return messages;
+  }
+
+  /**
+   * Scans a Kafka topic from the earliest offset until a message satisfying {@code filter} is
+   * found, or the deadline passes.
+   *
+   * <p>Use this instead of {@link #pollKafka} when the test needs a <em>specific</em> message (e.g.
+   * the row it just inserted) rather than just the first N available. The topic may contain many
+   * historical snapshot messages, so taking the first message without filtering returns stale data.
+   *
+   * @return the first matching message, or {@code null} if none found within the timeout
+   */
+  protected static String waitForKafkaMessage(
+      String topic, Duration timeout, Predicate<String> filter) {
+    ensureSchema();
+    Properties props = new Properties();
+    props.put("bootstrap.servers", KAFKA_BOOTSTRAP);
+    props.put("group.id", "test-" + UUID.randomUUID());
+    props.put("auto.offset.reset", "earliest");
+    props.put("key.deserializer", StringDeserializer.class.getName());
+    props.put("value.deserializer", StringDeserializer.class.getName());
+
+    try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
+      consumer.subscribe(List.of(topic));
+      Instant deadline = Instant.now().plus(timeout);
+      while (Instant.now().isBefore(deadline)) {
+        ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
+        for (var record : records) {
+          if (filter.test(record.value())) {
+            return record.value();
+          }
+        }
+      }
+    }
+    log.warn("waitForKafkaMessage timed out on topic '{}' within {}", topic, timeout);
+    return null;
   }
 }

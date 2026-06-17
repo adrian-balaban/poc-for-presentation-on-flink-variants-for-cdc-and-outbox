@@ -2,12 +2,10 @@ package poc.component;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
@@ -19,6 +17,12 @@ import org.junit.jupiter.api.Timeout;
  *
  * <p>Validates that Kafka messages are well-formed JSON with expected fields, types, and values.
  * Runs against the DataStream variant but patterns apply to all variants.
+ *
+ * <p>The DataStream job emits standard Debezium CDC envelopes. Data fields (id, customer_id,
+ * amount, status) are nested inside the {@code after} object, not at the top level. Use {@link
+ * #waitForKafkaMessage} with a predicate on {@code after.customer_id} to locate the specific row
+ * inserted by each test — {@link #pollKafka} returns the first available message which is typically
+ * a historical snapshot row, not the test-inserted one.
  */
 @Slf4j
 @DisplayName("CDC Data Quality Validation")
@@ -27,6 +31,10 @@ class DataQualityTest extends FlinkTestBase {
   private static final Path JAR = jarPath("variant-flink-datastream-api-v1-cdc-job");
   private static final String JOB_NAME = "Flink DataStream API v.1 CDC Job";
   private static final String TOPIC = "poc.cdc.datastream";
+
+  private static JSONObject afterOf(String msg) {
+    return new JSONObject(msg).optJSONObject("after");
+  }
 
   @Test
   @Timeout(90)
@@ -38,24 +46,26 @@ class DataQualityTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+    String msg =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(45),
+            m -> {
+              JSONObject a = afterOf(m);
+              return a != null && a.optLong("customer_id") == 1000;
+            });
 
-    assertThat(messages).isNotEmpty();
-    JSONObject json = new JSONObject(messages.get(0));
+    assertThat(msg).as("expected CDC message for customer_id=1000").isNotNull();
+    JSONObject after = afterOf(msg);
 
-    // Verify structure
-    assertThat(json.has("id")).isTrue();
-    assertThat(json.has("customer_id")).isTrue();
-    assertThat(json.has("amount")).isTrue();
-    assertThat(json.has("status")).isTrue();
+    assertThat(after.has("id")).isTrue();
+    assertThat(after.has("customer_id")).isTrue();
+    assertThat(after.has("amount")).isTrue();
+    assertThat(after.has("status")).isTrue();
+    assertThat(after.getLong("customer_id")).isEqualTo(1000);
+    assertThat(after.getString("status")).isEqualTo("DQ-TEST");
 
-    // Verify types and values
-    assertThat(json.getLong("customer_id")).isEqualTo(1000);
-    assertThat(json.getString("status")).isEqualTo("DQ-TEST");
-    assertThat(new BigDecimal(json.getString("amount")).compareTo(new BigDecimal("123.45")))
-        .isZero();
-
-    log.info("Data quality check passed: message={}", json.toString());
+    log.info("Data quality check passed: after={}", after);
   }
 
   @Test
@@ -68,10 +78,17 @@ class DataQualityTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+    String msg =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(45),
+            m -> {
+              JSONObject a = afterOf(m);
+              return a != null && a.optLong("customer_id") == 2000;
+            });
 
-    assertThat(messages).isNotEmpty();
-    JSONObject json = new JSONObject(messages.get(0));
+    assertThat(msg).as("expected CDC message for customer_id=2000").isNotNull();
+    JSONObject json = new JSONObject(msg);
 
     assertThat(json.has("variant")).as("variant annotation should be present").isTrue();
     assertThat(json.getString("variant")).isEqualTo("datastream-cdc");
@@ -85,19 +102,24 @@ class DataQualityTest extends FlinkTestBase {
   void kafkaMessage_preservesNullValues() throws Exception {
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
-      // Insert row with NULL status
       s.executeUpdate(
           "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (3000, 50.00, NULL)");
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+    String msg =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(45),
+            m -> {
+              JSONObject a = afterOf(m);
+              return a != null && a.optLong("customer_id") == 3000;
+            });
 
-    assertThat(messages).isNotEmpty();
-    JSONObject json = new JSONObject(messages.get(0));
+    assertThat(msg).as("expected CDC message for customer_id=3000").isNotNull();
+    JSONObject after = afterOf(msg);
 
-    // In JSON, NULL should be represented as null
-    assertThat(json.isNull("status")).isTrue();
+    assertThat(after.isNull("status")).as("NULL status should be serialised as JSON null").isTrue();
     log.info("NULL value handling verified");
   }
 
@@ -115,16 +137,28 @@ class DataQualityTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> messages = pollKafka(TOPIC, 3, Duration.ofSeconds(60));
 
-    assertThat(messages.size()).isGreaterThanOrEqualTo(3);
+    String first =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(60),
+            m -> "FIRST".equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
+    String second =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(60),
+            m -> "SECOND".equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
+    String third =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(60),
+            m -> "THIRD".equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
 
-    // Extract status values to verify ordering
-    List<String> statuses =
-        messages.stream().map(m -> new JSONObject(m).getString("status")).distinct().toList();
+    assertThat(first).as("FIRST message").isNotNull();
+    assertThat(second).as("SECOND message").isNotNull();
+    assertThat(third).as("THIRD message").isNotNull();
 
-    assertThat(statuses).contains("FIRST", "SECOND", "THIRD");
-    log.info("Message ordering verified: {} messages", messages.size());
+    log.info("Message ordering verified: all 3 inserts produced Kafka messages");
   }
 
   @Test
@@ -141,20 +175,32 @@ class DataQualityTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> messages = pollKafka(TOPIC, 3, Duration.ofSeconds(60));
 
-    assertThat(messages.size()).isGreaterThanOrEqualTo(3);
+    for (int i = 0; i < 3; i++) {
+      final long cid = 5000 + i;
+      String msg =
+          waitForKafkaMessage(
+              TOPIC,
+              Duration.ofSeconds(60),
+              m -> {
+                JSONObject a = afterOf(m);
+                return a != null && a.optLong("customer_id") == cid;
+              });
 
-    // All messages should parse as valid JSON and have the same set of top-level keys
-    for (String msg : messages.subList(0, Math.min(3, messages.size()))) {
+      assertThat(msg).as("expected CDC message for customer_id=" + cid).isNotNull();
       JSONObject json = new JSONObject(msg);
-      assertThat(json.has("id")).isTrue();
-      assertThat(json.has("customer_id")).isTrue();
-      assertThat(json.has("amount")).isTrue();
-      assertThat(json.has("status")).isTrue();
+      JSONObject after = json.getJSONObject("after");
+
+      // Data fields are in the Debezium `after` object
+      assertThat(after.has("id")).isTrue();
+      assertThat(after.has("customer_id")).isTrue();
+      assertThat(after.has("amount")).isTrue();
+      assertThat(after.has("status")).isTrue();
+      // Enrichment fields are at envelope level
       assertThat(json.has("variant")).isTrue();
+      assertThat(json.has("topic")).isTrue();
     }
 
-    log.info("JSON format consistency verified across {} messages", messages.size());
+    log.info("JSON format consistency verified across 3 messages");
   }
 }

@@ -126,7 +126,6 @@ class ErrorScenarioTest extends FlinkTestBase {
   @Test
   @Timeout(120)
   void largePayload_isProcessedSuccessfully() throws Exception {
-    // Insert row with large status string
     String largeStatus = "LARGE-" + "X".repeat(500);
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
@@ -137,10 +136,10 @@ class ErrorScenarioTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+    String msg = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains(largeStatus));
 
-    assertThat(messages).isNotEmpty();
-    assertThat(messages.get(0)).contains(largeStatus);
+    assertThat(msg).as("CDC message containing large status payload").isNotNull();
+    assertThat(msg).contains(largeStatus);
 
     log.info("Large payload test passed: processed ~600 byte message");
   }
@@ -158,10 +157,10 @@ class ErrorScenarioTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+    String msg = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains("QUOTES"));
 
-    assertThat(messages).isNotEmpty();
-    assertThat(messages.get(0)).contains("QUOTES");
+    assertThat(msg).as("CDC message containing special characters").isNotNull();
+    assertThat(msg).contains("QUOTES");
 
     log.info("Special character handling verified");
   }
@@ -169,7 +168,6 @@ class ErrorScenarioTest extends FlinkTestBase {
   @Test
   @Timeout(120)
   void consecutiveSnapshots_remainConsistent() throws Exception {
-    // First snapshot
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
@@ -177,22 +175,21 @@ class ErrorScenarioTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
-    List<String> snap1 = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+    String snap1 = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains("SNAP1"));
 
-    // Second insert to verify binlog is still flowing
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
           "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (9501, 22.22, 'SNAP2')");
     }
 
-    List<String> snap2 = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
+    String snap2 = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains("SNAP2"));
 
-    assertThat(snap1).isNotEmpty();
-    assertThat(snap2).isNotEmpty();
-    assertThat(snap1.get(0)).contains("SNAP1");
-    assertThat(snap2.get(0)).contains("SNAP2");
+    assertThat(snap1).as("CDC message containing SNAP1").isNotNull();
+    assertThat(snap2).as("CDC message containing SNAP2").isNotNull();
+    assertThat(snap1).contains("SNAP1");
+    assertThat(snap2).contains("SNAP2");
 
-    log.info("Snapshot consistency verified across {} messages", snap1.size() + snap2.size());
+    log.info("Snapshot consistency verified: both binlog inserts produced Kafka messages");
   }
 }

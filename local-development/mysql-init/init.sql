@@ -14,7 +14,7 @@ CREATE TABLE orders (
     id          BIGINT      NOT NULL AUTO_INCREMENT,
     customer_id BIGINT      NOT NULL,
     amount      DECIMAL(10,2) NOT NULL,
-    status      VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    status      VARCHAR(1024) DEFAULT 'PENDING',
     created_at  DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id)
 );
