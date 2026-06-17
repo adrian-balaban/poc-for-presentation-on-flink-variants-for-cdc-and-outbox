@@ -55,7 +55,7 @@ subprojects {
 
     spotless {
         java {
-            target 'src/**/*.java'
+            target 'src/**/*.java', '**/test/**/*.java'
             googleJavaFormat('1.21.0')
             removeUnusedImports()
             trimTrailingWhitespace()
@@ -96,6 +96,7 @@ tasks.register('fmtCheck') {
 tasks.register('all') { // buildAndTest
     group = 'flink-cdc-poc'
     description = 'Build all, restart the container stack (Podman or Docker), and run component tests'
+    dependsOn spotlessCheck
 
     doLast {
         // Determine container engine from gradle.properties (or auto-detect)
