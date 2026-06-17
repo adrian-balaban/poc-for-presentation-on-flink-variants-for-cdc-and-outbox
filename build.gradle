@@ -1,5 +1,6 @@
 buildscript {
     repositories {
+        maven { url = uri("${rootDir}/local-maven-repo") }
         mavenCentral()
         gradlePluginPortal()
     }
