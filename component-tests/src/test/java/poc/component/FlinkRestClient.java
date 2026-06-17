@@ -97,7 +97,7 @@ class FlinkRestClient {
         http.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/jars/" + jarId + "/run"))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(120))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(payload))
                 .build(),
@@ -112,8 +112,13 @@ class FlinkRestClient {
     return jobId;
   }
 
-  /** Return the jobId of a RUNNING job with the given name, or null if none exists. */
+  /**
+   * Return the jobId of a RUNNING job with the given name, or null if none exists. If job is
+   * INITIALIZING, wait up to 30s for it to transition to RUNNING.
+   */
   String findRunningJob(String jobName) throws Exception {
+    String initializingJobId = null;
+
     HttpResponse<String> r =
         http.send(
             HttpRequest.newBuilder()
@@ -129,10 +134,26 @@ class FlinkRestClient {
     JSONArray jobs = new JSONObject(r.body()).getJSONArray("jobs");
     for (int i = 0; i < jobs.length(); i++) {
       JSONObject job = jobs.getJSONObject(i);
-      if (jobName.equals(job.getString("name")) && "RUNNING".equals(job.getString("state"))) {
-        return job.getString("jid");
+      if (jobName.equals(job.getString("name"))) {
+        String state = job.getString("state");
+        if ("RUNNING".equals(state)) {
+          return job.getString("jid");
+        } else if ("INITIALIZING".equals(state)) {
+          initializingJobId = job.getString("jid");
+        }
       }
     }
+
+    // If job is INITIALIZING, wait for it to transition to RUNNING
+    if (initializingJobId != null) {
+      log.info(
+          "Job '{}' is INITIALIZING (jobId={}) — waiting for it to become RUNNING",
+          jobName,
+          initializingJobId);
+      waitForJobRunning(initializingJobId, Duration.ofSeconds(60));
+      return initializingJobId;
+    }
+
     return null;
   }
 

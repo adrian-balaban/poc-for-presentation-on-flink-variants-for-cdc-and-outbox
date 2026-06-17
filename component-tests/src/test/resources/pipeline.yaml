@@ -31,9 +31,23 @@ sink:
   topic: ${KAFKA_TOPIC_PREFIX:-poc.cdc}.yaml-pipeline
 
 ################################################################################
-# Pipeline metadata
+# Pipeline metadata and checkpoint configuration
 ################################################################################
 pipeline:
   name: YAML Pipeline CDC Job
   parallelism: 1
   schema.change.behavior: evolve
+  execution.checkpointing.interval: 30000
+  execution.checkpointing.timeout: 60000
+  execution.checkpointing.mode: EXACTLY_ONCE
+  execution.checkpointing.max-concurrent-checkpoints: 1
+  execution.checkpointing.min-pause: 5000
+  execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+  state.backend.type: hashmap
+  state.checkpoints.dir: s3://flink-checkpoints/yaml-pipeline-checkpoints
+  state.savepoints.dir: s3://flink-checkpoints/yaml-pipeline-savepoints
+  state.checkpoints.num-retained: 3
+  s3.endpoint: ${MINIO_ENDPOINT:-http://minio:9000}
+  s3.path.style.access: "true"
+  s3.access-key: ${MINIO_ACCESS_KEY:-minioadmin}
+  s3.secret-key: ${MINIO_SECRET_KEY:-minioadmin}

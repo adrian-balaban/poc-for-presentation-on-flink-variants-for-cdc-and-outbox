@@ -247,6 +247,32 @@ services:
       retries: 5
       start_period: 10s
 
+  minio-init:
+    image: docker.io/alpine:latest
+    container_name: minio-init
+    networks:
+      - poc-net
+    command: >
+      sh -c "
+      apk add --no-cache curl &&
+      echo 'Waiting for MinIO...' &&
+      for i in {1..30}; do
+        if curl -f http://minio:9000/minio/health/live 2>/dev/null; then
+          echo 'MinIO is ready' &&
+          curl -X PUT http://minioadmin:minioadmin@minio:9000/flink-checkpoints || true &&
+          echo 'Bucket ready' &&
+          exit 0;
+        fi;
+        sleep 2;
+      done;
+      echo 'MinIO timeout' &&
+      exit 1
+      "
+    depends_on:
+      minio:
+        condition: service_started
+    restart: no
+
   prometheus:
     image: docker.io/prom/prometheus:v2.52.0
     container_name: prometheus

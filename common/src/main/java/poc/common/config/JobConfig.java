@@ -14,6 +14,11 @@ public class JobConfig implements java.io.Serializable {
   static final String DEFAULT_SQL_API_ORDERS_SERVER_ID = "5800-5849";
   static final String DEFAULT_SQL_API_CUSTOMERS_SERVER_ID = "5850-5899";
 
+  // Default S3 checkpoint directories per variant. Each variant uses distinct directories
+  // to avoid state collision when multiple jobs run concurrently.
+  static final String DEFAULT_CHECKPOINT_DIR = "s3://flink-checkpoints/checkpoints";
+  static final String DEFAULT_SAVEPOINT_DIR = "s3://flink-checkpoints/savepoints";
+
   public final String mysqlHost;
   public final int mysqlPort;
   public final String mysqlUser;
@@ -27,6 +32,8 @@ public class JobConfig implements java.io.Serializable {
   public final String tableApiServerId;
   public final String sqlApiOrdersServerId;
   public final String sqlApiCustomersServerId;
+  public final String checkpointDir;
+  public final String savepointDir;
 
   private JobConfig(Builder b) {
     this.mysqlHost = b.mysqlHost;
@@ -42,6 +49,8 @@ public class JobConfig implements java.io.Serializable {
     this.tableApiServerId = b.tableApiServerId;
     this.sqlApiOrdersServerId = b.sqlApiOrdersServerId;
     this.sqlApiCustomersServerId = b.sqlApiCustomersServerId;
+    this.checkpointDir = b.checkpointDir;
+    this.savepointDir = b.savepointDir;
   }
 
   public static JobConfig fromEnv() {
@@ -68,6 +77,8 @@ public class JobConfig implements java.io.Serializable {
             env("MYSQL_SQL_API_ORDERS_SERVER_ID", DEFAULT_SQL_API_ORDERS_SERVER_ID, lookup))
         .sqlApiCustomersServerId(
             env("MYSQL_SQL_API_CUSTOMERS_SERVER_ID", DEFAULT_SQL_API_CUSTOMERS_SERVER_ID, lookup))
+        .checkpointDir(env("FLINK_CHECKPOINT_DIR", DEFAULT_CHECKPOINT_DIR, lookup))
+        .savepointDir(env("FLINK_SAVEPOINT_DIR", DEFAULT_SAVEPOINT_DIR, lookup))
         .build();
   }
 
@@ -86,6 +97,8 @@ public class JobConfig implements java.io.Serializable {
     String tableApiServerId = DEFAULT_TABLE_API_SERVER_ID;
     String sqlApiOrdersServerId = DEFAULT_SQL_API_ORDERS_SERVER_ID;
     String sqlApiCustomersServerId = DEFAULT_SQL_API_CUSTOMERS_SERVER_ID;
+    String checkpointDir = DEFAULT_CHECKPOINT_DIR;
+    String savepointDir = DEFAULT_SAVEPOINT_DIR;
 
     public Builder mysqlHost(String v) {
       this.mysqlHost = v;
@@ -149,6 +162,16 @@ public class JobConfig implements java.io.Serializable {
 
     public Builder sqlApiCustomersServerId(String v) {
       this.sqlApiCustomersServerId = v;
+      return this;
+    }
+
+    public Builder checkpointDir(String v) {
+      this.checkpointDir = v;
+      return this;
+    }
+
+    public Builder savepointDir(String v) {
+      this.savepointDir = v;
       return this;
     }
 
