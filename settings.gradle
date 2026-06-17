@@ -1,8 +1,14 @@
 pluginManagement {
     repositories {
         maven { url = uri("${rootDir}/local-maven-repo") }
-        gradlePluginPortal()
-        mavenCentral()
+        maven {
+            url = uri("http://plugins.gradle.org/m2")
+            allowInsecureProtocol = true
+        }
+        maven {
+            url = uri("http://repo1.maven.org/maven2")
+            allowInsecureProtocol = true
+        }
     }
 }
 

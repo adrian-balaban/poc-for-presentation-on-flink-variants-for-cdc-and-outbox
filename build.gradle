@@ -1,8 +1,14 @@
 buildscript {
     repositories {
         maven { url = uri("${rootDir}/local-maven-repo") }
-        mavenCentral()
-        gradlePluginPortal()
+        maven {
+            url = uri("http://repo1.maven.org/maven2")
+            allowInsecureProtocol = true
+        }
+        maven {
+            url = uri("http://plugins.gradle.org/m2")
+            allowInsecureProtocol = true
+        }
     }
     dependencies {
         classpath 'com.github.johnrengelman:shadow:8.1.1'
@@ -35,7 +41,10 @@ subprojects {
     }
 
     repositories {
-        mavenCentral()
+        maven {
+            url = uri("http://repo1.maven.org/maven2")
+            allowInsecureProtocol = true
+        }
     }
 
     dependencies {
