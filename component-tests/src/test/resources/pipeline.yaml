@@ -43,7 +43,7 @@ pipeline:
   execution.checkpointing.max-concurrent-checkpoints: 1
   execution.checkpointing.min-pause: 5000
   execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
-  state.checkpoint-storage: filesystem
+  state.backend.type: hashmap
   state.checkpoints.dir: s3://flink-checkpoints/yaml-pipeline-checkpoints
   state.savepoints.dir: s3://flink-checkpoints/yaml-pipeline-savepoints
   state.checkpoints.num-retained: 3
