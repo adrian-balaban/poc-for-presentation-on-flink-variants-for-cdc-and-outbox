@@ -173,7 +173,7 @@ tasks.register('all') { // buildAndTest
                     if (prometheusReady) println "✓ Prometheus is ready!"
                 }
                 if (!grafanaReady) {
-                    grafanaReady = ['bash', '-c', 'curl -sf http://localhost:3000/api/health >/dev/null 2>&1']
+                    grafanaReady = ['bash', '-c', 'curl -sf http://localhost:3001/api/health >/dev/null 2>&1']
                         .execute().waitFor() == 0
                     if (grafanaReady) println "✓ Grafana is ready!"
                 }
