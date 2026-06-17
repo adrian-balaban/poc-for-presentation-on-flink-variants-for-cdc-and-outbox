@@ -25,6 +25,16 @@ if [ -n "${FLINK_PROPERTIES}" ]; then
   printf "%s\n" "${FLINK_PROPERTIES}" >> "${FLINK_HOME}/conf/config.yaml"
 fi
 
+# Ensure the S3 checkpoint bucket exists before submitting.
+# podman-compose 1.0.6 does not support service_completed_successfully, so we
+# cannot declare a dependency on minio-init.  Creating the bucket here removes
+# the race between minio-init and job submission on every fresh stack start.
+S3_ENDPOINT="${S3_ENDPOINT:-http://minio:9000}"
+S3_BUCKET="${S3_BUCKET:-flink-checkpoints}"
+echo "Ensuring S3 bucket '${S3_BUCKET}' exists at ${S3_ENDPOINT}..."
+mc alias set s3 "${S3_ENDPOINT}" "${S3_ACCESS_KEY:-minioadmin}" "${S3_SECRET_KEY:-minioadmin}" --insecure 2>/dev/null
+mc mb --ignore-existing "s3/${S3_BUCKET}" 2>/dev/null && echo "Bucket '${S3_BUCKET}' ready." || echo "Warning: could not create bucket (will retry on checkpoint)."
+
 # Wait for at least one TaskManager with available slots to register with the
 # JobManager before submitting — the JM healthcheck passes before TM registration
 # completes, so submitting immediately causes slot-allocation timeouts.

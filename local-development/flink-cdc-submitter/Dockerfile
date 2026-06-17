@@ -4,7 +4,11 @@ ARG FLINK_CDC_VERSION=3.6.0-2.2
 
 USER root
 
-RUN apt-get update && apt-get install -y --no-install-recommends gettext-base && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends gettext-base curl && rm -rf /var/lib/apt/lists/*
+
+# MinIO client — used in entrypoint to pre-create S3 bucket before submitting
+RUN curl -fsSL "https://dl.min.io/client/mc/release/linux-amd64/mc" -o /usr/local/bin/mc \
+ && chmod +x /usr/local/bin/mc
 
 # Download the Flink-2.2-specific Flink CDC 3.6.0 distribution
 RUN curl -fL \
