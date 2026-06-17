@@ -1,130 +1,165 @@
 package poc.component;
 
-import lombok.extern.slf4j.Slf4j;
-import org.json.JSONObject;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Assumptions;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.URI;
 import java.time.Duration;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 
 /**
- * Base class for Kafka Connect component tests.
- * Extends ContainerBase for MySQL + Kafka access, adds Kafka Connect REST API client.
+ * Base class for Kafka Connect component tests. Extends ContainerBase for MySQL + Kafka access,
+ * adds Kafka Connect REST API client.
  */
 @Slf4j
 public abstract class KafkaConnectBase extends ContainerBase {
 
-    // On Podman bridge networking the kafka-connect container reaches MySQL by service name.
-    // Override with -Ddb.host=localhost for Docker host-network mode.
-    static final String DB_HOST = System.getProperty("db.host",
-            System.getenv().getOrDefault("DB_HOST", "mysql"));
+  // On Podman bridge networking the kafka-connect container reaches MySQL by service name.
+  // Override with -Ddb.host=localhost for Docker host-network mode.
+  static final String DB_HOST =
+      System.getProperty("db.host", System.getenv().getOrDefault("DB_HOST", "mysql"));
 
-    private static final String KAFKA_CONNECT_URL = "http://localhost:8083";
-    private static volatile Boolean kafkaConnectAvailable = null;
-    private static final Object connectCheckLock = new Object();
-    protected static final HttpClient httpClient = HttpClient.newHttpClient();
+  private static final String KAFKA_CONNECT_URL = "http://localhost:8083";
+  private static volatile Boolean kafkaConnectAvailable = null;
+  private static final Object connectCheckLock = new Object();
+  protected static final HttpClient httpClient = HttpClient.newHttpClient();
 
-    @BeforeEach
-    void verifyKafkaConnectAvailable() {
+  @BeforeEach
+  void verifyKafkaConnectAvailable() {
+    if (kafkaConnectAvailable == null) {
+      synchronized (connectCheckLock) {
         if (kafkaConnectAvailable == null) {
-            synchronized (connectCheckLock) {
-                if (kafkaConnectAvailable == null) {
-                    kafkaConnectAvailable = checkKafkaConnectAvailable();
-                }
-            }
+          kafkaConnectAvailable = checkKafkaConnectAvailable();
         }
-        Assumptions.assumeTrue(kafkaConnectAvailable,
-            "Kafka Connect not available — skipping test. " +
-            "Run: cd local-development && podman-compose -f podman-compose.yml up -d");
+      }
     }
+    Assumptions.assumeTrue(
+        kafkaConnectAvailable,
+        "Kafka Connect not available — skipping test. "
+            + "Run: cd local-development && podman-compose -f podman-compose.yml up -d");
+  }
 
-    private static boolean checkKafkaConnectAvailable() {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(KAFKA_CONNECT_URL))
-                .timeout(Duration.ofSeconds(5))
-                .GET()
-                .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            boolean available = response.statusCode() == 200;
-            if (available) {
-                log.info("Kafka Connect is available");
-            } else {
-                log.warn("Kafka Connect returned status: {}", response.statusCode());
-            }
-            return available;
-        } catch (Exception e) {
-            log.warn("Kafka Connect not available: {}", e.getMessage());
-            return false;
-        }
+  private static boolean checkKafkaConnectAvailable() {
+    try {
+      HttpRequest request =
+          HttpRequest.newBuilder()
+              .uri(URI.create(KAFKA_CONNECT_URL))
+              .timeout(Duration.ofSeconds(5))
+              .GET()
+              .build();
+      HttpResponse<String> response =
+          httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+      boolean available = response.statusCode() == 200;
+      if (available) {
+        log.info("Kafka Connect is available");
+      } else {
+        log.warn("Kafka Connect returned status: {}", response.statusCode());
+      }
+      return available;
+    } catch (Exception e) {
+      log.warn("Kafka Connect not available: {}", e.getMessage());
+      return false;
     }
+  }
 
-    /**
-     * Deploy a connector to Kafka Connect via REST API.
-     * @param connectorName name of the connector
-     * @param connectorConfig JSON connector configuration
-     */
-    protected static void deployConnector(String connectorName, String connectorConfig) throws Exception {
-        // Always do a fresh deploy: create (if missing) → stop → delete offsets → delete → recreate.
-        // Stale offsets in poc-connect-offset survive connector deletion and cause Debezium to skip
-        // the initial snapshot and fail with "db history topic is missing" on restart.
-        HttpResponse<String> existsCheck = httpClient.send(
+  /**
+   * Deploy a connector to Kafka Connect via REST API.
+   *
+   * @param connectorName name of the connector
+   * @param connectorConfig JSON connector configuration
+   */
+  protected static void deployConnector(String connectorName, String connectorConfig)
+      throws Exception {
+    // Always do a fresh deploy: create (if missing) → stop → delete offsets → delete → recreate.
+    // Stale offsets in poc-connect-offset survive connector deletion and cause Debezium to skip
+    // the initial snapshot and fail with "db history topic is missing" on restart.
+    HttpResponse<String> existsCheck =
+        httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/status"))
-                .timeout(Duration.ofSeconds(5)).GET().build(),
+                .timeout(Duration.ofSeconds(5))
+                .GET()
+                .build(),
             HttpResponse.BodyHandlers.ofString());
-        if (existsCheck.statusCode() != 200) {
-            // Connector doesn't exist yet — create a stub so we can use the offsets-reset API.
-            HttpResponse<String> stubResp = httpClient.send(
-                HttpRequest.newBuilder()
-                    .uri(URI.create(KAFKA_CONNECT_URL + "/connectors"))
-                    .timeout(Duration.ofSeconds(10))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(connectorConfig))
-                    .build(),
-                HttpResponse.BodyHandlers.ofString());
-            if (stubResp.statusCode() != 201 && stubResp.statusCode() != 409) {
-                throw new RuntimeException("Failed to create stub connector " + connectorName
-                    + " (" + stubResp.statusCode() + "): " + stubResp.body());
-            }
-            Thread.sleep(2000);
-        }
-        // Stop → delete offsets → delete connector.
-        HttpResponse<String> stopResp = httpClient.send(
+    if (existsCheck.statusCode() != 200) {
+      // Connector doesn't exist yet — create a stub so we can use the offsets-reset API.
+      HttpResponse<String> stubResp =
+          httpClient.send(
+              HttpRequest.newBuilder()
+                  .uri(URI.create(KAFKA_CONNECT_URL + "/connectors"))
+                  .timeout(Duration.ofSeconds(10))
+                  .header("Content-Type", "application/json")
+                  .POST(HttpRequest.BodyPublishers.ofString(connectorConfig))
+                  .build(),
+              HttpResponse.BodyHandlers.ofString());
+      if (stubResp.statusCode() != 201 && stubResp.statusCode() != 409) {
+        throw new RuntimeException(
+            "Failed to create stub connector "
+                + connectorName
+                + " ("
+                + stubResp.statusCode()
+                + "): "
+                + stubResp.body());
+      }
+      Thread.sleep(2000);
+    }
+    // Stop → delete offsets → delete connector.
+    HttpResponse<String> stopResp =
+        httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/stop"))
-                .timeout(Duration.ofSeconds(10)).PUT(HttpRequest.BodyPublishers.noBody()).build(),
+                .timeout(Duration.ofSeconds(10))
+                .PUT(HttpRequest.BodyPublishers.noBody())
+                .build(),
             HttpResponse.BodyHandlers.ofString());
-        if (stopResp.statusCode() != 200 && stopResp.statusCode() != 204) {
-            log.warn("Stop request for {} returned {}: {}", connectorName, stopResp.statusCode(), stopResp.body());
-        }
-        Thread.sleep(1500);
-        HttpResponse<String> offsetResp = httpClient.send(
+    if (stopResp.statusCode() != 200 && stopResp.statusCode() != 204) {
+      log.warn(
+          "Stop request for {} returned {}: {}",
+          connectorName,
+          stopResp.statusCode(),
+          stopResp.body());
+    }
+    Thread.sleep(1500);
+    HttpResponse<String> offsetResp =
+        httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/offsets"))
-                .timeout(Duration.ofSeconds(10)).DELETE().build(),
+                .timeout(Duration.ofSeconds(10))
+                .DELETE()
+                .build(),
             HttpResponse.BodyHandlers.ofString());
-        if (offsetResp.statusCode() != 200 && offsetResp.statusCode() != 204) {
-            log.warn("Offset delete for {} returned {}: {}", connectorName, offsetResp.statusCode(), offsetResp.body());
-        }
-        HttpResponse<String> deleteResp = httpClient.send(
+    if (offsetResp.statusCode() != 200 && offsetResp.statusCode() != 204) {
+      log.warn(
+          "Offset delete for {} returned {}: {}",
+          connectorName,
+          offsetResp.statusCode(),
+          offsetResp.body());
+    }
+    HttpResponse<String> deleteResp =
+        httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName))
-                .timeout(Duration.ofSeconds(10)).DELETE().build(),
+                .timeout(Duration.ofSeconds(10))
+                .DELETE()
+                .build(),
             HttpResponse.BodyHandlers.ofString());
-        if (deleteResp.statusCode() != 204) {
-            log.warn("Delete connector {} returned {}: {}", connectorName, deleteResp.statusCode(), deleteResp.body());
-        }
-        Thread.sleep(1000);
+    if (deleteResp.statusCode() != 204) {
+      log.warn(
+          "Delete connector {} returned {}: {}",
+          connectorName,
+          deleteResp.statusCode(),
+          deleteResp.body());
+    }
+    Thread.sleep(1000);
 
-        // Recreate fresh with no stored offsets.
-        HttpResponse<String> response = httpClient.send(
+    // Recreate fresh with no stored offsets.
+    HttpResponse<String> response =
+        httpClient.send(
             HttpRequest.newBuilder()
                 .uri(URI.create(KAFKA_CONNECT_URL + "/connectors"))
                 .timeout(Duration.ofSeconds(10))
@@ -132,64 +167,76 @@ public abstract class KafkaConnectBase extends ContainerBase {
                 .POST(HttpRequest.BodyPublishers.ofString(connectorConfig))
                 .build(),
             HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() == 201) {
-            log.info("Connector {} deployed fresh (offsets cleared)", connectorName);
-        } else {
-            log.error("Failed to deploy connector {}: {} {}", connectorName, response.statusCode(), response.body());
-            throw new RuntimeException("Connector deployment failed: " + response.body());
-        }
+    if (response.statusCode() == 201) {
+      log.info("Connector {} deployed fresh (offsets cleared)", connectorName);
+    } else {
+      log.error(
+          "Failed to deploy connector {}: {} {}",
+          connectorName,
+          response.statusCode(),
+          response.body());
+      throw new RuntimeException("Connector deployment failed: " + response.body());
     }
+  }
 
-    /**
-     * Get connector status via REST API.
-     */
-    protected static String getConnectorStatus(String connectorName) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder()
+  /** Get connector status via REST API. */
+  protected static String getConnectorStatus(String connectorName) throws Exception {
+    HttpRequest request =
+        HttpRequest.newBuilder()
             .uri(URI.create(KAFKA_CONNECT_URL + "/connectors/" + connectorName + "/status"))
             .timeout(Duration.ofSeconds(5))
             .GET()
             .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        return response.body();
-    }
+    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    return response.body();
+  }
 
-    /**
-     * Wait for connector to be in RUNNING state.
-     */
-    protected static void waitForConnectorRunning(String connectorName, Duration timeout) throws Exception {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        while (System.currentTimeMillis() < deadline) {
-            String statusJson = getConnectorStatus(connectorName);
-            try {
-                org.json.JSONObject status = new org.json.JSONObject(statusJson);
-                boolean connectorRunning = "RUNNING".equals(
-                        status.getJSONObject("connector").getString("state"));
-                org.json.JSONArray tasks = status.optJSONArray("tasks");
-                boolean allTasksRunning = tasks != null && tasks.length() > 0
-                        && tasks.toList().stream().allMatch(t ->
-                            "RUNNING".equals(((java.util.Map<?, ?>) t).get("state")));
-                if (connectorRunning && allTasksRunning) {
-                    log.info("Connector {} is RUNNING (connector + all tasks)", connectorName);
-                    return;
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse connector status for {}: {}", connectorName, e.getMessage());
-            }
-            Thread.sleep(1000);
+  /** Wait for connector to be in RUNNING state. */
+  protected static void waitForConnectorRunning(String connectorName, Duration timeout)
+      throws Exception {
+    long deadline = System.currentTimeMillis() + timeout.toMillis();
+    while (System.currentTimeMillis() < deadline) {
+      String statusJson = getConnectorStatus(connectorName);
+      try {
+        org.json.JSONObject status = new org.json.JSONObject(statusJson);
+        boolean connectorRunning =
+            "RUNNING".equals(status.getJSONObject("connector").getString("state"));
+        org.json.JSONArray tasks = status.optJSONArray("tasks");
+        boolean allTasksRunning =
+            tasks != null
+                && tasks.length() > 0
+                && tasks.toList().stream()
+                    .allMatch(t -> "RUNNING".equals(((java.util.Map<?, ?>) t).get("state")));
+        if (connectorRunning && allTasksRunning) {
+          log.info("Connector {} is RUNNING (connector + all tasks)", connectorName);
+          return;
         }
-        throw new RuntimeException("Connector " + connectorName + " did not reach RUNNING state. Status: "
-                + getConnectorStatus(connectorName));
+      } catch (Exception e) {
+        log.warn("Failed to parse connector status for {}: {}", connectorName, e.getMessage());
+      }
+      Thread.sleep(1000);
     }
+    throw new RuntimeException(
+        "Connector "
+            + connectorName
+            + " did not reach RUNNING state. Status: "
+            + getConnectorStatus(connectorName));
+  }
 
-    /**
-     * Build Debezium connector config with variant-specific parameters.
-     * Reduces copy-paste of JSON config across test classes.
-     */
-    protected static String buildDebeziumConnectorConfig(
-            String connectorName, String serverId, String serverName,
-            String tableList, String variantName, String topicPrefix) {
-        return String.format("""
+  /**
+   * Build Debezium connector config with variant-specific parameters. Reduces copy-paste of JSON
+   * config across test classes.
+   */
+  protected static String buildDebeziumConnectorConfig(
+      String connectorName,
+      String serverId,
+      String serverName,
+      String tableList,
+      String variantName,
+      String topicPrefix) {
+    return String.format(
+        """
             {
               "name": "%s",
               "config": {
@@ -218,19 +265,28 @@ public abstract class KafkaConnectBase extends ContainerBase {
                 "topic.prefix": "%s"
               }
             }
-            """, connectorName, DB_HOST, serverId, serverName, tableList, variantName, topicPrefix, variantName, topicPrefix);
-    }
+            """,
+        connectorName,
+        DB_HOST,
+        serverId,
+        serverName,
+        tableList,
+        variantName,
+        topicPrefix,
+        variantName,
+        topicPrefix);
+  }
 
-    /**
-     * Assert enrichment metadata on Kafka Connect output.
-     * Reduces duplicate assertions across test classes.
-     */
-    protected static void assertEnrichmentMetadata(
-            String message, String jsonValue, String expectedVariant, String topicPrefix) {
-        assertThat(jsonValue).as(message).isNotEmpty();
-        JSONObject obj = new JSONObject(jsonValue);
-        assertThat(obj.optString("variant")).as("variant field").isEqualTo(expectedVariant);
-        assertThat(obj.optString("topic")).as("topic field").contains(topicPrefix);
-        assertThat(obj.has("transformed_at")).as("transformed_at field present").isTrue();
-    }
+  /**
+   * Assert enrichment metadata on Kafka Connect output. Reduces duplicate assertions across test
+   * classes.
+   */
+  protected static void assertEnrichmentMetadata(
+      String message, String jsonValue, String expectedVariant, String topicPrefix) {
+    assertThat(jsonValue).as(message).isNotEmpty();
+    JSONObject obj = new JSONObject(jsonValue);
+    assertThat(obj.optString("variant")).as("variant field").isEqualTo(expectedVariant);
+    assertThat(obj.optString("topic")).as("topic field").contains(topicPrefix);
+    assertThat(obj.has("transformed_at")).as("transformed_at field present").isTrue();
+  }
 }

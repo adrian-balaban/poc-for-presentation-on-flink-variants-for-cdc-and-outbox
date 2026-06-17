@@ -13,18 +13,19 @@ import poc.common.sink.KafkaSinkFactory;
 /**
  * Variant 4 — Outbox (DataStream)
  *
- * Reads from a transactional outbox table. Each row carries a destination topic
- * in the payload; OutboxRouter fans each event out to its correct Kafka topic.
- * Only DataStream supports per-row dynamic topic routing — Table/SQL API cannot.
+ * <p>Reads from a transactional outbox table. Each row carries a destination topic in the payload;
+ * OutboxRouter fans each event out to its correct Kafka topic. Only DataStream supports per-row
+ * dynamic topic routing — Table/SQL API cannot.
  *
- * Server-ID range 5600-5699 is reserved for this variant.
+ * <p>Server-ID range 5600-5699 is reserved for this variant.
  */
 public class OutboxJob {
 
-    public static void main(String[] args) throws Exception {
-        JobConfig config = JobConfig.fromEnv();
+  public static void main(String[] args) throws Exception {
+    JobConfig config = JobConfig.fromEnv();
 
-        MySqlSource<String> source = MySqlSource.<String>builder()
+    MySqlSource<String> source =
+        MySqlSource.<String>builder()
             .hostname(config.mysqlHost)
             .port(config.mysqlPort)
             .databaseList(config.mysqlDatabase)
@@ -36,18 +37,20 @@ public class OutboxJob {
             .deserializer(new PocJsonDeserializationSchema())
             .build();
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // Checkpoint configuration for exactly-once CDC semantics
-        CheckpointConfigurer.applyExactlyOnce(env);
+    // Checkpoint configuration for exactly-once CDC semantics
+    CheckpointConfigurer.applyExactlyOnce(env);
 
-        DataStream<String> outboxStream =
-            env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL Outbox Source");
+    DataStream<String> outboxStream =
+        env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL Outbox Source");
 
-        outboxStream
-            .process(new OutboxRouter(config)).name("outbox-router")
-            .sinkTo(KafkaSinkFactory.create(config, "outbox")).name("kafka-outbox-sink");
+    outboxStream
+        .process(new OutboxRouter(config))
+        .name("outbox-router")
+        .sinkTo(KafkaSinkFactory.create(config, "outbox"))
+        .name("kafka-outbox-sink");
 
-        env.execute("Flink DataStream API v.1 Outbox Job");
-    }
+    env.execute("Flink DataStream API v.1 Outbox Job");
+  }
 }

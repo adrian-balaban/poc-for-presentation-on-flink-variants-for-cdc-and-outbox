@@ -1,47 +1,49 @@
 package poc.sqlapi;
 
+import static poc.common.validation.DdlValidator.requireSafeDdl;
+
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import poc.common.checkpoint.CheckpointConfigurer;
 import poc.common.config.JobConfig;
 
-import static poc.common.validation.DdlValidator.requireSafeDdl;
-
 /**
  * Variant 3 — SQL API CDC
  *
- * Pure SQL job definition. Uses StatementSet so all INSERT statements compile
- * into a single JobGraph — one checkpoint, one recovery unit. Minimal Java
- * boilerplate (~210 lines in real connector, mostly DDL strings).
+ * <p>Pure SQL job definition. Uses StatementSet so all INSERT statements compile into a single
+ * JobGraph — one checkpoint, one recovery unit. Minimal Java boilerplate (~210 lines in real
+ * connector, mostly DDL strings).
  *
- * Server-ID ranges come from {@code JobConfig#sqlApiOrdersServerId} and
- * {@code JobConfig#sqlApiCustomersServerId}.
+ * <p>Server-ID ranges come from {@code JobConfig#sqlApiOrdersServerId} and {@code
+ * JobConfig#sqlApiCustomersServerId}.
  */
 public class SqlApiCdcJob {
 
-    public static void main(String[] args) {
-        JobConfig config = JobConfig.fromEnv();
-        requireSafeDdl(config.mysqlHost,                 "MYSQL_HOST");
-        requireSafeDdl(config.mysqlUser,                 "MYSQL_USER");
-        requireSafeDdl(config.mysqlPassword,             "MYSQL_PASSWORD");
-        requireSafeDdl(config.mysqlDatabase,              "MYSQL_DATABASE");
-        requireSafeDdl(config.kafkaBootstrap,             "KAFKA_BOOTSTRAP");
-        requireSafeDdl(config.kafkaTopicPrefix,           "KAFKA_TOPIC_PREFIX");
-        requireSafeDdl(config.sqlApiOrdersServerId,       "sqlApiOrdersServerId");
-        requireSafeDdl(config.sqlApiCustomersServerId,    "sqlApiCustomersServerId");
+  public static void main(String[] args) {
+    JobConfig config = JobConfig.fromEnv();
+    requireSafeDdl(config.mysqlHost, "MYSQL_HOST");
+    requireSafeDdl(config.mysqlUser, "MYSQL_USER");
+    requireSafeDdl(config.mysqlPassword, "MYSQL_PASSWORD");
+    requireSafeDdl(config.mysqlDatabase, "MYSQL_DATABASE");
+    requireSafeDdl(config.kafkaBootstrap, "KAFKA_BOOTSTRAP");
+    requireSafeDdl(config.kafkaTopicPrefix, "KAFKA_TOPIC_PREFIX");
+    requireSafeDdl(config.sqlApiOrdersServerId, "sqlApiOrdersServerId");
+    requireSafeDdl(config.sqlApiCustomersServerId, "sqlApiCustomersServerId");
 
-        StreamExecutionEnvironment env      = StreamExecutionEnvironment.getExecutionEnvironment();
-        StreamTableEnvironment     tableEnv = StreamTableEnvironment.create(env);
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-        // Checkpoint configuration for exactly-once CDC semantics
-        CheckpointConfigurer.applyExactlyOnce(env);
+    // Checkpoint configuration for exactly-once CDC semantics
+    CheckpointConfigurer.applyExactlyOnce(env);
 
-        tableEnv.getConfig().getConfiguration().setString("pipeline.name", "Flink Sql API CDC Job");
+    tableEnv.getConfig().getConfiguration().setString("pipeline.name", "Flink Sql API CDC Job");
 
-        // ── Sources ──────────────────────────────────────────────────────────
+    // ── Sources ──────────────────────────────────────────────────────────
 
-        tableEnv.executeSql(String.format("""
+    tableEnv.executeSql(
+        String.format(
+            """
             CREATE TABLE src_orders (
                 id          BIGINT,
                 customer_id BIGINT,
@@ -59,11 +61,17 @@ public class SqlApiCdcJob {
                 'table-name'       = 'orders',
                 'server-id'        = '%s',
                 'server-time-zone' = 'UTC'
-            )""", config.mysqlHost, config.mysqlPort,
-                   config.mysqlUser, config.mysqlPassword, config.mysqlDatabase,
-                   config.sqlApiOrdersServerId));
+            )""",
+            config.mysqlHost,
+            config.mysqlPort,
+            config.mysqlUser,
+            config.mysqlPassword,
+            config.mysqlDatabase,
+            config.sqlApiOrdersServerId));
 
-        tableEnv.executeSql(String.format("""
+    tableEnv.executeSql(
+        String.format(
+            """
             CREATE TABLE src_customers (
                 id         BIGINT,
                 name       STRING,
@@ -79,13 +87,19 @@ public class SqlApiCdcJob {
                 'table-name'       = 'customers',
                 'server-id'        = '%s',
                 'server-time-zone' = 'UTC'
-            )""", config.mysqlHost, config.mysqlPort,
-                   config.mysqlUser, config.mysqlPassword, config.mysqlDatabase,
-                   config.sqlApiCustomersServerId));
+            )""",
+            config.mysqlHost,
+            config.mysqlPort,
+            config.mysqlUser,
+            config.mysqlPassword,
+            config.mysqlDatabase,
+            config.sqlApiCustomersServerId));
 
-        // ── Sinks ─────────────────────────────────────────────────────────────
+    // ── Sinks ─────────────────────────────────────────────────────────────
 
-        tableEnv.executeSql(String.format("""
+    tableEnv.executeSql(
+        String.format(
+            """
             CREATE TABLE sink_orders (
                 id          BIGINT,
                 customer_id BIGINT,
@@ -100,9 +114,12 @@ public class SqlApiCdcJob {
                 'properties.bootstrap.servers' = '%s',
                 'key.format'                   = 'json',
                 'value.format'                 = 'json'
-            )""", config.kafkaTopicPrefix, config.kafkaBootstrap));
+            )""",
+            config.kafkaTopicPrefix, config.kafkaBootstrap));
 
-        tableEnv.executeSql(String.format("""
+    tableEnv.executeSql(
+        String.format(
+            """
             CREATE TABLE sink_customers (
                 id          BIGINT,
                 name        STRING,
@@ -115,22 +132,25 @@ public class SqlApiCdcJob {
                 'properties.bootstrap.servers' = '%s',
                 'key.format'                   = 'json',
                 'value.format'                 = 'json'
-            )""", config.kafkaTopicPrefix, config.kafkaBootstrap));
+            )""",
+            config.kafkaTopicPrefix, config.kafkaBootstrap));
 
-        // ── StatementSet → single JobGraph ────────────────────────────────────
+    // ── StatementSet → single JobGraph ────────────────────────────────────
 
-        StatementSet stmts = tableEnv.createStatementSet();
+    StatementSet stmts = tableEnv.createStatementSet();
 
-        stmts.addInsertSql("""
+    stmts.addInsertSql(
+        """
             INSERT INTO sink_orders
             SELECT id, customer_id, amount, status, created_at, 'sql-api' AS job_variant
             FROM src_orders""");
 
-        stmts.addInsertSql("""
+    stmts.addInsertSql(
+        """
             INSERT INTO sink_customers
             SELECT id, name, email, 'sql-api' AS job_variant
             FROM src_customers""");
 
-        stmts.execute();
-    }
+    stmts.execute();
+  }
 }
