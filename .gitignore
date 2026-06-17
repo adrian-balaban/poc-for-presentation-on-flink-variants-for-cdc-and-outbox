@@ -1,6 +1,7 @@
 **/*.class
 **/bin/*
 **/*.jar
+!gradle/wrapper/gradle-wrapper.jar
 **/build
 .vscode
 .gradle
