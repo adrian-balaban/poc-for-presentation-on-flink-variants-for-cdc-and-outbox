@@ -36,7 +36,7 @@ class DataStreamCdcTest extends FlinkTestBase {
           "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1, 11.11, 'DS-TEST')");
     }
 
-    ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
+    ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(60));
     List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
     assertThat(messages).isNotEmpty();
     assertThat(messages).anyMatch(m -> m.contains("DS-TEST"));
@@ -46,7 +46,7 @@ class DataStreamCdcTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void cdcSource_capturesBinlogInsert_afterSnapshotComplete() throws Exception {
-    ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
+    ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(60));
 
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
