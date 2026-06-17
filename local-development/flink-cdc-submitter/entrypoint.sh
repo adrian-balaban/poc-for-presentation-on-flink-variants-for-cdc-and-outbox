@@ -17,6 +17,14 @@ JOBMANAGER_HOST="${JOBMANAGER_HOST:-localhost}"
 # Replace the address line immediately following the `rest:` key (nested 2.x YAML).
 sed -i "/^rest:/{n;s/address:.*/address: ${JOBMANAGER_HOST}/}" "${FLINK_HOME}/conf/config.yaml"
 
+# Apply FLINK_PROPERTIES to the local Flink config (the base image entrypoint is
+# bypassed by this custom entrypoint, so we process it here).  The submitter's
+# local Flink client config is what gets embedded in the submitted job graph —
+# checkpoint settings must be here for the YAML pipeline job to pick them up.
+if [ -n "${FLINK_PROPERTIES}" ]; then
+  printf "%s\n" "${FLINK_PROPERTIES}" >> "${FLINK_HOME}/conf/config.yaml"
+fi
+
 # Wait for at least one TaskManager with available slots to register with the
 # JobManager before submitting — the JM healthcheck passes before TM registration
 # completes, so submitting immediately causes slot-allocation timeouts.

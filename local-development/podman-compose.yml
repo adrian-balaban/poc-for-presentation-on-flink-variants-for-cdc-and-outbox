@@ -111,10 +111,16 @@ services:
         rest.port: 8081
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
-        state.checkpoints.dir: s3://flink-checkpoints/checkpoints
-        state.savepoints.dir: s3://flink-checkpoints/savepoints
+        execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
+        execution.checkpointing.savepoint-dir: s3://flink-checkpoints/savepoints
+        execution.checkpointing.interval: 30000
+        execution.checkpointing.timeout: 60000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.min-pause: 5000
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
         s3.endpoint: http://minio:9000
-        s3.path.style.access: "true"
+        s3.path.style.access: true
         s3.access-key: minioadmin
         s3.secret-key: minioadmin
       # JobConfig.fromEnv() defaults for jobs submitted via REST (bridge networking)
@@ -158,10 +164,16 @@ services:
         taskmanager.slot.timeout: 60000
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
-        state.checkpoints.dir: s3://flink-checkpoints/checkpoints
-        state.savepoints.dir: s3://flink-checkpoints/savepoints
+        execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
+        execution.checkpointing.savepoint-dir: s3://flink-checkpoints/savepoints
+        execution.checkpointing.interval: 30000
+        execution.checkpointing.timeout: 60000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.min-pause: 5000
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
         s3.endpoint: http://minio:9000
-        s3.path.style.access: "true"
+        s3.path.style.access: true
         s3.access-key: minioadmin
         s3.secret-key: minioadmin
     depends_on:
@@ -185,6 +197,22 @@ services:
       KAFKA_BOOTSTRAP: kafka:29092
       KAFKA_TOPIC_PREFIX: poc.cdc
       JOBMANAGER_HOST: flink-jobmanager
+      # Flink CDC flink-cdc.sh builds the job graph on the client side using the
+      # submitter's local Flink config — checkpoint settings must be here, not only
+      # in the JM/TM cluster config, for them to be embedded in the submitted job.
+      FLINK_PROPERTIES: |
+        execution.checkpointing.dir: s3://flink-checkpoints/yaml-pipeline-checkpoints
+        execution.checkpointing.savepoint-dir: s3://flink-checkpoints/yaml-pipeline-savepoints
+        execution.checkpointing.interval: 30000
+        execution.checkpointing.timeout: 60000
+        execution.checkpointing.mode: EXACTLY_ONCE
+        execution.checkpointing.max-concurrent-checkpoints: 1
+        execution.checkpointing.min-pause: 5000
+        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        s3.endpoint: http://minio:9000
+        s3.path.style.access: true
+        s3.access-key: minioadmin
+        s3.secret-key: minioadmin
     depends_on:
       flink-jobmanager:
         condition: service_healthy
@@ -248,29 +276,21 @@ services:
       start_period: 10s
 
   minio-init:
-    image: docker.io/alpine:latest
+    image: docker.io/minio/mc:latest
     container_name: minio-init
     networks:
       - poc-net
-    command: >
+    entrypoint: >
       sh -c "
-      apk add --no-cache curl &&
       echo 'Waiting for MinIO...' &&
-      for i in {1..30}; do
-        if curl -f http://minio:9000/minio/health/live 2>/dev/null; then
-          echo 'MinIO is ready' &&
-          curl -X PUT http://minioadmin:minioadmin@minio:9000/flink-checkpoints || true &&
-          echo 'Bucket ready' &&
-          exit 0;
-        fi;
-        sleep 2;
-      done;
-      echo 'MinIO timeout' &&
-      exit 1
+      until mc alias set local http://minio:9000 minioadmin minioadmin 2>/dev/null; do sleep 2; done &&
+      echo 'MinIO ready. Creating bucket...' &&
+      mc mb --ignore-existing local/flink-checkpoints &&
+      echo 'Bucket flink-checkpoints ready.'
       "
     depends_on:
       minio:
-        condition: service_started
+        condition: service_healthy
     restart: no
 
   prometheus:

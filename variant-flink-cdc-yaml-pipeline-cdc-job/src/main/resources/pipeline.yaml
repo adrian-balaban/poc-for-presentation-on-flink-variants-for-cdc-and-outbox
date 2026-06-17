@@ -35,38 +35,13 @@ sink:
   topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline
 
 ################################################################################
-# Pipeline metadata and checkpoint configuration
+# Pipeline metadata
 ################################################################################
 pipeline:
   name: Flink CDC YAML Pipeline CDC Job
   parallelism: 1
   schema.change.behavior: evolve
-  # Checkpoint config must be FLAT dotted keys — the Flink CDC YAML parser flattens
-  # the `pipeline:` block into a String→String map, so a nested `checkpoint:` object
-  # throws "Cannot deserialize value of type String from Object value".
-  # timeout must exceed the checkpoint interval; 60 s gives headroom under load.
-  # WARNING: do NOT set upgradeMode: stateless in production Flink deployments —
-  # it discards all CDC offset state on every restart, forcing a full re-snapshot.
-  execution.checkpointing.interval: 30000
-  execution.checkpointing.timeout: 60000
-  execution.checkpointing.mode: EXACTLY_ONCE
-  execution.checkpointing.max-concurrent-checkpoints: 1
-  execution.checkpointing.min-pause: 5000
-  execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
-  # State backend and checkpoint storage with S3
-  state.backend: rocksdb
-  state.backend.rocksdb.localdir: /tmp/flink-rocksdb
-  state.backend.rocksdb.memory.managed: "true"
-  state.backend.rocksdb.memory.write-buffer-ratio: 0.5
-  state.checkpoints.dir: s3://flink-checkpoints/yaml-pipeline-checkpoints
-  state.savepoints.dir: s3://flink-checkpoints/yaml-pipeline-savepoints
-  state.checkpoints.num-retained: 3
-  state.checkpoints.incremental: "false"
-  # S3/MinIO configuration for Presto filesystem
-  s3.endpoint: http://minio:9000
-  s3.path.style.access: "true"
-  s3.access-key: minioadmin
-  s3.secret-key: minioadmin
-  # Presto S3 filesystem configuration
-  fs.s3.endpoint: http://minio:9000
-  fs.s3.path.style.access: true
+  # Checkpoint interval, storage, and S3 settings are configured at the Flink
+  # cluster level (FLINK_PROPERTIES in podman-compose.yml) using flink-s3-fs-presto.
+  # Flink CDC pipeline YAML does not propagate execution.checkpointing.* or
+  # state.* keys to the submitted job's execution environment.
