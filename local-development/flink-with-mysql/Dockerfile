@@ -2,6 +2,9 @@ FROM docker.io/library/flink:2.2
 
 USER root
 
+# Increase JVM metaspace to prevent OOM during job submissions
+ENV FLINK_JVM_OPTIONS="-XX:MetaspaceSize=256m -XX:MaxMetaspaceSize=512m"
+
 # Add the MySQL JDBC driver, Prometheus metrics reporter, and S3 filesystem plugin.
 # All are downloaded from Maven Central with pinned SHA-512 digests.
 # On a version bump, regenerate the digests with: sha512sum <downloaded-jar>
