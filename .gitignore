@@ -12,6 +12,7 @@ variant-yaml-pipeline/
 **/*.org
 **/*.ro.md
 **/*.pptx
+**/*#*#
 log
 ll
 
