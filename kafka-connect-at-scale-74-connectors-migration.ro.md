@@ -248,18 +248,7 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 **Post-Migrare:** re-snapshotting-ul este acum nativ în Flink CDC.
 
-<div class="mermaid">
-sequenceDiagram
-  participant Op as Operator
-  participant ArgoCD
-  participant Flink as Flink CDC Job
-  participant MySQL as MySQL binlog
-
-  Op->>ArgoCD: upgradeMode: stateless + bump restartNonce
-  ArgoCD->>Flink: șterge starea checkpoint + restart
-  Flink->>MySQL: snapshot inițial complet (automat)
-  Op->>ArgoCD: revert upgradeMode: last-state
-</div>
+![CDC Snapshotting: Before vs After — re-snapshot workflow](images/cdc-resnapshot-sequence.svg)
 
 **Ce dispare:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, topic Kafka de semnal
 — **3 clase Java și 1 topic Kafka eliminate**.

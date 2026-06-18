@@ -248,18 +248,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 **Post-Migration:** re-snapshotting is now native to Flink CDC.
 
-<div class="mermaid">
-sequenceDiagram
-  participant Op as Operator
-  participant ArgoCD
-  participant Flink as Flink CDC Job
-  participant MySQL as MySQL binlog
-
-  Op->>ArgoCD: upgradeMode: stateless + bump restartNonce
-  ArgoCD->>Flink: delete checkpoint state + restart
-  Flink->>MySQL: full initial snapshot (automatic)
-  Op->>ArgoCD: revert upgradeMode: last-state
-</div>
+![CDC Snapshotting: Before vs After — re-snapshot workflow](images/cdc-resnapshot-sequence.svg)
 
 **What disappears:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, signal Kafka topic
 — **3 Java classes and 1 Kafka topic eliminated**.
