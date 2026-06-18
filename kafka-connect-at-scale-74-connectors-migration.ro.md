@@ -324,6 +324,7 @@ sequenceDiagram
 - **Fără costuri de licențiere** — Apache Flink 2.2 + Flink CDC (open source, Apache 2.0)
 - **Kubernetes nativ** — Flink Operator gestionează ciclul de viață, scalarea, recuperarea
 - **Checkpoint nativ** — semantici exactly-once per job; fără topic partajat de offset
+- **Sink exactly-once** — necesită tranzacții Kafka (`DeliveryGuarantee.EXACTLY_ONCE` + prefix ID tranzacțional în `KafkaSinkFactory`); broker-ul Kafka trebuie să aibă tranzacțiile activate
 - **Upgrade-uri independente** — versionare per job; fără upgrade-uri coordonate la nivel de flotă
 
 > Fiecare rând din tabelul "Provocări" corespunde unei îmbunătățiri concrete aici.
@@ -395,7 +396,7 @@ sequenceDiagram
 
 ## Slide 18 — Recomandare
 
-**Adoptați modelul Flink CDC shared-job.** Elimină raza de impact partajată și costul de licențiere (vezi slide-ul Îmbunătățiri) menținând în același timp izolarea per echipă — iar POC-ul demonstrează că mecanismul funcționează (vezi slide-ul Dovezi POC: 5 variante rulând simultan, checkpoint nativ, exactly-once per job, toate testele verzi).
+**Adoptați modelul Flink CDC shared-job.** Elimină raza de impact partajată și costul de licențiere (vezi slide-ul Îmbunătățiri) menținând în același timp izolarea per echipă — iar POC-ul demonstrează că mecanismul funcționează (vezi slide-ul Dovezi POC: 5 variante rulând simultan, checkpoint nativ, semantici exactly-once per job (checkpoint + tranzacții sink), toate testele verzi).
 
 Costul per echipă este doar overrides Helm — fără Java, fără fork, fără pipeline de release per echipă.
 

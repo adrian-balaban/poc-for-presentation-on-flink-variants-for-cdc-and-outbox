@@ -324,6 +324,7 @@ sequenceDiagram
 - **No licensing costs** — Apache Flink 2.2 + Flink CDC (open source, Apache 2.0)
 - **Native Kubernetes** — Flink Operator handles lifecycle, scaling, recovery
 - **Native checkpointing** — per-job exactly-once semantics; no shared offset topic
+- **Exactly-once sink** — requires Kafka transactions (`DeliveryGuarantee.EXACTLY_ONCE` + transactional ID prefix in `KafkaSinkFactory`); Kafka broker must have transactions enabled
 - **Independent upgrades** — per-job versioning; no fleet-wide coordinated upgrades
 
 > Every row in the "Challenges" table maps to a concrete improvement here.
@@ -394,7 +395,7 @@ sequenceDiagram
 
 ## Slide 18 — Recommendation
 
-**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC proves the mechanism works (see the POC Evidence slide: 5 variants running simultaneously, native checkpointing, per-job exactly-once, all tests green).
+**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC proves the mechanism works (see the POC Evidence slide: 5 variants running simultaneously, native checkpointing, per-job exactly-once semantics (checkpoint + sink transactions), all tests green).
 
 Per-tribe cost is Helm overrides only — no Java, no fork, no per-tribe release pipeline.
 
