@@ -128,13 +128,13 @@ Am construit **5 variante** și le-am rulat
 
 | # | Variantă | Dimensiune Clasă Principală | Format Output | Java Necesar |
 |---|---------|-----------|---------------|---------------|
-| 1 | DataStream CDC | 49 linii | Aplatizat + îmbogățire | Da |
-| 2 | Table API | 93 linii | Plic Debezium nativ | Da |
-| 3 | SQL API | 136 linii | Plic Debezium nativ | Minim |
-| 4 | Outbox | 53 linii | Payload brut per destinație | Da |
-| 5 | YAML Pipeline | 55 linii YAML | Plic Debezium nativ | **Nu** |
+| 1 | DataStream CDC | 50 linii | Aplatizat + îmbogățire | Da |
+| 2 | Table API | 99 linii | Plic Debezium nativ | Da |
+| 3 | SQL API | 156 linii | Plic Debezium nativ | Minim |
+| 4 | Outbox | 56 linii | Payload brut per destinație | Da |
+| 5 | YAML Pipeline | 47 linii YAML | Plic Debezium nativ | **Nu** |
 
-> Toate cele patru variante Java partajează în plus ~295 linii de infrastructură `common/`
+> Toate cele patru variante Java partajează în plus ~391 linii de infrastructură `common/`
 > (`JobConfig`, `CheckpointConfigurer`, deserializator, routere, `KafkaSinkFactory`) —
 > clasele de intrare conțin doar cablajul specific variantei.
 
@@ -155,7 +155,7 @@ Am construit **5 variante** și le-am rulat
 
 ## Slide 8 — Perspectiva Dezvoltatorului Java: Comparație de Cod
 
-### DataStream CDC (clasă de intrare 49 linii, control maxim)
+### DataStream CDC (clasă de intrare 50 linii, control maxim)
 
 ```java
 MySqlSource<String> source = MySqlSource.<String>builder()
@@ -175,7 +175,7 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
 > Toate detaliile de conexiune vin din `JobConfig.fromEnv()` — nimic nu este hardcodat;
 > aceasta este aceeași parametrizare pe care se bazează modelul shared-job (vezi slide-ul Modelul Shared-Job).
 
-### YAML Pipeline (55 linii, zero Java)
+### YAML Pipeline (47 linii, zero Java)
 
 ```yaml
 source:
@@ -435,12 +435,12 @@ Costul per echipă este doar overrides Helm — fără Java, fără fork, fără
 
 ```
 flink-cdc-poc/
-├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory
-├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (49 linii, server-ID 5900–5999)
-├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (93 linii, server-ID 6000–6099)
-├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (136 linii, server-ID 5800–5899)
-├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (53 linii, server-ID 5600–5699)
-├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (55 linii, server-ID 5700–5709)
+├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~391 linii)
+├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (50 linii, server-ID 5900–5999)
+├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (99 linii, server-ID 6000–6099)
+├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (156 linii, server-ID 5800–5899)
+├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (56 linii, server-ID 5600–5699)
+├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (47 linii, canonical: src/main/resources/pipeline.yaml, server-ID 5700–5709)
 ├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
 │                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
 │                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest
