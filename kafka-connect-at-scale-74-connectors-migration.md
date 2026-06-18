@@ -24,13 +24,14 @@ aims to address, and the trade-offs involved. The talk also highlights
 ## Slide 1b — Agenda (45 minutes)
 
 1. **Where we are** (2 min) — The client context, 95 connectors on one cluster
-2. **Why it hurts** (3 min) — Challenges: blast radius, licensing, no per-tribe lever
-3. **The POC** (10 min) — 5 Flink variants running simultaneously; code comparison
-4. **The solution** (5 min) — Shared-job model: one image, Helm-only per tribe
-5. **Architecture & collision avoidance** (8 min) — K8s deployment, server-ID ranges, monitoring
-6. **The trade-offs** (5 min) — What changes, what remains, new operational surface
-7. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others
-8. **Open questions** (3 min) — 7 spikes, Phase 0 timeline
+2. **Why it hurts & what we require** (4 min) — Challenges + the 3 requirements any solution must meet
+3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation
+4. **The POC** (8 min) — 5 Flink variants running simultaneously; one code snippet
+5. **The solution** (5 min) — Shared-job model: one image, Helm-only per tribe
+6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring
+7. **The trade-offs** (4 min) — What changes, what remains, new operational surface
+8. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others
+9. **Open questions** (3 min) — 7 spikes
 
 **Q&A: 15 minutes**
 
@@ -57,6 +58,26 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 
 ---
 
+## Slide 1d — What Is Flink, and Why It's the Structural Fix
+
+**Apache Flink** is a stateful stream-processing engine: a continuous job that reads events, keeps state, and writes results — with **exactly-once checkpoints** (durable, recoverable) and **event-time** semantics. Each job runs as its **own isolated K8s deployment** (own JobManager + TaskManager) under the Flink Operator.
+
+**Flink CDC** is the connector that does the same job as Debezium-on-Kafka-Connect — reads the MySQL binlog and emits change events to Kafka — but with an **incremental snapshot** algorithm that needs **no shared offset topic and no signal topic**, running inside that isolated job.
+
+The structural argument in one frame — this is the bridge from "why it hurts" to "why Flink fixes it":
+
+| | Kafka Connect today | Flink (proposed) |
+|--|--|--|
+| Deployment | 1 shared worker cluster | N isolated K8s jobs (Flink Operator) |
+| Blast radius | 1 — all 95 connectors | 1 per tribe — contained |
+| Rebalance | one group → cascade across 26 teams | none — no shared group |
+| Offsets / state | shared offset topic | per-job exactly-once checkpoints (S3) |
+| Licensing | Confluent Cloud (paid) | Apache 2.0 (free) |
+
+> **"CDC" means two things — don't confuse them:** (1) **Debezium CDC** — table-level, reads the MySQL binlog, one event per change per topic (runs on both KC and Flink). (2) **Flink CDC** — the declarative *YAML pipeline framework* on top of that flow (no Java). This talk covers both; Variant 5 is "Flink CDC" in sense (2). *(This is the most common source of misunderstanding when reviewing this work — Proposal A §2.)*
+
+---
+
 ## Slide 2 — The Client Context (Where We Are Today)
 
 **Real client experience: Confluent Kafka Cloud at scale**
@@ -67,23 +88,32 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
   - SFTP + SingleStore sink/source connectors
 - Everything shares one cluster: one config, one rebalance group, one blast radius
 
-> The shared cluster was convenient at 5 connectors. At 95, it is the single
-> biggest source of cross-team incidents.
+> The shared cluster was convenient at 5 connectors. At 95 across 26 teams — and
+> growing — it is the single biggest source of cross-team incidents. That scaling
+> pressure is why we're looking now.
 
 ---
 
-## Slide 3 — The Challenges (Why We Started This Proposal and POC)
+## Slide 3 — What We Require, and What Hurts Today
 
-| Pain | Who Suffers | How Often |
-|------|------------|-----------|
-| Rebalancing storms — one bad connector destabilises all | All 26 teams | Multiple times/quarter |
-| Shared blast radius — 95 connectors, one cluster | All 26 teams | Every incident |
-| Recurring lag — no per-tribe lever | Affected team + consumers | Ongoing |
-| Production-only failures — surface only after deploy | Teams deploying new connectors | Some time for new connector |
-| Confluent Kafka Cloud licensing cost | Organisation | Monthly |
-| Centralised security patching | Team who do maintenance | Every release cycle |
+**What we require of any solution** *(Kafka Guild, solution-agnostic — the yardstick for the alternatives on Slide 15):*
 
-> One bad connector restart triggers a **cascade rebalance across unrelated tribes**.
+1. Base image + security patching stay **centralised** — tribes don't own the runtime.
+2. **Move away from Confluent Platform** — licensing and lock-in.
+3. **Tribe-based clusters don't solve ownership** — they multiply cost 26× without fixing the root cause.
+
+**What hurts today — and what it costs:**
+
+| Pain | Who | How often | Business impact |
+|------|-----|-----------|-----------------|
+| Rebalancing storms — one bad connector destabilises all | All 26 teams | Multiple×/quarter | Cross-tribe incidents; consumer downtime during cascade |
+| Shared blast radius — 95 connectors, one cluster | All 26 teams | Every incident | No isolation between tribes |
+| Recurring lag — no per-tribe lever | Team + consumers | Ongoing | SLA risk on downstream consumers |
+| Production-only failures — surface only after deploy | New-connector teams | New-connector window | Defects reach prod undetected |
+| Confluent Kafka Cloud licensing | Organisation | Monthly | *[£ figure — confirm with client]* |
+| Centralised security patching | Maintenance team | Every release cycle | Fleet-wide coordination overhead |
+
+> One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and every row above maps to a concrete improvement on Slide 13.
 
 ---
 
@@ -285,7 +315,7 @@ s3.secret-key: minioadmin
 |-------------|--------|
 | Unit tests | 60/60 passing |
 | All 8 modules compile | Clean |
-| Format (Spotify fmt) | Compliant |
+| Format (Spotless — Google Java Format) | Compliant |
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
 | Per-variant component tests | Configured |
 | StatementSet → 1 JobGraph | Verified (SQL API + Table API) |
@@ -347,10 +377,14 @@ s3.secret-key: minioadmin
 
 ![Alternatives Analysis: Why Flink Shared-Job Model?](images/alternatives-analysis.svg)
 
+> **Root cause:** the *shared-worker-pool* architecture — one cluster, one rebalance
+> group, one blast radius. Any fix must remove the sharing *or* remove the blast
+> radius. The table below is each option judged against that.
+
 | Option | Why Not Chosen |
 |--------|---------------|
 | Stay on Confluent Kafka Cloud (status quo) | Blast radius, licensing cost, no per-tribe lever — the pain remains |
-| Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden (is not a managed service as Confluent |
+| Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden (not a managed service like Confluent) |
 | Per-tribe dedicated KC clusters | Solves isolation but multiplies cost and operational overhead 26× |
 | Flink — per-tribe Java fork | True isolation, but every tribe maintains Java + a release pipeline |
 | **Flink — shared-job model (chosen)** | Isolation + no per-tribe Java; one base image, Helm-only overrides |
@@ -358,6 +392,10 @@ s3.secret-key: minioadmin
 > **Reasoning:** Flink is the only option that removes blast radius **and** licensing
 > cost. Within Flink, the shared-job model keeps the isolation win without forcing 26
 > teams to each own Java code — the lowest-friction path to the same guarantees.
+>
+> **Framing (Jereczek, May 2026):** Flink is **"not a replacement, but an alternative,
+> programmatically adopted"** — adopt where it fits, surface real-practice issues in
+> production, keep KC where it has no equivalent (SFTP, SingleStore).
 
 ---
 
@@ -387,7 +425,7 @@ s3.secret-key: minioadmin
 
 ---
 
-## Slide 18 — Recommendation & Next Steps
+## Slide 18 — Recommendation
 
 ### The Case for Flink CDC (Shared-Job Model)
 

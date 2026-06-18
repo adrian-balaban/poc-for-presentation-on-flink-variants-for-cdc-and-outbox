@@ -24,13 +24,14 @@ Vom parcurge provocările actuale, ce îmbunătățiri vizează noua abordare
 ## Slide 1b — Agendă (45 de minute)
 
 1. **Unde suntem** (2 min) — Contextul clientului, 95 de conectori pe un singur cluster
-2. **De ce doare** (3 min) — Provocări: raza de impact, licențiere, niciun reglaj per-echipă
-3. **POC-ul** (10 min) — 5 variante Flink rulând simultan; comparație de cod
-4. **Soluția** (5 min) — Modelul shared-job: o imagine, overrides doar prin Helm per echipă
-5. **Arhitectură și evitarea coliziunilor** (8 min) — Deployment K8s, intervale server-ID, monitorizare
-6. **Compromisurile** (5 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă
-7. **De ce aceasta față de alternative** (5 min) — Matrice de decizie: de ce Flink CDC vs KC vs altele
-8. **Întrebări deschise** (3 min) — 7 spike-uri, calendarul Fazei 0
+2. **De ce doare și ce cerem** (4 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească
+3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink CDC într-un cadru; pool partajat vs. izolare per-job
+4. **POC-ul** (8 min) — 5 variante Flink rulând simultan; un snippet de cod
+5. **Soluția** (5 min) — Modelul shared-job: o imagine, overrides doar prin Helm per echipă
+6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare
+7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă
+8. **De ce aceasta față de alternative** (5 min) — Matrice de decizie: de ce Flink CDC vs KC vs altele
+9. **Întrebări deschise** (3 min) — 7 spike-uri
 
 **Q&A: 15 minute**
 
@@ -57,6 +58,26 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 
 ---
 
+## Slide 1d — Ce Este Flink și De Ce Este Remedierea Structurală
+
+**Apache Flink** este un motor de procesare a stream-urilor cu stare (stateful): un job continuu care citește evenimente, menține stare și scrie rezultate — cu **checkpoint-uri exactly-once** (durabile, recuperabile) și semantici **event-time**. Fiecare job rulează ca **propriul deployment K8s izolat** (JobManager + TaskManager proprii) sub Flink Operator.
+
+**Flink CDC** este conectorul care face același lucru ca Debezium-pe-Kafka-Connect — citește binlog-ul MySQL și emite evenimente de schimbare în Kafka — dar cu un algoritm de **incremental snapshot** care nu necesită **niciun topic partajat de offset și nici topic de semnal**, rulând în interiorul acelui job izolat.
+
+Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce doare" la "de ce Flink remediază":
+
+| | Kafka Connect azi | Flink (propus) |
+|--|--|--|
+| Deployment | 1 cluster partajat de workere | N joburi K8s izolate (Flink Operator) |
+| Raza de impact | 1 — toate cele 95 de conectori | 1 per echipă — limitată |
+| Rebalansare | un grup → cascadă pe 26 de echipe | niciuna — fără grup partajat |
+| Offset-uri / stare | topic partajat de offset | checkpoint-uri exactly-once per job (S3) |
+| Licențiere | Confluent Cloud (cu plată) | Apache 2.0 (gratuit) |
+
+> **"CDC" înseamnă două lucruri — nu le confunda:** (1) **Debezium CDC** — la nivel de tabel, citește binlog-ul MySQL, un eveniment per schimbare per topic (rulează atât pe KC cât și pe Flink). (2) **Flink CDC** — *framework-ul declarativ de pipeline YAML* deasupra acelui flux (fără Java). Această prezentare acoperă ambele; Varianta 5 este "Flink CDC" în sensul (2). *(Aceasta este cea mai frecventă sursă de neînțelegere la revizuirea acestei lucrări — Propunerea A §2.)*
+
+---
+
 ## Slide 2 — Contextul Clientului (Unde Suntem Azi)
 
 **Experiență reală cu un client: Confluent Kafka Cloud la scară**
@@ -67,23 +88,32 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
   - Conectori sink/source SFTP + SingleStore
 - Totul partajează un singur cluster: o configurație, un singur grup de rebalansare, o singură rază de impact
 
-> Clusterul partajat era convenabil la 5 conectori. La 95, este singura
-> sursă majoră de incidente inter-echipe.
+> Clusterul partajat era convenabil la 5 conectori. La 95 pe 26 de echipe — și
+> în creștere — este singura sursă majoră de incidente inter-echipe. Această
+> presiune de scalare este motivul pentru care investigăm acum.
 
 ---
 
-## Slide 3 — Provocările (De Ce Am Inițiat Această Propunere și POC)
+## Slide 3 — Ce Cerem și Ce Doare Azi
 
-| Problemă | Cine Suferă | Cât de Des |
-|----------|-------------|-----------|
-| Furtuni de rebalansare — un conector defect destabilizează toți | Toate cele 26 de echipe | De mai multe ori pe trimestru |
-| Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident |
-| Lag recurent — niciun reglaj per echipă | Echipa afectată + consumatori | Continuu |
-| Eșecuri doar în producție — se manifestă abia după deploy | Echipele care deployează conectori noi | Uneori la conectori noi |
-| Costul licenței Confluent Kafka Cloud | Organizația | Lunar |
-| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release |
+**Ce cerem de la orice soluție** *(Kafka Guild, agnostic față de soluție — etalonul pentru alternativele de pe Slide 15):*
 
-> Un singur restart de conector declanșează o **rebalansare în cascadă între echipe fără legătură**.
+1. Imaginea de bază + patch-urile de securitate rămân **centralizate** — echipele nu dețin runtime-ul.
+2. **Să ne îndepărtăm de Confluent Platform** — licențiere și lock-in.
+3. **Clusterele per echipă nu rezolvă proprietatea** — înmulțesc costul de 26× fără a remedia cauza root.
+
+**Ce doare azi — și cât costă:**
+
+| Problemă | Cine | Cât de des | Impact business |
+|----------|------|-----------|-----------------|
+| Furtuni de rebalansare — un conector defect destabilizează toți | Toate cele 26 de echipe | De mai multe ori/trimestru | Incidente inter-echipe; downtime consumatori în timpul cascadei |
+| Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident | Fără izolare între echipe |
+| Lag recurent — niciun reglaj per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
+| Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | La fereastră conector nou | Defecte ajung în prod nedetectate |
+| Licențiere Confluent Kafka Cloud | Organizația | Lunar | *[sumă £ — de confirmat cu clientul]* |
+| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release | Overhead de coordonare la nivel de flotă |
+
+> Un singur restart de conector declanșează o **rebalansare în cascadă între echipe fără legătură** — și fiecare rând de mai sus corespunde unei îmbunătățiri concrete pe Slide 13.
 
 ---
 
@@ -285,7 +315,7 @@ s3.secret-key: minioadmin
 |-------------|--------|
 | Teste unitare | 60/60 trecute |
 | Toate cele 8 module compilează | Curat |
-| Formatare (Spotify fmt) | Conformă |
+| Formatare (Spotless — Google Java Format) | Conformă |
 | Flink CDC 3.6.0 pe Flink 2.2 | Verificat |
 | Teste de componente per variantă | Configurate |
 | StatementSet → 1 JobGraph | Verificat (SQL API + Table API) |
@@ -347,6 +377,11 @@ s3.secret-key: minioadmin
 
 ![Analiza Alternativelor: De Ce Modelul Flink Shared-Job?](images/alternatives-analysis.svg)
 
+> **Cauza root:** arhitectura de *pool partajat de workere* — un cluster, un grup
+> de rebalansare, o rază de impact. Orice remediere trebuie să elimine partajarea
+> *sau* să elimine raza de impact. Tabelul de mai jos este fiecare opțiune judecată
+> față de acest criteriu.
+
 | Opțiune | De Ce Nu a Fost Aleasă |
 |--------|---------------|
 | Rămâne pe Confluent Kafka Cloud (status quo) | Raza de impact, costul licenței, niciun reglaj per echipă — durerea rămâne |
@@ -358,6 +393,10 @@ s3.secret-key: minioadmin
 > **Raționament:** Flink este singura opțiune care elimină atât raza de impact **cât și**
 > costul licenței. În cadrul Flink, modelul shared-job păstrează câștigul de izolare fără a forța 26 de
 > echipe să dețină fiecare cod Java — calea cu cel mai mic efort spre aceleași garanții.
+>
+> **Încadrare (Jereczek, mai 2026):** Flink **"nu este un replacement, ci o alternativă,
+> adoptată programatic"** — adoptă unde se potrivește, surfacează probleme de practică reală în
+> producție, păstrează KC unde nu are echivalent (SFTP, SingleStore).
 
 ---
 
@@ -387,7 +426,7 @@ s3.secret-key: minioadmin
 
 ---
 
-## Slide 18 — Recomandare și Pași Următori
+## Slide 18 — Recomandare
 
 ### Argumentul pentru Flink CDC (Modelul Shared-Job)
 
