@@ -299,11 +299,11 @@ flink-cdc-poc/
 
 All variants are configured with **exactly-once semantics** and **30-second checkpoint intervals**. For production deployments:
 
-- **Safe upgrades with savepoints** → See [SAVEPOINT_RUNBOOK.md](./SAVEPOINT_RUNBOOK.md)
+- **Safe upgrades with savepoints** → See [FLINK_SAVEPOINT_RUNBOOK.md](./FLINK_SAVEPOINT_RUNBOOK.md)
   - 5-phase workflow: create → verify → cancel → upgrade → resume
   - Handles MySQL binlog lease expiration and server-ID collision prevention
 
-- **Checkpoint configuration & monitoring** → See [CHECKPOINT_CONFIG.md](./CHECKPOINT_CONFIG.md)
+- **Checkpoint configuration & monitoring** → See [FLINK_CHECKPOINT_CONFIG.md](./FLINK_CHECKPOINT_CONFIG.md)
   - Flink 2.2 checkpoint semantics and production checklist
   - REST API examples and Flink Dashboard monitoring
 
@@ -325,8 +325,8 @@ All variants are configured with **exactly-once semantics** and **30-second chec
 
 ### Project Documentation
 - [CLAUDE.md](./CLAUDE.md) — module structure, server-ID ranges, component tests
-- [CHECKPOINT_CONFIG.md](./CHECKPOINT_CONFIG.md) — checkpoint semantics, monitoring, troubleshooting
-- [SAVEPOINT_RUNBOOK.md](./SAVEPOINT_RUNBOOK.md) — safe upgrade workflows, state recovery
+- [FLINK_CHECKPOINT_CONFIG.md](./FLINK_CHECKPOINT_CONFIG.md) — checkpoint semantics, monitoring, troubleshooting
+- [FLINK_SAVEPOINT_RUNBOOK.md](./FLINK_SAVEPOINT_RUNBOOK.md) — safe upgrade workflows, state recovery
 - [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, SMTs, comparison
 - Architecture proposal: `../markdown/proposalA/`
 

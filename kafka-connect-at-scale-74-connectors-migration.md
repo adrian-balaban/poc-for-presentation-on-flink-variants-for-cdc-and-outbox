@@ -36,6 +36,27 @@ aims to address, and the trade-offs involved. The talk also highlights
 
 ---
 
+## Slide 1c — Context in 30 seconds (for those new to Kafka)
+
+```
+MySQL binlog  →  Debezium  →  Kafka  →  consumers
+               (captures       (message      (other systems,
+                changes)        bus)          databases)
+```
+
+| Term | What it is (one sentence) |
+|------|---------------------------|
+| **MySQL binlog** | MySQL's internal journal of every INSERT/UPDATE/DELETE — Debezium reads it like a replica |
+| **Debezium** | Open-source library that turns the binlog into JSON change events |
+| **Kafka Connect** | The platform that runs Debezium (and other connectors) as managed workers |
+| **Confluent Cloud** | Kafka + Kafka Connect as a managed service (you pay for it, you don't operate it) |
+| **Apache Flink** | Stream-processing engine; can do the same job as Debezium + KC, but as an isolated K8s job |
+
+> **Key point:** every variant in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
+> The difference is *how* and *where* the reading process runs.
+
+---
+
 ## Slide 2 — The Client Context (Where We Are Today)
 
 **Real client experience: Confluent Kafka Cloud at scale**
@@ -221,12 +242,32 @@ All five variants share one extraction point — `CheckpointConfigurer.applyExac
 rather than repeating the five calls below in every entry class:
 
 ```java
-env.enableCheckpointing(30_000);              // 30-second interval
-env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-env.getCheckpointConfig().setCheckpointTimeout(60_000);
-env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+// common/src/main/java/poc/common/config/CheckpointConfigurer.java
+public static void applyExactlyOnce(StreamExecutionEnvironment env) {
+    env.enableCheckpointing(30_000);
+    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+    env.getCheckpointConfig().setCheckpointTimeout(60_000);
+    env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+}
 ```
+
+Checkpoint state is persisted to S3-compatible storage (MinIO locally, AWS S3 in production),
+configured in `flink-conf.yaml`:
+
+```yaml
+state.backend: rocksdb
+state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+state.savepoints.dir:  s3://flink-checkpoints/savepoints
+s3.endpoint: http://minio:9000
+s3.path.style.access: "true"
+s3.access-key: minioadmin
+s3.secret-key: minioadmin
+```
+
+**POC evidence — MinIO `flink-checkpoints` bucket after all 5 variants running:**
+
+![MinIO flink-checkpoints bucket — checkpoints and yaml-pipeline-checkpoints folders](images/slides/minio-checkpoints.png)
 
 | Setting | Value | Reason |
 |---------|-------|--------|
@@ -520,7 +561,7 @@ flink-cdc-poc/
 ---
 
 ## Infrastructure List 2 — Local POC Infrastructure
-*Source: `flink-cdc-poc/` folder (`podman-compose.yml`, `build.gradle`, `README.md`, `KAFKA_CONNECT.md`, `CHECKPOINT_CONFIG.md`)*
+*Source: `flink-cdc-poc/` folder (`podman-compose.yml`, `build.gradle`, `README.md`, `KAFKA_CONNECT.md`, `FLINK_CHECKPOINT_CONFIG.md`)*
 
 ### Software Versions
 
@@ -624,10 +665,13 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 
 ## References
 
-- Apache Flink 2.2.0 documentation
-- Apache Flink CDC 3.6 documentation
-- Apache Flink CDC project home
-- Debezium MySQL Connector (via Flink CDC 3.6 / `flink-cdc-connectors`)
-- `flink-cdc-poc/CHECKPOINT_CONFIG.md` — checkpoint semantics, monitoring, troubleshooting
-- `flink-cdc-poc/SAVEPOINT_RUNBOOK.md` — safe upgrade workflows, state recovery
+- [Apache Flink 2.2.0 documentation](https://nightlies.apache.org/flink/flink-docs-release-2.2/)
+- [Apache Flink CDC 3.6 documentation](https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/)
+- [Apache Flink CDC project home (GitHub)](https://github.com/apache/flink-cdc)
+- [Debezium MySQL Connector documentation](https://debezium.io/documentation/reference/stable/connectors/mysql.html)
+- [Kafka Connect overview (Apache Kafka docs)](https://kafka.apache.org/documentation/#connect)
+- [Confluent Kafka Connect documentation](https://docs.confluent.io/platform/current/connect/index.html)
+- [Flink Kubernetes Operator documentation](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
+- `flink-cdc-poc/FLINK_CHECKPOINT_CONFIG.md` — checkpoint semantics, monitoring, troubleshooting
+- `flink-cdc-poc/FLINK_SAVEPOINT_RUNBOOK.md` — safe upgrade workflows, state recovery
 - `flink-cdc-poc/KAFKA_CONNECT.md` — KC CDC variants, SMTs, Flink vs KC comparison

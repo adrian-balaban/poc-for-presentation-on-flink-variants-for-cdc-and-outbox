@@ -227,6 +227,6 @@ env.getCheckpointConfig().setCheckpointingMode(
 
 ## See Also
 
-- [SAVEPOINT_RUNBOOK.md](./SAVEPOINT_RUNBOOK.md) — Manual state management
+- [FLINK_SAVEPOINT_RUNBOOK.md](./FLINK_SAVEPOINT_RUNBOOK.md) — Manual state management
 - [CLAUDE.md](./CLAUDE.md) — Server-ID range allocation
 - [Flink Checkpoint Docs](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/fault_tolerance/checkpointing/)

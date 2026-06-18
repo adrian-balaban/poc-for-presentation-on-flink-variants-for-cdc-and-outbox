@@ -36,6 +36,27 @@ Vom parcurge provocările actuale, ce îmbunătățiri vizează noua abordare
 
 ---
 
+## Slide 1c — Context în 30 de secunde (pentru cei care nu au lucrat cu Kafka)
+
+```
+MySQL binlog  →  Debezium  →  Kafka  →  consumatori
+               (capturează     (magistrala     (alte sisteme,
+                schimbări)      de mesaje)       DB-uri)
+```
+
+| Termen | Ce este (o propoziție) |
+|--------|------------------------|
+| **MySQL binlog** | Jurnalul intern MySQL cu toate INSERT/UPDATE/DELETE — Debezium îl citește ca un replica |
+| **Debezium** | Bibliotecă open-source care transformă binlog-ul în evenimente JSON |
+| **Kafka Connect** | Platforma care rulează Debezium (și alți conectori) ca workere gestionate |
+| **Confluent Cloud** | Kafka + Kafka Connect ca serviciu managed (nu îl administrezi tu, îl plătești) |
+| **Apache Flink** | Motor de procesare a stream-urilor; poate face același lucru ca Debezium + KC, dar ca job izolat pe K8s |
+
+> **De reținut:** toate variantele din acest talk citesc același lucru — binlog-ul MySQL — și scriu în Kafka.
+> Diferența este *cum* și *unde* rulează procesul de citire.
+
+---
+
 ## Slide 2 — Contextul Clientului (Unde Suntem Azi)
 
 **Experiență reală cu un client: Confluent Kafka Cloud la scară**
@@ -221,12 +242,32 @@ Toate cele cinci variante partajează un singur punct de extracție — `Checkpo
 în loc să repete cele cinci apeluri de mai jos în fiecare clasă de intrare:
 
 ```java
-env.enableCheckpointing(30_000);              // interval de 30 secunde
-env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-env.getCheckpointConfig().setCheckpointTimeout(60_000);
-env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+// common/src/main/java/poc/common/config/CheckpointConfigurer.java
+public static void applyExactlyOnce(StreamExecutionEnvironment env) {
+    env.enableCheckpointing(30_000);
+    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+    env.getCheckpointConfig().setCheckpointTimeout(60_000);
+    env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+}
 ```
+
+Starea checkpoint-urilor este persistată în stocare compatibilă S3 (MinIO local, AWS S3 în producție),
+configurată în `flink-conf.yaml`:
+
+```yaml
+state.backend: rocksdb
+state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+state.savepoints.dir:  s3://flink-checkpoints/savepoints
+s3.endpoint: http://minio:9000
+s3.path.style.access: "true"
+s3.access-key: minioadmin
+s3.secret-key: minioadmin
+```
+
+**Dovadă POC — bucket-ul MinIO `flink-checkpoints` după rularea tuturor celor 5 variante:**
+
+![MinIO bucket flink-checkpoints — foldere checkpoints și yaml-pipeline-checkpoints](images/slides/minio-checkpoints.png)
 
 | Setare | Valoare | Motiv |
 |--------|-------|--------|
@@ -520,7 +561,7 @@ flink-cdc-poc/
 ---
 
 ## Lista de Infrastructură 2 — Infrastructura POC Local
-*Sursă: folder `flink-cdc-poc/` (`podman-compose.yml`, `build.gradle`, `README.md`, `KAFKA_CONNECT.md`, `CHECKPOINT_CONFIG.md`)*
+*Sursă: folder `flink-cdc-poc/` (`podman-compose.yml`, `build.gradle`, `README.md`, `KAFKA_CONNECT.md`, `FLINK_CHECKPOINT_CONFIG.md`)*
 
 ### Versiuni Software
 
@@ -624,10 +665,13 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 
 ## Referințe
 
-- Documentația Apache Flink 2.2.0
-- Documentația Apache Flink CDC 3.6
-- Pagina principală a proiectului Apache Flink CDC
-- Conector Debezium MySQL (via Flink CDC 3.6 / `flink-cdc-connectors`)
-- `flink-cdc-poc/CHECKPOINT_CONFIG.md` — semantici checkpoint, monitorizare, depanare
-- `flink-cdc-poc/SAVEPOINT_RUNBOOK.md` — fluxuri de upgrade sigure, recuperare stare
+- [Documentația Apache Flink 2.2.0](https://nightlies.apache.org/flink/flink-docs-release-2.2/)
+- [Documentația Apache Flink CDC 3.6](https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/)
+- [Pagina principală a proiectului Apache Flink CDC (GitHub)](https://github.com/apache/flink-cdc)
+- [Documentația Conector Debezium MySQL](https://debezium.io/documentation/reference/stable/connectors/mysql.html)
+- [Prezentare generală Kafka Connect (documentație Apache Kafka)](https://kafka.apache.org/documentation/#connect)
+- [Documentația Confluent Kafka Connect](https://docs.confluent.io/platform/current/connect/index.html)
+- [Documentația Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
+- `flink-cdc-poc/FLINK_CHECKPOINT_CONFIG.md` — semantici checkpoint, monitorizare, depanare
+- `flink-cdc-poc/FLINK_SAVEPOINT_RUNBOOK.md` — fluxuri de upgrade sigure, recuperare stare
 - `flink-cdc-poc/KAFKA_CONNECT.md` — variante KC CDC, SMT-uri, comparație Flink vs KC

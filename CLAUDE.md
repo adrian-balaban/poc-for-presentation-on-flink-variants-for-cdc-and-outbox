@@ -275,8 +275,8 @@ To add SpotBugs or OWASP Dependency Check in the future, see the archived config
 
 ## See Also
 
-- [**CHECKPOINT_CONFIG.md**](./CHECKPOINT_CONFIG.md) — Flink 2.2 checkpoint semantics, monitoring, troubleshooting
-- [**SAVEPOINT_RUNBOOK.md**](./SAVEPOINT_RUNBOOK.md) — 5-phase safe upgrade workflow, server-ID management, disaster recovery
+- [**FLINK_CHECKPOINT_CONFIG.md**](./FLINK_CHECKPOINT_CONFIG.md) — Flink 2.2 checkpoint semantics, monitoring, troubleshooting
+- [**FLINK_SAVEPOINT_RUNBOOK.md**](./FLINK_SAVEPOINT_RUNBOOK.md) — 5-phase safe upgrade workflow, server-ID management, disaster recovery
 - [**KAFKA_CONNECT.md**](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, custom SMTs, detailed comparison
 
 ## Context

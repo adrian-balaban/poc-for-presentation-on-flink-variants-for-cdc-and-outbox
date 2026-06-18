@@ -85,8 +85,8 @@ podman exec flink-jm cat /tmp/savepoint-2026-06-08/_metadata
 ### Phase 3: Cancel Job Cleanly
 
 ```bash
-# Stop job, then cancel with the savepoint reference
-# (optional: if you want to save state from final seconds)
+# Cancel the job — state was already captured in the savepoint created in Phase 1.
+# This is a clean cancel with no additional state capture.
 podman exec flink-jm flink cancel "$JOB_ID"
 
 # Verify job is FINISHED
@@ -233,14 +233,18 @@ podman exec flink-jm flink run job-v2.jar
 ### ✅ Good Example
 
 ```bash
-# Create savepoint (savepoint includes server-id range metadata)
+# Create savepoint — captures binlog offset and processing state only.
+# Server-ID range is NOT stored in the savepoint; it must be configured at startup.
 podman exec flink-jm flink savepoint <JOB_ID> /tmp/sp-1
 
-# Resume from savepoint — same server-id range is used automatically
+# Resume from savepoint — explicitly pass the same server-ID range via env/config.
+# The range must match what was used before to avoid MySQL replica-ID collisions.
+# Ranges: Outbox 5600–5699, YAML 5700–5709, SQL API 5800–5899,
+#         DataStream 5900–5999, Table API 6000–6099, KC 5500–5599
 podman exec flink-jm flink run -s /tmp/sp-1 upgraded.jar
 ```
 
-**Key rule:** If using savepoints, let Flink manage server-IDs. The savepoint metadata ensures the same range is used on resume.
+**Key rule:** Server-ID ranges are **not** managed by savepoints — they must be explicitly configured at every startup via env vars (`MYSQL_SERVER_ID`, `MYSQL_OUTBOX_SERVER_ID`, etc.) and kept consistent across restores. Savepoints only preserve binlog offsets and Flink operator state.
 
 ---
 

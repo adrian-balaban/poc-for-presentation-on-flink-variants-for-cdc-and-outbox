@@ -10,6 +10,7 @@
 # orphan directory superseded by variant-flink-cdc-yaml-pipeline-cdc-job
 variant-yaml-pipeline/
 **/*.org
+**/*.ro.md
 **/*.pptx
 log
 ll
