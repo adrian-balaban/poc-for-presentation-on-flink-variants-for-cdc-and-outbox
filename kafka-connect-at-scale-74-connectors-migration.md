@@ -399,7 +399,7 @@ s3.secret-key: minioadmin
 
 ✅ **Proven in POC:**
 - 5 variants running simultaneously without collision
-- Native Flink checkpointing — no custom signal plumbing
+- Native Flink checkpointing 
 - Per-job exactly-once semantics — no shared state
 - Component tests ✅, unit tests ✅, all 8 modules ✅
 

@@ -399,7 +399,7 @@ s3.secret-key: minioadmin
 
 ✅ **Dovedit în POC:**
 - 5 variante rulând simultan fără coliziune
-- Checkpoint Flink nativ — fără cablaj de semnal personalizat
+- Checkpoint Flink nativ
 - Semantici exactly-once per job — fără stare partajată
 - Teste de componente ✅, teste unitare ✅, toate cele 8 module ✅
 
