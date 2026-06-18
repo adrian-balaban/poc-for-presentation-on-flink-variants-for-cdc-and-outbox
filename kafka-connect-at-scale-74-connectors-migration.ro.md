@@ -58,7 +58,46 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 
 ---
 
-## Slide 1d — Ce Este Flink și De Ce Este Remedierea Structurală
+## Slide 2 — Contextul Clientului (Unde Suntem Azi)
+
+**Experiență reală cu un client: Confluent Kafka Cloud la scară**
+
+- **95 de conectori** pe **un singur cluster Kafka Connect partajat** pentru **26 de echipe**
+- Două familii de conectori astăzi:
+  - **Debezium (Kafka Connect)** — citește binlog-ul MySQL via KC gestionat de Confluent, un eveniment per modificare per topic
+  - Conectori sink/source SFTP + SingleStore
+- Totul partajează un singur cluster: o configurație, un singur grup de rebalansare, o singură rază de impact
+
+> Clusterul partajat era convenabil la 5 conectori. La 95 pe 26 de echipe — și
+> în creștere — este singura sursă majoră de incidente inter-echipe. Această
+> presiune de scalare este motivul pentru care investigăm acum.
+
+---
+
+## Slide 3 — Ce Cerem și Ce Doare Azi
+
+**Ce cerem de la orice soluție** *(Kafka Guild, agnostic față de soluție — etalonul pentru opțiunile de pe slide-ul Alternative):*
+
+1. Imaginea de bază + patch-urile de securitate rămân **centralizate** — echipele nu dețin runtime-ul.
+2. **Să ne îndepărtăm de Confluent Platform** — licențiere și lock-in.
+3. **Clusterele per echipă nu rezolvă proprietatea** — înmulțesc costul de 26× fără a remedia cauza root.
+
+**Ce doare azi — și cât costă:**
+
+| Problemă | Cine | Cât de des | Impact business |
+|----------|------|-----------|-----------------|
+| Furtuni de rebalansare — un conector defect destabilizează toți | Toate cele 26 de echipe | De mai multe ori/trimestru | Incidente inter-echipe; downtime consumatori în timpul cascadei |
+| Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident | Fără izolare între echipe |
+| Lag recurent — niciun reglaj per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
+| Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | La fereastră conector nou | Defecte ajung în prod nedetectate |
+| Licențiere Confluent Kafka Cloud | Organizația | Lunar | *[sumă £ — de confirmat cu clientul]* |
+| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release | Overhead de coordonare la nivel de flotă |
+
+> Un singur restart de conector declanșează o **rebalansare în cascadă între echipe fără legătură** — și fiecare rând de mai sus corespunde unei îmbunătățiri concrete (vezi slide-ul Îmbunătățiri).
+
+---
+
+## Slide 4 — Ce Este Flink și De Ce Este Remedierea Structurală
 
 **Apache Flink** este un motor de procesare a stream-urilor cu stare (stateful): un job continuu care citește evenimente, menține stare și scrie rezultate — cu **checkpoint-uri exactly-once** (durabile, recuperabile) și semantici **event-time**. Fiecare job rulează ca **propriul deployment K8s izolat** (JobManager + TaskManager proprii) sub Flink Operator.
 
@@ -78,46 +117,7 @@ Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce
 
 ---
 
-## Slide 2 — Contextul Clientului (Unde Suntem Azi)
-
-**Experiență reală cu un client: Confluent Kafka Cloud la scară**
-
-- **95 de conectori** pe **un singur cluster Kafka Connect partajat** pentru **26 de echipe**
-- Două familii de conectori astăzi:
-  - **Debezium (Kafka Connect)** — citește binlog-ul MySQL via KC gestionat de Confluent, un eveniment per modificare per topic
-  - Conectori sink/source SFTP + SingleStore
-- Totul partajează un singur cluster: o configurație, un singur grup de rebalansare, o singură rază de impact
-
-> Clusterul partajat era convenabil la 5 conectori. La 95 pe 26 de echipe — și
-> în creștere — este singura sursă majoră de incidente inter-echipe. Această
-> presiune de scalare este motivul pentru care investigăm acum.
-
----
-
-## Slide 3 — Ce Cerem și Ce Doare Azi
-
-**Ce cerem de la orice soluție** *(Kafka Guild, agnostic față de soluție — etalonul pentru alternativele de pe Slide 15):*
-
-1. Imaginea de bază + patch-urile de securitate rămân **centralizate** — echipele nu dețin runtime-ul.
-2. **Să ne îndepărtăm de Confluent Platform** — licențiere și lock-in.
-3. **Clusterele per echipă nu rezolvă proprietatea** — înmulțesc costul de 26× fără a remedia cauza root.
-
-**Ce doare azi — și cât costă:**
-
-| Problemă | Cine | Cât de des | Impact business |
-|----------|------|-----------|-----------------|
-| Furtuni de rebalansare — un conector defect destabilizează toți | Toate cele 26 de echipe | De mai multe ori/trimestru | Incidente inter-echipe; downtime consumatori în timpul cascadei |
-| Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident | Fără izolare între echipe |
-| Lag recurent — niciun reglaj per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
-| Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | La fereastră conector nou | Defecte ajung în prod nedetectate |
-| Licențiere Confluent Kafka Cloud | Organizația | Lunar | *[sumă £ — de confirmat cu clientul]* |
-| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release | Overhead de coordonare la nivel de flotă |
-
-> Un singur restart de conector declanșează o **rebalansare în cascadă între echipe fără legătură** — și fiecare rând de mai sus corespunde unei îmbunătățiri concrete pe Slide 13.
-
----
-
-## Slide 4 — Scopul Migrării
+## Slide 5 — Scopul Migrării
 
 **Ce migrăm:** 74 de conectori MySQL → Apache Flink MySQL CDC Connector
 
@@ -127,7 +127,7 @@ Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce
 
 ---
 
-## Slide 5 — POC-ul: Cinci Variante Flink
+## Slide 6 — POC-ul: Cinci Variante Flink
 
 Am construit **5 variante** și le-am rulat
 **simultan**.
@@ -146,7 +146,7 @@ Am construit **5 variante** și le-am rulat
 
 ---
 
-## Slide 6 — Matricea de Decizie: Ce Variantă pentru Ce Conector?
+## Slide 7 — Matricea de Decizie: Ce Variantă pentru Ce Conector?
 
 ![Arbore de Decizie Conector: Ce Variantă pentru Ce Conector?](images/connector-decision-tree.svg)
 
@@ -159,7 +159,7 @@ Am construit **5 variante** și le-am rulat
 
 ---
 
-## Slide 7 — Perspectiva Dezvoltatorului Java: Comparație de Cod
+## Slide 8 — Perspectiva Dezvoltatorului Java: Comparație de Cod
 
 ### DataStream CDC (clasă de intrare 49 linii, control maxim)
 
@@ -179,7 +179,7 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
 ```
 
 > Toate detaliile de conexiune vin din `JobConfig.fromEnv()` — nimic nu este hardcodat;
-> aceasta este aceeași parametrizare pe care se bazează modelul shared-job (Slide 8).
+> aceasta este aceeași parametrizare pe care se bazează modelul shared-job (vezi slide-ul Modelul Shared-Job).
 
 ### YAML Pipeline (55 linii, zero Java)
 
@@ -198,7 +198,7 @@ pipeline:
 
 ---
 
-## Slide 8 — Arhitectura Recomandată: Modelul Shared-Job
+## Slide 9 — Arhitectura Recomandată: Modelul Shared-Job
 
 **O imagine de bază. 74 de echipe. Zero Java per echipă.**
 
@@ -227,7 +227,7 @@ applicationJobs:
 
 ---
 
-## Slide 9 — Modelul de Deployment K8s
+## Slide 10 — Modelul de Deployment K8s
 
 **Un repo, cinci variante, o singură definiție pipeline Jenkins — o execuție per variantă.**
 
@@ -236,12 +236,22 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 - Serviciu ClusterIP `<jobName>-rest`
 - CR `FlinkStateSnapshot`
 
-> **Detalii despre evitarea coliziunilor și intervalele server-ID:** vezi secțiunea Appendix
-> "Evitarea Coliziunilor — Fiecare Variantă Primește Propria Bandă"
+### Evitarea Coliziunilor — Fiecare Variantă Primește Propria Bandă
+
+| Axă | Alocare |
+|------|------------|
+| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
+| Schema MySQL | `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db` |
+| Prefix topic Kafka | `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*` |
+| Căi checkpoint S3 | Auto-namespace după `jobId` — bucket partajat, sigur |
+
+> **De ce intervale, nu ID-uri unice?** Flink CDC 3.x incremental snapshot alocă ID-uri pentru
+> cititori paraleli + tentative de restart. Un singur int colidează la restart pentru că
+> lease-ul anterior de binlog MySQL nu a expirat.
 
 ---
 
-## Slide 10 — CDC Snapshotting: Înainte vs. După
+## Slide 11 — CDC Snapshotting: Înainte vs. După
 
 **Post-Migrare:** re-snapshotting-ul este acum nativ în Flink CDC.
 
@@ -266,49 +276,6 @@ sequenceDiagram
 
 ---
 
-## Slide 10b — Configurarea Checkpoint-urilor (pregătit pentru producție)
-
-Toate cele cinci variante partajează un singur punct de extracție — `CheckpointConfigurer.applyExactlyOnce(env)` —
-în loc să repete cele cinci apeluri de mai jos în fiecare clasă de intrare:
-
-```java
-// common/src/main/java/poc/common/config/CheckpointConfigurer.java
-public static void applyExactlyOnce(StreamExecutionEnvironment env) {
-    env.enableCheckpointing(30_000);
-    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-    env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-    env.getCheckpointConfig().setCheckpointTimeout(60_000);
-    env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
-}
-```
-
-Starea checkpoint-urilor este persistată în stocare compatibilă S3 (MinIO local, AWS S3 în producție),
-configurată în `flink-conf.yaml`:
-
-```yaml
-state.backend: rocksdb
-state.checkpoints.dir: s3://flink-checkpoints/checkpoints
-state.savepoints.dir:  s3://flink-checkpoints/savepoints
-s3.endpoint: http://minio:9000
-s3.path.style.access: "true"
-s3.access-key: minioadmin
-s3.secret-key: minioadmin
-```
-
-**Dovadă POC — bucket-ul MinIO `flink-checkpoints` după rularea tuturor celor 5 variante:**
-
-![MinIO bucket flink-checkpoints — foldere checkpoints și yaml-pipeline-checkpoints](images/slides/minio-checkpoints.png)
-
-| Setare | Valoare | Motiv |
-|--------|-------|--------|
-| `enableCheckpointing` | 30.000 ms | Echilibrează durabilitatea vs. performanța |
-| `CheckpointingMode` | EXACTLY_ONCE | Previne mesajele Kafka duplicate la recuperare |
-| `MaxConcurrentCheckpoints` | 1 | Joburile CDC fac snapshot în timpul checkpoint-ului; unul câte unul |
-| `CheckpointTimeout` | 60.000 ms | 2× intervalul; oferă marjă pentru joburi cu stare mare sub sarcină |
-| `MinPauseBetweenCheckpoints` | 5.000 ms | Previne furtunile de checkpoint după finalizarea unuia |
-
----
-
 ## Slide 12 — Dovezi POC
 
 | Verificare | Rezultat |
@@ -317,7 +284,7 @@ s3.secret-key: minioadmin
 | Toate cele 8 module compilează | Curat |
 | Formatare (Spotless — Google Java Format) | Conformă |
 | Flink CDC 3.6.0 pe Flink 2.2 | Verificat |
-| Teste de componente per variantă | Configurate |
+| Teste de componente per variantă | Trecute (5 variante Flink + 5 KC) |
 | StatementSet → 1 JobGraph | Verificat (SQL API + Table API) |
 | Toate cele 5 variante rulând simultan | Verificat (localhost:8081 Flink Dashboard) |
 
@@ -402,15 +369,15 @@ s3.secret-key: minioadmin
 
 ## Slide 16 — Spike-uri Deschise
 
-| ID | Subiect | De Ce Contează | Timebox |
-|----|-------|---------------|---------|
-| S1/S10 | Paritate metrici Flink — metrici Debezium JMX via Flink? | Determină designul modulului de monitorizare; blochează maparea monitoarelor KC #4–#7 | 3 zile |
-| S2 | Presiunea memoriei la snapshot inițial pe cel mai mare tabel (~15M rânduri) | Previne surprizele în Faza 1/2 | 2 zile |
-| S3 | Rutare outbox multi-topic la scară (POC testează la 2; outbox-ul de producție folosește ~15 destinații) | Blocker go-live Faza 1 | 2 zile |
-| S4 | Echivalentul Flink pentru `snapshot.aborted`/`snapshot.running` | Migrarea outbox-transactron-connector (Faza 3) | 2 zile |
-| S5 | Moduri de eșec în producție (RDS IAM, lease-uri binlog, rotație IRSA) | POC-ul nu le poate suprafața; soak-ul de staging este necesar | ≥7 zile soak |
-| S6 | Instrumente de automatizare cutover (KC → Flink) | Switch-urile manuale nu vor scala pe 26 de echipe | Pre-Faza-3 |
-| S7 | Instrumente Claude de migrare self-service pentru echipe | Echipele nu pot aștepta asistență de la Flink Platform Team | 3 zile |
+| ID | Subiect | De Ce Contează | Faza | Timebox |
+|----|-------|---------------|------|---------|
+| S1/S10 | Paritate metrici Flink — metrici Debezium JMX via Flink? | Determină designul modulului de monitorizare; blochează maparea monitoarelor KC #4–#7 | Faza 0 | 3 zile |
+| S2 | Presiunea memoriei la snapshot inițial pe cel mai mare tabel (~15M rânduri) | Previne surprizele în Faza 1/2 | Faza 0 | 2 zile |
+| S3 | Rutare outbox multi-topic la scară (POC testează la 2; outbox-ul de producție folosește ~15 destinații) | Blocker go-live Faza 1 | Faza 0 | 2 zile |
+| S4 | Echivalentul Flink pentru `snapshot.aborted`/`snapshot.running` | Migrarea outbox-transactron-connector (Faza 3) | Faza 0 | 2 zile |
+| S5 | Moduri de eșec în producție (RDS IAM, lease-uri binlog, rotație IRSA) | POC-ul nu le poate suprafața; soak-ul de staging este necesar | Faza 1 | ≥7 zile soak |
+| S6 | Instrumente de automatizare cutover (KC → Flink) | Switch-urile manuale nu vor scala pe 26 de echipe | Pre-Faza 3 | TBD |
+| S7 | Instrumente Claude de migrare self-service pentru echipe | Echipele nu pot aștepta asistență de la Flink Platform Team | Faza 1 | 3 zile |
 
 **Total Faza 0 (S1–S4): ~9 zile inginerie — paralelizabil într-un singur sprint.**
 
@@ -428,19 +395,11 @@ s3.secret-key: minioadmin
 
 ## Slide 18 — Recomandare
 
-### Argumentul pentru Flink CDC (Modelul Shared-Job)
+**Adoptați modelul Flink CDC shared-job.** Elimină raza de impact partajată și costul de licențiere (vezi slide-ul Îmbunătățiri) menținând în același timp izolarea per echipă — iar POC-ul demonstrează că mecanismul funcționează (vezi slide-ul Dovezi POC: 5 variante rulând simultan, checkpoint nativ, exactly-once per job, toate testele verzi).
 
-✅ **Rezolvă durerea fundamentală:**
-- Raza de impact limitată la o singură echipă — fără rebalansări în cascadă
-- Proprietate per echipă — fiecare echipă controlează propriul program CDC
-- Zero costuri de licențiere — Apache 2.0 Flink + Flink CDC
-- Un singur cod path — Echipa Platform menține imaginea partajată; 74 de echipe suprascriu doar valorile Helm
+Costul per echipă este doar overrides Helm — fără Java, fără fork, fără pipeline de release per echipă.
 
-✅ **Dovedit în POC:**
-- 5 variante rulând simultan fără coliziune
-- Checkpoint Flink nativ
-- Semantici exactly-once per job — fără stare partajată
-- Teste de componente ✅, teste unitare ✅, toate cele 8 module ✅
+**Următorul pas:** aprobați spike-urile Faza 0 (vezi slide-ul Spike-uri Deschise) — S2 și S3 sunt blockerele de go/no-go pentru Faza 1.
 
 
 ---
@@ -452,7 +411,7 @@ s3.secret-key: minioadmin
 
 ---
 
-## Referință Detaliată — Structura Modulelor POC și Evitarea Coliziunilor
+## Referință Detaliată — Structura Modulelor POC
 
 ### Structura Modulelor POC (`flink-cdc-poc`)
 
@@ -475,28 +434,46 @@ flink-cdc-poc/
     └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
 ```
 
-### Evitarea Coliziunilor — Fiecare Variantă Primește Propria Bandă
+## Backup — Configurarea Checkpoint-urilor (pregătit pentru producție)
 
-| Axă | Alocare |
-|------|------------|
-| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
-| Schema MySQL | `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db` |
-| Prefix topic Kafka | `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*` |
-| Căi checkpoint S3 | Auto-namespace după `jobId` — bucket partajat, sigur |
+Toate cele cinci variante partajează un singur punct de extracție — `CheckpointConfigurer.applyExactlyOnce(env)` —
+în loc să repete cele cinci apeluri de mai jos în fiecare clasă de intrare:
 
-**Kafka Connect (comparație alăturată POC)** folosește intervalul rezervat `5500–5599`:
+```java
+// common/src/main/java/poc/common/config/CheckpointConfigurer.java
+public static void applyExactlyOnce(StreamExecutionEnvironment env) {
+    env.enableCheckpointing(30_000);
+    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+    env.getCheckpointConfig().setCheckpointTimeout(60_000);
+    env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+}
+```
 
-| Conector KC | Server-ID |
-|-------------|-----------|
-| kc-datastream-cdc | 5510 |
-| kc-table-api-cdc | 5520 |
-| kc-sql-api-cdc | 5530 |
-| kc-yaml-pipeline-cdc | 5540 |
-| kc-outbox-cdc | 5550 |
+Starea checkpoint-urilor este persistată în stocare compatibilă S3 (MinIO local, AWS S3 în producție),
+configurată în `flink-conf.yaml`:
 
-> **De ce intervale, nu ID-uri unice?** Flink CDC 3.x incremental snapshot alocă ID-uri pentru
-> cititori paraleli + tentative de restart. Un singur int colidează la restart pentru că
-> lease-ul anterior de binlog MySQL nu a expirat.
+```yaml
+state.backend: rocksdb
+state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+state.savepoints.dir:  s3://flink-checkpoints/savepoints
+s3.endpoint: http://minio:9000
+s3.path.style.access: "true"
+s3.access-key: minioadmin
+s3.secret-key: minioadmin
+```
+
+**Dovadă POC — bucket-ul MinIO `flink-checkpoints` după rularea tuturor celor 5 variante:**
+
+![MinIO bucket flink-checkpoints — foldere checkpoints și yaml-pipeline-checkpoints](images/slides/minio-checkpoints.png)
+
+| Setare | Valoare | Motiv |
+|--------|-------|--------|
+| `enableCheckpointing` | 30.000 ms | Echilibrează durabilitatea vs. performanța |
+| `CheckpointingMode` | EXACTLY_ONCE | Previne mesajele Kafka duplicate la recuperare |
+| `MaxConcurrentCheckpoints` | 1 | Joburile CDC fac snapshot în timpul checkpoint-ului; unul câte unul |
+| `CheckpointTimeout` | 60.000 ms | 2× intervalul; oferă marjă pentru joburi cu stare mare sub sarcină |
+| `MinPauseBetweenCheckpoints` | 5.000 ms | Previne furtunile de checkpoint după finalizarea unuia |
 
 ---
 

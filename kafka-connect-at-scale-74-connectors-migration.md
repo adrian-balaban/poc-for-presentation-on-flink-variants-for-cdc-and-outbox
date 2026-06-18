@@ -58,7 +58,46 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 
 ---
 
-## Slide 1d — What Is Flink, and Why It's the Structural Fix
+## Slide 2 — The Client Context (Where We Are Today)
+
+**Real client experience: Confluent Kafka Cloud at scale**
+
+- **95 connectors** on **one shared Kafka Connect cluster** across **26 teams**
+- Two connector families today:
+  - **Debezium (Kafka Connect)** — reads MySQL binlog via Confluent-managed KC, one event per change per topic
+  - SFTP + SingleStore sink/source connectors
+- Everything shares one cluster: one config, one rebalance group, one blast radius
+
+> The shared cluster was convenient at 5 connectors. At 95 across 26 teams — and
+> growing — it is the single biggest source of cross-team incidents. That scaling
+> pressure is why we're looking now.
+
+---
+
+## Slide 3 — What We Require, and What Hurts Today
+
+**What we require of any solution** *(Kafka Guild, solution-agnostic — the yardstick for the options on the Alternatives slide):*
+
+1. Base image + security patching stay **centralised** — tribes don't own the runtime.
+2. **Move away from Confluent Platform** — licensing and lock-in.
+3. **Tribe-based clusters don't solve ownership** — they multiply cost 26× without fixing the root cause.
+
+**What hurts today — and what it costs:**
+
+| Pain | Who | How often | Business impact |
+|------|-----|-----------|-----------------|
+| Rebalancing storms — one bad connector destabilises all | All 26 teams | Multiple×/quarter | Cross-tribe incidents; consumer downtime during cascade |
+| Shared blast radius — 95 connectors, one cluster | All 26 teams | Every incident | No isolation between tribes |
+| Recurring lag — no per-tribe lever | Team + consumers | Ongoing | SLA risk on downstream consumers |
+| Production-only failures — surface only after deploy | New-connector teams | New-connector window | Defects reach prod undetected |
+| Confluent Kafka Cloud licensing | Organisation | Monthly | *[£ figure — confirm with client]* |
+| Centralised security patching | Maintenance team | Every release cycle | Fleet-wide coordination overhead |
+
+> One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and every row above maps to a concrete improvement (see the Improvements slide).
+
+---
+
+## Slide 4 — What Is Flink, and Why It's the Structural Fix
 
 **Apache Flink** is a stateful stream-processing engine: a continuous job that reads events, keeps state, and writes results — with **exactly-once checkpoints** (durable, recoverable) and **event-time** semantics. Each job runs as its **own isolated K8s deployment** (own JobManager + TaskManager) under the Flink Operator.
 
@@ -78,46 +117,7 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 
 ---
 
-## Slide 2 — The Client Context (Where We Are Today)
-
-**Real client experience: Confluent Kafka Cloud at scale**
-
-- **95 connectors** on **one shared Kafka Connect cluster** across **26 teams**
-- Two connector families today:
-  - **Debezium (Kafka Connect)** — reads MySQL binlog via Confluent-managed KC, one event per change per topic
-  - SFTP + SingleStore sink/source connectors
-- Everything shares one cluster: one config, one rebalance group, one blast radius
-
-> The shared cluster was convenient at 5 connectors. At 95 across 26 teams — and
-> growing — it is the single biggest source of cross-team incidents. That scaling
-> pressure is why we're looking now.
-
----
-
-## Slide 3 — What We Require, and What Hurts Today
-
-**What we require of any solution** *(Kafka Guild, solution-agnostic — the yardstick for the alternatives on Slide 15):*
-
-1. Base image + security patching stay **centralised** — tribes don't own the runtime.
-2. **Move away from Confluent Platform** — licensing and lock-in.
-3. **Tribe-based clusters don't solve ownership** — they multiply cost 26× without fixing the root cause.
-
-**What hurts today — and what it costs:**
-
-| Pain | Who | How often | Business impact |
-|------|-----|-----------|-----------------|
-| Rebalancing storms — one bad connector destabilises all | All 26 teams | Multiple×/quarter | Cross-tribe incidents; consumer downtime during cascade |
-| Shared blast radius — 95 connectors, one cluster | All 26 teams | Every incident | No isolation between tribes |
-| Recurring lag — no per-tribe lever | Team + consumers | Ongoing | SLA risk on downstream consumers |
-| Production-only failures — surface only after deploy | New-connector teams | New-connector window | Defects reach prod undetected |
-| Confluent Kafka Cloud licensing | Organisation | Monthly | *[£ figure — confirm with client]* |
-| Centralised security patching | Maintenance team | Every release cycle | Fleet-wide coordination overhead |
-
-> One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and every row above maps to a concrete improvement on Slide 13.
-
----
-
-## Slide 4 — Scope of the Migration
+## Slide 5 — Scope of the Migration
 
 **What we're migrating:** 74 MySQL connectors → Apache Flink MySQL CDC Connector
 
@@ -127,7 +127,7 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 
 ---
 
-## Slide 5 — The POC: Five Flink Variants
+## Slide 6 — The POC: Five Flink Variants
 
 We built **5 variants** and ran them
 **simultaneously**.
@@ -146,7 +146,7 @@ We built **5 variants** and ran them
 
 ---
 
-## Slide 6 — Decision Matrix: Which Variant for Which Connector?
+## Slide 7 — Decision Matrix: Which Variant for Which Connector?
 
 ![Connector Decision Tree: Which Variant for Which Connector?](images/connector-decision-tree.svg)
 
@@ -159,7 +159,7 @@ We built **5 variants** and ran them
 
 ---
 
-## Slide 7 — The Java Dev's View: Code Comparison
+## Slide 8 — The Java Dev's View: Code Comparison
 
 ### DataStream CDC (49-line entry class, most control)
 
@@ -179,7 +179,7 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
 ```
 
 > All connection details come from `JobConfig.fromEnv()` — nothing is hardcoded;
-> this is the same parametrisation the shared-job model (Slide 8) relies on.
+> this is the same parametrisation the shared-job model relies on (see the Shared Job Model slide).
 
 ### YAML Pipeline (55 lines, zero Java)
 
@@ -198,7 +198,7 @@ pipeline:
 
 ---
 
-## Slide 8 — Recommended Architecture: Shared Job Model
+## Slide 9 — Recommended Architecture: Shared Job Model
 
 **One base image. 74 tribes. Zero Java per tribe.**
 
@@ -227,7 +227,7 @@ applicationJobs:
 
 ---
 
-## Slide 9 — K8s Deployment Model
+## Slide 10 — K8s Deployment Model
 
 **One repo, five variants, one Jenkins pipeline definition — one execution per variant.**
 
@@ -236,12 +236,22 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 - `<jobName>-rest` ClusterIP Service
 - `FlinkStateSnapshot` CR
 
-> **Details on collision avoidance and server-ID ranges:** see Appendix section
-> "Collision Avoidance — Each Variant Gets Its Own Lane"
+### Collision Avoidance — Each Variant Gets Its Own Lane
+
+| Axis | Allocation |
+|------|------------|
+| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
+| MySQL schema | `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db` |
+| Kafka topic prefix | `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*` |
+| S3 checkpoint paths | Auto-namespaced by `jobId` — shared bucket, safe |
+
+> **Why ranges, not single IDs?** Flink CDC 3.x incremental snapshot allocates IDs for
+> parallel readers + restart attempts. A single int collides on restart because the
+> previous MySQL binlog lease hasn't timed out.
 
 ---
 
-## Slide 10 — CDC Snapshotting: Before vs After
+## Slide 11 — CDC Snapshotting: Before vs After
 
 **Post-Migration:** re-snapshotting is now native to Flink CDC.
 
@@ -266,49 +276,6 @@ sequenceDiagram
 
 ---
 
-## Slide 10b — Checkpoint Configuration (production-ready)
-
-All five variants share one extraction point — `CheckpointConfigurer.applyExactlyOnce(env)` —
-rather than repeating the five calls below in every entry class:
-
-```java
-// common/src/main/java/poc/common/config/CheckpointConfigurer.java
-public static void applyExactlyOnce(StreamExecutionEnvironment env) {
-    env.enableCheckpointing(30_000);
-    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
-    env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-    env.getCheckpointConfig().setCheckpointTimeout(60_000);
-    env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
-}
-```
-
-Checkpoint state is persisted to S3-compatible storage (MinIO locally, AWS S3 in production),
-configured in `flink-conf.yaml`:
-
-```yaml
-state.backend: rocksdb
-state.checkpoints.dir: s3://flink-checkpoints/checkpoints
-state.savepoints.dir:  s3://flink-checkpoints/savepoints
-s3.endpoint: http://minio:9000
-s3.path.style.access: "true"
-s3.access-key: minioadmin
-s3.secret-key: minioadmin
-```
-
-**POC evidence — MinIO `flink-checkpoints` bucket after all 5 variants running:**
-
-![MinIO flink-checkpoints bucket — checkpoints and yaml-pipeline-checkpoints folders](images/slides/minio-checkpoints.png)
-
-| Setting | Value | Reason |
-|---------|-------|--------|
-| `enableCheckpointing` | 30,000 ms | Balances durability vs performance |
-| `CheckpointingMode` | EXACTLY_ONCE | Prevents duplicate Kafka messages on recovery |
-| `MaxConcurrentCheckpoints` | 1 | CDC jobs snapshot during checkpoint; one at a time |
-| `CheckpointTimeout` | 60,000 ms | 2× the interval; gives headroom for large-state jobs under load |
-| `MinPauseBetweenCheckpoints` | 5,000 ms | Prevents checkpoint storms after one finishes |
-
----
-
 ## Slide 12 — POC Evidence
 
 | Verification | Result |
@@ -317,7 +284,7 @@ s3.secret-key: minioadmin
 | All 8 modules compile | Clean |
 | Format (Spotless — Google Java Format) | Compliant |
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
-| Per-variant component tests | Configured |
+| Per-variant component tests | Passing (5 Flink + 5 KC variants) |
 | StatementSet → 1 JobGraph | Verified (SQL API + Table API) |
 | All 5 variants running simultaneously | Verified (localhost:8081 Flink Dashboard) |
 
@@ -401,15 +368,15 @@ s3.secret-key: minioadmin
 
 ## Slide 16 — Open Spikes
 
-| ID | Topic | Why It Matters | Timebox |
-|----|-------|---------------|---------|
-| S1/S10 | Flink metric parity — Debezium JMX metrics via Flink? | Determines monitoring module design; blocks #4–#7 KC monitor mapping | 3 days |
-| S2 | Initial snapshot memory pressure on largest table (~15M rows) | Prevents surprise in Phase 1/2 | 2 days |
-| S3 | Outbox multi-topic routing at scale (POC tests at 2; production outbox uses ~15 destinations) | Phase 1 go-live blocker | 2 days |
-| S4 | `snapshot.aborted`/`snapshot.running` Flink equivalent | outbox-transactron-connector migration (Phase 3) | 2 days |
-| S5 | Production failure modes (RDS IAM, binlog leases, IRSA rotation) | POC can't surface these; staging soak needed | ≥7-day soak |
-| S6 | Cutover automation tooling (KC → Flink) | Manual switches won't scale across tribes | Pre-Phase-3 |
-| S7 | Self-service Claude migration tooling for tribes | Tribes can't wait for Flink Platform Team hand-holding | 3 days |
+| ID | Topic | Why It Matters | Phase | Timebox |
+|----|-------|---------------|-------|---------|
+| S1/S10 | Flink metric parity — Debezium JMX metrics via Flink? | Determines monitoring module design; blocks #4–#7 KC monitor mapping | Phase 0 | 3 days |
+| S2 | Initial snapshot memory pressure on largest table (~15M rows) | Prevents surprise in Phase 1/2 | Phase 0 | 2 days |
+| S3 | Outbox multi-topic routing at scale (POC tests at 2; production outbox uses ~15 destinations) | Phase 1 go-live blocker | Phase 0 | 2 days |
+| S4 | `snapshot.aborted`/`snapshot.running` Flink equivalent | outbox-transactron-connector migration (Phase 3) | Phase 0 | 2 days |
+| S5 | Production failure modes (RDS IAM, binlog leases, IRSA rotation) | POC can't surface these; staging soak needed | Phase 1 | ≥7-day soak |
+| S6 | Cutover automation tooling (KC → Flink) | Manual switches won't scale across tribes | Pre-Phase 3 | TBD |
+| S7 | Self-service Claude migration tooling for tribes | Tribes can't wait for Flink Platform Team hand-holding | Phase 1 | 3 days |
 
 **Phase 0 total (S1–S4): ~9 engineering days — parallelisable within 1 sprint.**
 
@@ -427,19 +394,11 @@ s3.secret-key: minioadmin
 
 ## Slide 18 — Recommendation
 
-### The Case for Flink CDC (Shared-Job Model)
+**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC proves the mechanism works (see the POC Evidence slide: 5 variants running simultaneously, native checkpointing, per-job exactly-once, all tests green).
 
-✅ **Solves the root pain:**
-- Blast radius contained to single tribe — no cascade rebalances
-- Per-tribe ownership — each tribe controls their CDC schedule
-- Zero licensing cost — Apache 2.0 Flink + Flink CDC
-- One code path — Platform Team maintains shared image; 74 tribes override Helm values only
+Per-tribe cost is Helm overrides only — no Java, no fork, no per-tribe release pipeline.
 
-✅ **Proven in POC:**
-- 5 variants running simultaneously without collision
-- Native Flink checkpointing 
-- Per-job exactly-once semantics — no shared state
-- Component tests ✅, unit tests ✅, all 8 modules ✅
+**Next step:** approve Phase 0 spikes (see the Open Spikes slide) — S2 and S3 are the Phase-1 go/no-go blockers.
 
 
 ---
@@ -451,7 +410,7 @@ s3.secret-key: minioadmin
 
 ---
 
-## Detailed Reference — POC Module Structure & Collision Avoidance
+## Detailed Reference — POC Module Structure
 
 ### POC Module Structure (`flink-cdc-poc`)
 
@@ -474,28 +433,46 @@ flink-cdc-poc/
     └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
 ```
 
-### Collision Avoidance — Each Variant Gets Its Own Lane
+## Backup — Checkpoint Configuration (production-ready)
 
-| Axis | Allocation |
-|------|------------|
-| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
-| MySQL schema | `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db` |
-| Kafka topic prefix | `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*` |
-| S3 checkpoint paths | Auto-namespaced by `jobId` — shared bucket, safe |
+All five variants share one extraction point — `CheckpointConfigurer.applyExactlyOnce(env)` —
+rather than repeating the five calls below in every entry class:
 
-**Kafka Connect (POC side-by-side)** uses the reserved `5500–5599` range:
+```java
+// common/src/main/java/poc/common/config/CheckpointConfigurer.java
+public static void applyExactlyOnce(StreamExecutionEnvironment env) {
+    env.enableCheckpointing(30_000);
+    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+    env.getCheckpointConfig().setCheckpointTimeout(60_000);
+    env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+}
+```
 
-| KC Connector | Server-ID |
-|-------------|-----------|
-| kc-datastream-cdc | 5510 |
-| kc-table-api-cdc | 5520 |
-| kc-sql-api-cdc | 5530 |
-| kc-yaml-pipeline-cdc | 5540 |
-| kc-outbox-cdc | 5550 |
+Checkpoint state is persisted to S3-compatible storage (MinIO locally, AWS S3 in production),
+configured in `flink-conf.yaml`:
 
-> **Why ranges, not single IDs?** Flink CDC 3.x incremental snapshot allocates IDs for
-> parallel readers + restart attempts. A single int collides on restart because the
-> previous MySQL binlog lease hasn't timed out.
+```yaml
+state.backend: rocksdb
+state.checkpoints.dir: s3://flink-checkpoints/checkpoints
+state.savepoints.dir:  s3://flink-checkpoints/savepoints
+s3.endpoint: http://minio:9000
+s3.path.style.access: "true"
+s3.access-key: minioadmin
+s3.secret-key: minioadmin
+```
+
+**POC evidence — MinIO `flink-checkpoints` bucket after all 5 variants running:**
+
+![MinIO flink-checkpoints bucket — checkpoints and yaml-pipeline-checkpoints folders](images/slides/minio-checkpoints.png)
+
+| Setting | Value | Reason |
+|---------|-------|--------|
+| `enableCheckpointing` | 30,000 ms | Balances durability vs performance |
+| `CheckpointingMode` | EXACTLY_ONCE | Prevents duplicate Kafka messages on recovery |
+| `MaxConcurrentCheckpoints` | 1 | CDC jobs snapshot during checkpoint; one at a time |
+| `CheckpointTimeout` | 60,000 ms | 2× the interval; gives headroom for large-state jobs under load |
+| `MinPauseBetweenCheckpoints` | 5,000 ms | Prevents checkpoint storms after one finishes |
 
 ---
 
