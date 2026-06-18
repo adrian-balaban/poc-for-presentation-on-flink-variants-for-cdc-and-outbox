@@ -107,8 +107,7 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 | Offsets / state | shared offset topic | per-job exactly-once checkpoints (S3) |
 | Licensing | Confluent Cloud (paid) | Apache 2.0 (free) |
 
-> **"CDC" means two things — don't confuse them:** (1) **Debezium CDC** — table-level, reads the MySQL binlog, one event per change per topic (runs on both KC and Flink). (2) **Flink CDC** — the declarative *YAML pipeline framework* on top of that flow (no Java). This talk covers both; Variant 5 is "Flink CDC" in sense (2). *(This is the most common source of misunderstanding when reviewing this work — Proposal A §2.)*
-
+> **"CDC" means two things — don't confuse them:** (1) **Debezium CDC** — table-level, reads the MySQL binlog, one event per change per topic (runs on both KC and Flink). (2) **Flink CDC** — the declarative *YAML pipeline framework* on top of that flow (no Java). This talk covers both; Variant 5 is "Flink CDC" in sense (2).
 ---
 
 ## Slide 5 — Scope of the Migration
@@ -279,8 +278,8 @@ sequenceDiagram
 | Format (Spotless — Google Java Format) | Compliant |
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
 | Per-variant component tests | Passing (5 Flink + 5 KC variants) |
-| StatementSet → 1 JobGraph | Verified (SQL API + Table API) |
-| All 5 variants running simultaneously | Verified (localhost:8081 Flink Dashboard) |
+| StatementSet → 1 JobGraph | Verified (SQL API only; Table API uses single INSERT, not StatementSet) |
+| All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 1 table, 2 outbox destinations, in-memory state) |
 
 ---
 
@@ -359,9 +358,7 @@ sequenceDiagram
 > cost. Within Flink, the shared-job model keeps the isolation win without forcing 26
 > teams to each own Java code — the lowest-friction path to the same guarantees.
 >
-> **Framing (Jereczek, May 2026):** Flink is **"not a replacement, but an alternative,
-> programmatically adopted"** — adopt where it fits, surface real-practice issues in
-> production, keep KC where it has no equivalent (SFTP, SingleStore).
+> **Framing:** Flink is **"not a replacement, but an alternative, programmatically adopted"** — adopt where it fits, surface real-practice issues in production, keep KC where it has no equivalent (SFTP, SingleStore).
 
 ---
 
@@ -412,7 +409,7 @@ sequenceDiagram
 
 ## Slide 18 — Recommendation
 
-**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC proves the mechanism works (see the POC Evidence slide: 5 variants running simultaneously, native checkpointing, per-job exactly-once semantics (checkpoint + sink transactions), all tests green).
+**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC validates the mechanism at POC scale (see the POC Evidence slide: 5 variants running simultaneously, 1 table, 2 outbox destinations, in-memory state); production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is pending S2/S3/S5.
 
 Per-tribe cost is Helm overrides only — no Java, no fork, no per-tribe release pipeline.
 

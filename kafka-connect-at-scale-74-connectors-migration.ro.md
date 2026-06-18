@@ -107,8 +107,7 @@ Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce
 | Offset-uri / stare | topic partajat de offset | checkpoint-uri exactly-once per job (S3) |
 | Licențiere | Confluent Cloud (cu plată) | Apache 2.0 (gratuit) |
 
-> **"CDC" înseamnă două lucruri — nu le confunda:** (1) **Debezium CDC** — la nivel de tabel, citește binlog-ul MySQL, un eveniment per schimbare per topic (rulează atât pe KC cât și pe Flink). (2) **Flink CDC** — *framework-ul declarativ de pipeline YAML* deasupra acelui flux (fără Java). Această prezentare acoperă ambele; Varianta 5 este "Flink CDC" în sensul (2). *(Aceasta este cea mai frecventă sursă de neînțelegere la revizuirea acestei lucrări — Propunerea A §2.)*
-
+> **"CDC" înseamnă două lucruri — nu le confunda:** (1) **Debezium CDC** — la nivel de tabel, citește binlog-ul MySQL, un eveniment per schimbare per topic (rulează atât pe KC cât și pe Flink). (2) **Flink CDC** — *framework-ul declarativ de pipeline YAML* deasupra acelui flux (fără Java). Această prezentare acoperă ambele; Varianta 5 este "Flink CDC" în sensul (2).
 ---
 
 ## Slide 5 — Scopul Migrării
@@ -279,8 +278,8 @@ sequenceDiagram
 | Formatare (Spotless — Google Java Format) | Conformă |
 | Flink CDC 3.6.0 pe Flink 2.2 | Verificat |
 | Teste de componente per variantă | Trecute (5 variante Flink + 5 KC) |
-| StatementSet → 1 JobGraph | Verificat (SQL API + Table API) |
-| Toate cele 5 variante rulând simultan | Verificat (localhost:8081 Flink Dashboard) |
+| StatementSet → 1 JobGraph | Verificat (doar SQL API; Table API folosește un singur INSERT, nu StatementSet) |
+| Toate cele 5 variante rulând simultan | Rulează la scară POC (localhost:8081; 1 tabel, 2 destinații outbox, stare in-memory) |
 
 ---
 
@@ -360,9 +359,7 @@ sequenceDiagram
 > costul licenței. În cadrul Flink, modelul shared-job păstrează câștigul de izolare fără a forța 26 de
 > echipe să dețină fiecare cod Java — calea cu cel mai mic efort spre aceleași garanții.
 >
-> **Încadrare (Jereczek, mai 2026):** Flink **"nu este un replacement, ci o alternativă,
-> adoptată programatic"** — adoptă unde se potrivește, surfacează probleme de practică reală în
-> producție, păstrează KC unde nu are echivalent (SFTP, SingleStore).
+> **Încadrare:** Flink **"nu este un replacement, ci o alternativă, adoptată programatic"** — adoptă unde se potrivește, surfacează probleme de practică reală în producție, păstrează KC unde nu are echivalent (SFTP, SingleStore).
 
 ---
 
@@ -413,7 +410,7 @@ sequenceDiagram
 
 ## Slide 18 — Recomandare
 
-**Adoptați modelul Flink CDC shared-job.** Elimină raza de impact partajată și costul de licențiere (vezi slide-ul Îmbunătățiri) menținând în același timp izolarea per echipă — iar POC-ul demonstrează că mecanismul funcționează (vezi slide-ul Dovezi POC: 5 variante rulând simultan, checkpoint nativ, semantici exactly-once per job (checkpoint + tranzacții sink), toate testele verzi).
+**Adoptați modelul Flink CDC shared-job.** Elimină raza de impact partajată și costul de licențiere (vezi slide-ul Îmbunătățiri) menținând în același timp izolarea per echipă — iar POC-ul validează mecanismul la scară POC (5 variante simultan, 1 tabel, 2 destinații outbox, stare in-memory); scara de producție (tabel 15M rânduri, ~15 destinații, RocksDB, moduri de eșec producție) este în așteptarea S2/S3/S5.
 
 Costul per echipă este doar overrides Helm — fără Java, fără fork, fără pipeline de release per echipă.
 
