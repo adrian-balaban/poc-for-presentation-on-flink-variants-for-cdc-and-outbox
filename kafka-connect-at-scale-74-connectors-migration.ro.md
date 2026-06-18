@@ -403,24 +403,6 @@ s3.secret-key: minioadmin
 - Semantici exactly-once per job — fără stare partajată
 - Teste de componente ✅, teste unitare ✅, toate cele 8 module ✅
 
-### Calendarul Fazei 0
-
-| Spike | Zile | Blocker? | Paralelizabil |
-|-------|------|----------|---|
-| S1/S10 — Paritate metrici Flink | 3 | Design monitorizare | ✓ |
-| S2 — Presiune memorie @ 15M rânduri | 2 | Go-live Faza 1 | ✓ |
-| S3 — Outbox multi-topic @ scară | 2 | Go-live Faza 1 | ✓ |
-| S4 — Semnale stare snapshot | 2 | Faza 3 (opțional) | ✓ |
-| **Total paralelizabil: ~3 zile pe calea critică** | | | |
-
-### Calea Înainte Recomandată
-
-1. **Imediat** — Aprobați Faza 0 și programul de spike-uri paralele
-2. **Săptămâna 1–2** — Rulați S1–S4 în paralel; rezolvați blocker-ele go/no-go (S2, S3)
-3. **Săptămâna 3** — Pregătiți runbook-urile de cutover; umbriți 1 conector (pilot Faza 1a)
-4. **Luna 2** — Pilot Faza 1 (10–15 conectori); măsurați lag-ul, acoperirea monitorizării
-5. **Luna 3+** — Faza 2 & 3 conform programului; migrați restul de 60–65 de conectori
-
 
 ---
 

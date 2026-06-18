@@ -403,24 +403,6 @@ s3.secret-key: minioadmin
 - Per-job exactly-once semantics — no shared state
 - Component tests ✅, unit tests ✅, all 8 modules ✅
 
-### Phase 0 Timeline
-
-| Spike | Days | Blocker? | Parallelisable |
-|-------|------|----------|---|
-| S1/S10 — Flink metric parity | 3 | Monitoring design | ✓ |
-| S2 — Memory pressure @ 15M rows | 2 | Phase 1 go-live | ✓ |
-| S3 — Outbox multi-topic @ scale | 2 | Phase 1 go-live | ✓ |
-| S4 — Snapshot status signals | 2 | Phase 3 (optional) | ✓ |
-| **Total parallelisable: ~3 days in-critical-path** | | | |
-
-### Recommended Path Forward
-
-1. **Immediate** — Approve Phase 0 and parallel spike schedule
-2. **Week 1–2** — Run S1–S4 in parallel; resolve go/no-go blockers (S2, S3)
-3. **Week 3** — Prepare cutover playbooks; shadow 1 connector (Phase 1a pilot)
-4. **Month 2** — Pilot Phase 1 (10–15 connectors); measure lag, monitoring coverage
-5. **Month 3+** — Phase 2 & 3 per schedule; migrate remaining 60–65 connectors
-
 
 ---
 
