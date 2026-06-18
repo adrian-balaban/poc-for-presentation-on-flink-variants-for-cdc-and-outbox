@@ -28,6 +28,7 @@ aims to address, and the trade-offs involved. The talk also highlights
 3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation
 4. **The POC** (8 min) — 5 Flink variants running simultaneously; one code snippet
 5. **The solution** (5 min) — Shared-job model: one image, Helm-only per tribe
+5b. **Cost of the change** (2 min) — TCO: what you stop paying, what you add
 6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring
 7. **The trade-offs** (4 min) — What changes, what remains, new operational surface
 8. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others
@@ -321,7 +322,7 @@ sequenceDiagram
 
 - **Reduced blast radius** — each tribe's Flink job is isolated; failure can't cascade
 - **Clear ownership** — tribe owns their connector repo and deploy cadence
-- **No licensing costs** — Apache Flink 2.2 + Flink CDC (open source, Apache 2.0)
+- **Partial licensing savings** — Confluent retained for 21 non-CDC connectors (SFTP/SingleStore); 74 CDC connectors move to Apache 2.0 (Flink + Flink CDC)
 - **Native Kubernetes** — Flink Operator handles lifecycle, scaling, recovery
 - **Native checkpointing** — per-job exactly-once semantics; no shared offset topic
 - **Exactly-once sink** — requires Kafka transactions (`DeliveryGuarantee.EXACTLY_ONCE` + transactional ID prefix in `KafkaSinkFactory`); Kafka broker must have transactions enabled
@@ -353,7 +354,7 @@ sequenceDiagram
 |--------|---------------|
 | Stay on Confluent Kafka Cloud (status quo) | Blast radius, licensing cost, no per-tribe lever — the pain remains |
 | Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden (not a managed service like Confluent) |
-| Per-tribe dedicated KC clusters | Solves isolation but multiplies cost and operational overhead 26× |
+| Per-tribe dedicated KC clusters | Solves isolation but multiplies cost and operational overhead 26× (one KC cluster per tribe vs one shared) |
 | Flink — per-tribe Java fork | True isolation, but every tribe maintains Java + a release pipeline |
 | **Flink — shared-job model (chosen)** | Isolation + no per-tribe Java; one base image, Helm-only overrides |
 
@@ -364,6 +365,25 @@ sequenceDiagram
 > **Framing (Jereczek, May 2026):** Flink is **"not a replacement, but an alternative,
 > programmatically adopted"** — adopt where it fits, surface real-practice issues in
 > production, keep KC where it has no equivalent (SFTP, SingleStore).
+
+---
+
+## Slide 15b — Total Cost of Ownership (High-Level)
+
+**Current state (Confluent KC):** one shared cluster bill covers all 95 connectors.
+
+**Proposed state (Flink):** Confluent bill reduced to 21 connectors; Flink runs on existing K8s compute.
+
+| Cost axis | KC today (95 connectors) | Flink proposal (74 CDC → Flink; 21 KC retained) |
+|-----------|--------------------------|--------------------------------------------------|
+| Confluent licensing | Full 95-connector bill | ~22% of current (21/95 connectors remain) |
+| Compute (K8s CPU/RAM) | KC managed by Confluent (included in license) | One JM + TM pod pair per tribe; estimate: ~0.5 vCPU + 1 GB RAM per idle job |
+| Operational overhead | Shared cluster ops centralised | Per-tribe isolation; Flink Platform Team owns base image |
+| Per-tribe migration cost | Zero (status quo) | S5/S6 spike deliverables (cutover automation) |
+
+> **Caveat:** exact Confluent per-connector pricing depends on contract tier.
+> The directional saving (74 connectors removed from billed pool) is certain;
+> the K8s compute uplift should be sized against the existing KC worker fleet.
 
 ---
 

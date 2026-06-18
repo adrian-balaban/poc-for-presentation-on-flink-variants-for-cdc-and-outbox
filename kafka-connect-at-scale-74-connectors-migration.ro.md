@@ -28,6 +28,7 @@ Vom parcurge provocările actuale, ce îmbunătățiri vizează noua abordare
 3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink CDC într-un cadru; pool partajat vs. izolare per-job
 4. **POC-ul** (8 min) — 5 variante Flink rulând simultan; un snippet de cod
 5. **Soluția** (5 min) — Modelul shared-job: o imagine, overrides doar prin Helm per echipă
+5b. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi
 6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare
 7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă
 8. **De ce aceasta față de alternative** (5 min) — Matrice de decizie: de ce Flink CDC vs KC vs altele
@@ -321,7 +322,7 @@ sequenceDiagram
 
 - **Raza de impact redusă** — jobul Flink al fiecărei echipe este izolat; un eșec nu poate cascada
 - **Proprietate clară** — echipa deține repo-ul și cadența de deploy a conectorului lor
-- **Fără costuri de licențiere** — Apache Flink 2.2 + Flink CDC (open source, Apache 2.0)
+- **Economii parțiale de licențiere** — Confluent păstrat pentru 21 de conectori non-CDC (SFTP/SingleStore); 74 de conectori CDC trec la Apache 2.0 (Flink + Flink CDC)
 - **Kubernetes nativ** — Flink Operator gestionează ciclul de viață, scalarea, recuperarea
 - **Checkpoint nativ** — semantici exactly-once per job; fără topic partajat de offset
 - **Sink exactly-once** — necesită tranzacții Kafka (`DeliveryGuarantee.EXACTLY_ONCE` + prefix ID tranzacțional în `KafkaSinkFactory`); broker-ul Kafka trebuie să aibă tranzacțiile activate
@@ -354,7 +355,7 @@ sequenceDiagram
 |--------|---------------|
 | Rămâne pe Confluent Kafka Cloud (status quo) | Raza de impact, costul licenței, niciun reglaj per echipă — durerea rămâne |
 | Kafka Connect self-managed (renunță la licență) | Elimină costul licenței dar păstrează raza de impact partajată + adaugă povară operațională (nu este un serviciu managed ca Confluent) |
-| Clustere KC dedicate per echipă | Rezolvă izolarea dar înmulțește costul și overhead-ul operațional de 26 ori |
+| Clustere KC dedicate per echipă | Rezolvă izolarea dar înmulțește costul și overhead-ul operațional de 26 ori (un cluster KC per echipă față de unul partajat) |
 | Flink — fork Java per echipă | Izolare reală, dar fiecare echipă menține Java + un pipeline de release |
 | **Flink — modelul shared-job (ales)** | Izolare + fără Java per echipă; o imagine de bază, overrides exclusiv Helm |
 
@@ -365,6 +366,25 @@ sequenceDiagram
 > **Încadrare (Jereczek, mai 2026):** Flink **"nu este un replacement, ci o alternativă,
 > adoptată programatic"** — adoptă unde se potrivește, surfacează probleme de practică reală în
 > producție, păstrează KC unde nu are echivalent (SFTP, SingleStore).
+
+---
+
+## Slide 15b — Costul Total de Proprietate (Nivel Înalt)
+
+**Starea actuală (Confluent KC):** o singură factură de cluster partajat acoperă toți 95 de conectori.
+
+**Starea propusă (Flink):** factura Confluent redusă la 21 de conectori; Flink rulează pe compute K8s existent.
+
+| Axă de cost | KC azi (95 conectori) | Propunere Flink (74 CDC → Flink; 21 KC rămân) |
+|-------------|----------------------|------------------------------------------------|
+| Licențiere Confluent | Factură completă pentru 95 conectori | ~22% din cea actuală (21/95 conectori rămân) |
+| Compute (CPU/RAM K8s) | KC gestionat de Confluent (inclus în licență) | O pereche JM + TM per echipă; estimat: ~0,5 vCPU + 1 GB RAM per job inactiv |
+| Overhead operațional | Ops cluster partajat centralizat | Izolare per echipă; Flink Platform Team deține imaginea de bază |
+| Cost migrare per echipă | Zero (status quo) | Livrabilele spike-urilor S5/S6 (automatizare cutover) |
+
+> **Atenție:** prețul Confluent per-conector depinde de nivelul contractului.
+> Economia direcțională (74 conectori eliminați din pool-ul facturat) este certă;
+> creșterea compute K8s trebuie dimensionată față de flota de workere KC existentă.
 
 ---
 
