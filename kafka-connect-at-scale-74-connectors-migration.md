@@ -5,19 +5,12 @@
 
 ---
 
-## Slide 1 — Abstract
-
-**Kafka Connect @ Scale: 74 Connectors Migration Case**
-
-In this session, we will explore Kafka Connect through real client experience,
-focusing on proposed migration of **74 MySQL connectors** (out of 95 total) **from Confluent Kafka Cloud to Flink** and a proof of concept.
-
-We will walk through the current challenges, what improvements the new approach
-aims to address, and the trade-offs involved. The talk also highlights
-**alternative options considered** and the **reasoning behind the proposed solution**.
+## Slide 1 — The Problem in One Sentence
 
 > Real client. Real scale. 95 connectors, 26 teams, one shared cluster — and the
 > question whether Flink is the right way out.
+
+Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flink, with a proof of concept covering all 5 variants.
 
 ---
 

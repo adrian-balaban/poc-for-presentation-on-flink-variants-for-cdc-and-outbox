@@ -5,19 +5,12 @@
 
 ---
 
-## Slide 1 — Abstract
-
-**Kafka Connect @ Scară: Cazul Migrării a 74 de Conectori**
-
-În această sesiune, vom explora Kafka Connect prin experiență reală cu un client,
-concentrându-ne pe migrarea propusă a **74 de conectori MySQL** (din 95 în total) **de la Confluent Kafka Cloud la Flink** și un proof of concept.
-
-Vom parcurge provocările actuale, ce îmbunătățiri vizează noua abordare
-și compromisurile implicate. Prezentarea evidențiază totodată
-**alternativele luate în considerare** și **raționamentul din spatele soluției propuse**.
+## Slide 1 — Problema Într-o Propoziție
 
 > Client real. Scară reală. 95 de conectori, 26 de echipe, un cluster partajat — și
 > întrebarea dacă Flink este calea de ieșire corectă.
+
+Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Flink, cu un proof of concept acoperind toate 5 variantele.
 
 ---
 
