@@ -598,6 +598,10 @@ s3.secret-key: minioadmin
 | `flink-cdc-submitter` | personalizat | — | Rulează `flink-cdc.sh` pentru varianta YAML Pipeline la JM gata; `restart: on-failure` |
 | `kafka-connect` | personalizat (Debezium + SMT JAR-uri) | 8083 | REST API KC; comparație alăturată; `restart: on-failure` |
 | `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8080 | Browser topicuri Kafka |
+| `minio` | `minio/minio:RELEASE.2024-01-16T16-07-38Z` | 9000 (API), 9001 (consolă) | Stocare checkpoint compatibilă S3; bucket `flink-checkpoints` |
+| `minio-init` | `minio/mc` | — | One-shot: creează bucket-ul `flink-checkpoints` la pornire |
+| `prometheus` | `prom/prometheus:latest` | 9090 | Scraping metrici Flink JM/TM la 15 s; doar local |
+| `grafana` | `grafana/grafana:latest` | 3001 | Dashboard + reguli alertă (gestionate de Terraform); admin/admin |
 
 ### Module Gradle
 
@@ -619,7 +623,7 @@ s3.secret-key: minioadmin
 | `./gradlew shadowJar` | Construiește toate cele 5 fat-jar-uri |
 | `./gradlew :component-tests:test` | Rulează toate testele de componente (Flink + KC) |
 | `./gradlew all` | Ciclu complet: build → restart podman-compose → așteptare servicii (180 s) → deploy conectori KC → rulare CT-uri |
-| `podman-compose -f podman-compose.yml up -d` | Pornește stiva completă de 7 servicii |
+| `podman-compose -f podman-compose.yml up -d` | Pornește stiva completă de 11 servicii |
 | `podman exec flink-jm flink run /tmp/<jar>` | Submitere variantă la JM-ul rulant |
 
 ### Kafka Connect Alăturat (doar POC)
@@ -643,6 +647,8 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 | `http://localhost:8083` | Kafka Connect REST API | ![](images/slides/kafka-connect.png) |
 | `http://localhost:3306` | MySQL (user: `flink`, parolă: `flink`, db: `poc_db`) | — |
 | `localhost:9092` | Kafka (extern; topicuri: `poc.cdc.*`) | — |
+| `http://localhost:9090` | Prometheus (scraping metrici Flink) | — |
+| `http://localhost:3001` | Grafana (dashboard + alerte; admin/admin) | — |
 
 ---
 
@@ -650,7 +656,7 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 
 | Zonă | Client (Producție) | POC Local (`flink-cdc-poc`) |
 |------|--------------------|-----------------------------|
-| **Orchestrare** | Kubernetes + Flink Operator + Helm (`flink-base-chart`) | Podman-compose (7 containere, rețea bridge) |
+| **Orchestrare** | Kubernetes + Flink Operator + Helm (`flink-base-chart`) | Podman-compose (11 containere, rețea bridge) |
 | **Unitate deployment Flink** | CR `FlinkDeployment` per job (Application Mode; JM+TM proprii) | JM + containere TM partajate unice; toate cele 5 variante submise ca joburi |
 | **Versiune Flink** | 2.2 (via `flink-base-image`) | 2.2.0 (Dockerfile personalizat: `flink-with-mysql`) |
 | **Versiune Flink CDC** | 3.6.0-2.2 (inclus în imaginile de variantă) | 3.6.0-2.2 (dependență Gradle în `build.gradle`) |
@@ -660,7 +666,7 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 | **Kafka Connect** | Confluent managed KC pentru SFTP (20) + SingleStore (1); înlocuit pentru 74 conectori CDC | Container KC local + Debezium + SMT-uri personalizate; comparație alăturată doar |
 | **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | In-memory / local (fără S3 în compose); aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (build imagine, ștergere `yq`, selectare variantă) + ArgoCD (deploy/restart) | `./gradlew all` (build → restart compose → deploy conectori → CT-uri) |
-| **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` |
+| **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Versiune Java** | 17 (joburi Flink); SMT nu se aplică (fără KC în calea Flink producție) | 17 (joburi Flink); 11 (KC SMT-uri — constrângere cp-kafka-connect 7.6.1) |
 | **IAM / Securitate** | Token-uri RDS IAM, IRSA, gestionare lease binlog | Fără IAM; credențiale plain `flink`/`flink`; testarea rotației nu este posibilă |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` în ArgoCD (post-migrare) | Anulare job, ștergere stare, re-submitere (`flink cancel <JOB_ID>` + `flink run`) |

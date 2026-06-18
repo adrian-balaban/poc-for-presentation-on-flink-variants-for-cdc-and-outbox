@@ -597,6 +597,10 @@ s3.secret-key: minioadmin
 | `flink-cdc-submitter` | custom | — | Runs `flink-cdc.sh` for YAML Pipeline variant on JM ready; `restart: on-failure` |
 | `kafka-connect` | custom (Debezium + SMT JARs) | 8083 | KC REST API; side-by-side comparison; `restart: on-failure` |
 | `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8080 | Kafka topic browser |
+| `minio` | `minio/minio:RELEASE.2024-01-16T16-07-38Z` | 9000 (API), 9001 (console) | S3-compatible checkpoint storage; `flink-checkpoints` bucket |
+| `minio-init` | `minio/mc` | — | One-shot: creates `flink-checkpoints` bucket on startup |
+| `prometheus` | `prom/prometheus:latest` | 9090 | Scrapes Flink JM/TM metrics every 15 s; local only |
+| `grafana` | `grafana/grafana:latest` | 3001 | Dashboard + alert rules (managed by Terraform); admin/admin |
 
 ### Gradle Modules
 
@@ -618,7 +622,7 @@ s3.secret-key: minioadmin
 | `./gradlew shadowJar` | Builds all 5 fat-jars |
 | `./gradlew :component-tests:test` | Runs all component tests (Flink + KC) |
 | `./gradlew all` | Full cycle: build → podman-compose restart → wait for services (180 s) → deploy KC connectors → run CTs |
-| `podman-compose -f podman-compose.yml up -d` | Starts the full 7-service stack |
+| `podman-compose -f podman-compose.yml up -d` | Starts the full 11-service stack |
 | `podman exec flink-jm flink run /tmp/<jar>` | Submits a variant to the running JM |
 
 ### Kafka Connect Side-by-Side (POC only)
@@ -642,6 +646,8 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | `http://localhost:8083` | Kafka Connect REST API | ![](images/slides/kafka-connect.png) |
 | `http://localhost:3306` | MySQL (user: `flink`, password: `flink`, db: `poc_db`) | — |
 | `localhost:9092` | Kafka (external; topics: `poc.cdc.*`) | — |
+| `http://localhost:9090` | Prometheus (Flink metrics scraper) | — |
+| `http://localhost:3001` | Grafana (dashboard + alerts; admin/admin) | — |
 
 ---
 
@@ -649,7 +655,7 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 
 | Area | Client (Production) | Local POC (`flink-cdc-poc`) |
 |------|--------------------|-----------------------------|
-| **Orchestration** | Kubernetes + Flink Operator + Helm (`flink-base-chart`) | Podman-compose (7 containers, bridge network) |
+| **Orchestration** | Kubernetes + Flink Operator + Helm (`flink-base-chart`) | Podman-compose (11 containers, bridge network) |
 | **Flink deployment unit** | `FlinkDeployment` CR per job (Application Mode; own JM+TM) | Single shared JM + TM containers; all 5 variants submitted as jobs |
 | **Flink version** | 2.2 (via `flink-base-image`) | 2.2.0 (custom Dockerfile: `flink-with-mysql`) |
 | **Flink CDC version** | 3.6.0-2.2 (bundled in variant images) | 3.6.0-2.2 (Gradle dep in `build.gradle`) |
@@ -659,7 +665,7 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **Kafka Connect** | Confluent managed KC for SFTP (20) + SingleStore (1); being replaced for 74 CDC connectors | Local KC container + Debezium + custom SMTs; side-by-side comparison only |
 | **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | In-memory / local (no S3 in compose); same code config (30 s interval, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (image build, `yq` delete, variant select) + ArgoCD (deploy/restart) | `./gradlew all` (build → compose restart → deploy connectors → CTs) |
-| **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` |
+| **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Java version** | 17 (Flink jobs); SMT not applicable (no KC in production Flink path) | 17 (Flink jobs); 11 (KC SMTs — cp-kafka-connect 7.6.1 constraint) |
 | **IAM / Security** | RDS IAM tokens, IRSA, binlog lease management | No IAM; plain `flink`/`flink` credentials; no rotation testing possible |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` in ArgoCD (post-migration) | Cancel job, delete state, re-submit (`flink cancel <JOB_ID>` + `flink run`) |
