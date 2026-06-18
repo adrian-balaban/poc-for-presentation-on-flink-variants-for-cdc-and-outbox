@@ -374,7 +374,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 | ID | Topic | Why It Matters | Phase | Timebox |
 |----|-------|---------------|-------|---------|
-| S1/S10 | Flink metric parity — Debezium JMX metrics via Flink? | Determines monitoring module design; blocks #4–#7 KC monitor mapping | Phase 0 | 3 days |
+| S1 | Flink metric parity — Debezium JMX metrics via Flink? | Determines monitoring module design; blocks #4–#7 KC monitor mapping | Phase 0 | 3 days |
 | S2 | Initial snapshot memory pressure on largest table (~15M rows) | Prevents surprise in Phase 1/2 | Phase 0 | 2 days |
 | S3 | Outbox multi-topic routing at scale (POC tests at 2; production outbox uses ~15 destinations) | Phase 1 go-live blocker | Phase 0 | 2 days |
 | S4 | `snapshot.aborted`/`snapshot.running` Flink equivalent | outbox-transactron-connector migration (Phase 3) | Phase 0 | 2 days |
@@ -384,6 +384,8 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 | S8 | Schema evolution — ALTER TABLE behavior per Flink variant; no dbhistory.* equivalent; downstream schema-registry compat policy | Per-tribe blast radius for schema changes; daily production reality | Phase 0 | 2 days |
 
 **Phase 0 total (S1–S4, S8): ~11 engineering days — parallelisable within 1 sprint.**
+
+**Phase legend:** 0 = spikes (pre-pilot) · 1 = first-tribe pilot go-live · 2 = expansion across tribes · 3 = outbox + transactron cutover
 
 ---
 

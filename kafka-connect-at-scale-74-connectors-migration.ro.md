@@ -375,7 +375,7 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 | ID | Subiect | De Ce Contează | Faza | Timebox |
 |----|-------|---------------|------|---------|
-| S1/S10 | Paritate metrici Flink — metrici Debezium JMX via Flink? | Determină designul modulului de monitorizare; blochează maparea monitoarelor KC #4–#7 | Faza 0 | 3 zile |
+| S1 | Paritate metrici Flink — metrici Debezium JMX via Flink? | Determină designul modulului de monitorizare; blochează maparea monitoarelor KC #4–#7 | Faza 0 | 3 zile |
 | S2 | Presiunea memoriei la snapshot inițial pe cel mai mare tabel (~15M rânduri) | Previne surprizele în Faza 1/2 | Faza 0 | 2 zile |
 | S3 | Rutare outbox multi-topic la scară (POC testează la 2; outbox-ul de producție folosește ~15 destinații) | Blocker go-live Faza 1 | Faza 0 | 2 zile |
 | S4 | Echivalentul Flink pentru `snapshot.aborted`/`snapshot.running` | Migrarea outbox-transactron-connector (Faza 3) | Faza 0 | 2 zile |
@@ -385,6 +385,8 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 | S8 | Evoluție schemă — comportamentul ALTER TABLE per variantă Flink; fără echivalent dbhistory.*; politică compat schema-registry | Raza de impact per echipă pentru schimbări de schemă; realitate zilnică în producție | Faza 0 | 2 zile |
 
 **Total Faza 0 (S1–S4, S8): ~11 zile inginerie — paralelizabil într-un singur sprint.**
+
+**Legenda fazelor:** 0 = spike-uri (pre-pilot) · 1 = go-live pilot prima echipă · 2 = extindere · 3 = cutover outbox + transactron
 
 ---
 
