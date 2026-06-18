@@ -332,13 +332,17 @@ sequenceDiagram
 
 ---
 
-## Slide 14 — The Trade-offs
+## Slide 14 — The Trade-offs (Risk Register)
 
-- KC doesn't disappear entirely (21 SFTP/SingleStore connectors remain — two systems to run)
-- Field-level encryption complexity transfers — connectors using custom CDC SMTs must replicate encryption logic in Flink `MapFunction`
-- Learning curve for teams unfamiliar with Flink (mitigated by shared-job: no Java required)
-- Per-connector cutover work (mitigated by automation tooling — Spikes S5/S6)
-- New operational surface — Flink Operator, checkpoints, savepoints to learn and monitor
+| Risk | Status / Mitigation | Where addressed |
+|------|---------------------|-----------------|
+| KC remains for 21 SFTP/SingleStore connectors — two systems to operate | Accepted; SFTP/SingleStore have no Flink equivalent | Slide 5 (scope), Slide 15b (TCO) |
+| Field-level encryption: SMT logic must be ported to Flink `MapFunction` | Open; assessed per tribe during wave planning | S6 (cutover automation) |
+| Learning curve — Flink Operator, checkpoints, savepoints | Mitigated for most tribes by shared-job model (no Java required for YAML/SQL/Table variants; DataStream still needs Java) | Slide 7 (decision tree), Slide 9 (shared-job) |
+| Cutover sequencing — no wave plan, dual-run, parity gate, or rollback runbook yet | **Not yet mitigated** — S6 must deliver: wave plan, dual-run period, byte-for-byte parity gate, binlog server-ID overlap coordination, rollback runbook | Slide 16, Spike S6 |
+| New operational surface — Flink Operator, checkpoints, savepoints | Mitigated by Flink Platform Team ownership of base image and monitoring module | Slide 17, Spike S1 |
+| Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink CDC equivalent; Datadog monitors #4–#7 blocked | **Not yet mitigated** — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1 | Slide 17, Spike S1 |
+| Schema evolution (ALTER TABLE) — behavior differs by variant; downstream Kafka schema compatibility not validated | **Not yet mitigated** — no dbhistory.* equivalent; validate per tribe + schema-registry compat policy | Slide 16, Spike S8 (new) |
 
 ---
 

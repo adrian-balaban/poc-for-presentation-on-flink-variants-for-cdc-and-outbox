@@ -332,13 +332,17 @@ sequenceDiagram
 
 ---
 
-## Slide 14 — Compromisurile
+## Slide 14 — Compromisurile (Registru de Riscuri)
 
-- KC nu dispare complet (21 de conectori SFTP/SingleStore rămân — două sisteme de operat)
-- Complexitatea criptării la nivel de câmp se transferă — conectorii care folosesc SMT-uri CDC personalizate trebuie să replice logica de criptare în `MapFunction` Flink
-- Curbă de învățare pentru echipele nefamiliare cu Flink (atenuată de shared-job: nu este necesar Java)
-- Muncă de cutover per conector (atenuată de instrumente de automatizare — Spike-urile S5/S6)
-- Suprafață operațională nouă — Flink Operator, checkpoint-uri, savepoint-uri de învățat și monitorizat
+| Risc | Status / Atenuare | Unde este abordat |
+|------|-------------------|-------------------|
+| KC rămâne pentru 21 conectori SFTP/SingleStore — două sisteme de operat | Acceptat; SFTP/SingleStore nu au echivalent Flink | Slide 5 (scop), Slide 15b (TCO) |
+| Criptare la nivel de câmp: logica SMT trebuie portată în `MapFunction` Flink | Deschis; evaluat per echipă în planificarea valurilor | S6 (automatizare cutover) |
+| Curbă de învățare — Flink Operator, checkpoint-uri, savepoint-uri | Atenuat pentru majoritatea echipelor prin modelul shared-job (nu este necesar Java pentru variantele YAML/SQL/Table; DataStream necesită în continuare Java) | Slide 7 (arbore de decizie), Slide 9 (shared-job) |
+| Secvențierea cutover — niciun plan de val, dual-run, gate paritate sau runbook de rollback încă | **Neatenuată** — S6 trebuie să livreze: plan de val, perioadă dual-run, gate paritate byte-for-byte, coordonare overlap server-ID binlog, runbook rollback | Slide 16, Spike S6 |
+| Suprafață operațională nouă — Flink Operator, checkpoint-uri, savepoint-uri | Atenuat prin proprietatea Flink Platform Team asupra imaginii de bază și modulului de monitorizare | Slide 17, Spike S1 |
+| Regresie observabilitate — metrici Debezium JMX (lag, stare snapshot, poziție binlog) nu au echivalent direct Flink CDC; monitoarele Datadog #4–#7 blocate | **Neatenuată** — interim: metrici Flink restart/backlog + verificări binlog-position din MySQL ca proxy lag; rezoluție completă în așteptarea Spike S1 | Slide 17, Spike S1 |
+| Evoluție schemă (ALTER TABLE) — comportamentul diferă per variantă; compatibilitatea schemei Kafka downstream nevalidată | **Neatenuată** — fără echivalent dbhistory.*; validare per echipă + politică compat schema-registry | Slide 16, Spike S8 (nou) |
 
 ---
 
