@@ -16,11 +16,11 @@ Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Fli
 
 ## Slide 1b — Agendă (45 de minute)
 
-1. **Unde suntem** (2 min) — Contextul clientului, 95 de conectori pe un singur cluster
+1. **Unde suntem** (2 min) — Contextul clientului + sfera migrării: 95 de conectori pe un singur cluster, 74 ținte MySQL, 21 rămân pe KC
 2. **De ce doare și ce cerem** (4 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească
 3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink într-un cadru; pool partajat vs. izolare per-job
 4. **POC-ul** (8 min) — 5 variante Flink rulând simultan; un snippet de cod
-5. **Soluția** (5 min) — Modelul shared-job: o imagine, overrides doar prin Helm per echipă
+5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi
 5b. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi
 6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare
 7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă
@@ -303,17 +303,18 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 ---
 
-## Slide 13 — Îmbunătățirile Adresate de Noua Abordare
+## Slide 13 — Îmbunătățiri Adresate
 
-- **Raza de impact redusă** — jobul Flink al fiecărei echipe este izolat; un eșec nu poate cascada
-- **Proprietate clară** — echipa deține repo-ul și cadența de deploy a conectorului lor
-- **Economii parțiale de licențiere** — Confluent păstrat pentru 21 de conectori non-CDC (SFTP/SingleStore); 74 de conectori CDC trec la Apache 2.0 (Flink + Flink CDC)
-- **Kubernetes nativ** — Flink Operator gestionează ciclul de viață, scalarea, recuperarea
-- **Checkpoint nativ** — semantici exactly-once per job; fără topic partajat de offset
-- **Sink exactly-once** — necesită tranzacții Kafka (`DeliveryGuarantee.EXACTLY_ONCE` + prefix ID tranzacțional în `KafkaSinkFactory`); broker-ul Kafka trebuie să aibă tranzacțiile activate
-- **Upgrade-uri independente** — versionare per job; fără upgrade-uri coordonate la nivel de flotă
+| Provocare (Slide 3) | Îmbunătățire |
+|---------------------|--------------|
+| Furtuni de rebalansare — un conector defect destabilizează totul | **Raza de impact izolată** — jobul Flink al fiecărei echipe este izolat; eșecul rămâne per-echipă |
+| Raza de impact partajată — 95 conectori, un singur cluster | **Proprietate clară** — echipa deține repo-ul și cadența de deploy a conectorului lor |
+| Lag recurent — fără pârghie per echipă | **Stare per-job** — checkpoint-uri exactly-once oferă fiecărui job propriul punct de recuperare |
+| Eșecuri doar în producție | **Ciclu de viață Kubernetes nativ** — Flink Operator; testele component locale prind problemele înainte de deploy |
+| Licențiere Confluent | **Economii parțiale de licențiere** — 74 conectori eliminați din pool-ul facturat; 21 conectori SFTP/SingleStore rămân pe KC |
+| Upgrade-uri coordonate la nivel de flotă | **Upgrade-uri independente** — versionare per job; fără coordonare la nivel de flotă |
 
-> Majoritatea rândurilor din tabelul "Provocări" corespund unei îmbunătățiri concrete aici.
+> **Notă:** Sink-ul exactly-once necesită tranzacții Kafka (`DeliveryGuarantee.EXACTLY_ONCE` + prefix ID tranzacțional în `KafkaSinkFactory`); broker-ul Kafka trebuie să aibă tranzacțiile activate.
 
 ---
 

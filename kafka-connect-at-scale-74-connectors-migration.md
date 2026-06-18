@@ -16,11 +16,11 @@ Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flin
 
 ## Slide 1b — Agenda (45 minutes)
 
-1. **Where we are** (2 min) — The client context, 95 connectors on one cluster
+1. **Where we are** (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC
 2. **Why it hurts & what we require** (4 min) — Challenges + the 3 requirements any solution must meet
 3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation
 4. **The POC** (8 min) — 5 Flink variants running simultaneously; one code snippet
-5. **The solution** (5 min) — Shared-job model: one image, Helm-only per tribe
+5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges
 5b. **Cost of the change** (2 min) — TCO: what you stop paying, what you add
 6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring
 7. **The trade-offs** (4 min) — What changes, what remains, new operational surface
@@ -303,17 +303,18 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 ---
 
-## Slide 13 — Improvements the New Approach Addresses
+## Slide 13 — Improvements Addressed
 
-- **Reduced blast radius** — each tribe's Flink job is isolated; failure can't cascade
-- **Clear ownership** — tribe owns their connector repo and deploy cadence
-- **Partial licensing savings** — Confluent retained for 21 non-CDC connectors (SFTP/SingleStore); 74 CDC connectors move to Apache 2.0 (Flink + Flink CDC)
-- **Native Kubernetes** — Flink Operator handles lifecycle, scaling, recovery
-- **Native checkpointing** — per-job exactly-once semantics; no shared offset topic
-- **Exactly-once sink** — requires Kafka transactions (`DeliveryGuarantee.EXACTLY_ONCE` + transactional ID prefix in `KafkaSinkFactory`); Kafka broker must have transactions enabled
-- **Independent upgrades** — per-job versioning; no fleet-wide coordinated upgrades
+| Challenge (Slide 3) | Improvement |
+|---------------------|-------------|
+| Rebalancing storms — one bad connector destabilises all | **Isolated blast radius** — each tribe's Flink job is isolated; failure stays per-tribe |
+| Shared blast radius — 95 connectors, one cluster | **Clear ownership** — tribe owns their connector repo and deploy cadence |
+| Recurring lag — no per-tribe lever | **Per-job state** — exactly-once checkpoints give each job its own recovery point |
+| Production-only failures | **Native Kubernetes lifecycle** — Flink Operator; local component tests catch issues before deploy |
+| Confluent licensing | **Partial licensing savings** — 74 connectors removed from billable pool; 21 SFTP/SingleStore connectors retained on KC |
+| Fleet-wide coordinated upgrades | **Independent upgrades** — per-job versioning; no fleet-wide coordination |
 
-> Most rows in the "Challenges" table map to a concrete improvement here.
+> **Note:** Exactly-once sink requires Kafka transactions (`DeliveryGuarantee.EXACTLY_ONCE` + transactional ID prefix in `KafkaSinkFactory`); Kafka broker must have transactions enabled.
 
 ---
 
