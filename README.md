@@ -64,6 +64,7 @@ Services started:
 - Flink Dashboard at http://localhost:8081
 - Kafka UI at http://localhost:8080
 - Kafka Connect at http://localhost:8083
+- MinIO at http://localhost:9001 (user: `minioadmin`, password: `minioadmin`, bucket: `flink-checkpoints`)
 
 ### 2. Build all variants
 
@@ -126,6 +127,7 @@ DELETE FROM orders WHERE id = 1;
 - **Kafka UI** → http://localhost:8080 — topics `poc.cdc.*`
 - **Grafana** → http://localhost:3001 — Flink metrics dashboards (admin/admin)
 - **Prometheus** → http://localhost:9090 — raw metrics scrapes
+- **MinIO** → http://localhost:9001 — checkpoint state browser (`flink-checkpoints` bucket)
 
 ---
 

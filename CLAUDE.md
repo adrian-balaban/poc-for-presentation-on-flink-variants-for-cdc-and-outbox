@@ -83,6 +83,7 @@ Services:
 - Kafka Connect:   http://localhost:8083
 - Grafana:         http://localhost:3001 (admin/admin)
 - Prometheus:      http://localhost:9090
+- MinIO:           http://localhost:9001 (minioadmin/minioadmin, bucket: flink-checkpoints)
 - MySQL:           localhost:3306  user=flink  password=flink  db=poc_db
 
 MySQL binlog is enabled via `--log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL`.
@@ -278,6 +279,8 @@ To add SpotBugs or OWASP Dependency Check in the future, see the archived config
 - [**FLINK_CHECKPOINT_CONFIG.md**](./FLINK_CHECKPOINT_CONFIG.md) — Flink 2.2 checkpoint semantics, monitoring, troubleshooting
 - [**FLINK_SAVEPOINT_RUNBOOK.md**](./FLINK_SAVEPOINT_RUNBOOK.md) — 5-phase safe upgrade workflow, server-ID management, disaster recovery
 - [**KAFKA_CONNECT.md**](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, custom SMTs, detailed comparison
+- [**kafka-connect-at-scale-74-connectors-migration.md**](./kafka-connect-at-scale-74-connectors-migration.md) — presentation: real-world 74-connector migration case study (EN)
+- [**kafka-connect-at-scale-74-connectors-migration.ro.md**](./kafka-connect-at-scale-74-connectors-migration.ro.md) — traducere română a prezentării
 
 ## Context
 
