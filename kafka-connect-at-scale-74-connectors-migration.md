@@ -400,11 +400,22 @@ sequenceDiagram
 
 ## Slide 17 — Centralised Monitoring: KC and Flink
 
-**POC coverage** (local): Flink Dashboard (:8081) + Kafka UI (:8080) cover the same signals as Datadog — restarts, checkpoint duration, checkpoint failures.
+| | Now (KC / Debezium JMX) | Gap | Target (Flink, post-S1) |
+|--|-------------------------|-----|-------------------------|
+| **Connector lag** | Debezium JMX `kafka.consumer.fetch-manager-metrics` | No direct Flink CDC equivalent | Flink source backlog metric (S1 investigation) |
+| **Snapshot status** | Debezium JMX `snapshot.running` / `snapshot.aborted` | No equivalent yet (Spike S4) | Flink job status + custom metric via S1/S4 |
+| **Binlog position** | Debezium JMX `source.pos` | No direct equivalent | MySQL-side binlog position check or Flink offset metric (S1) |
+| **Restarts** | Kafka Connect worker restarts | ✅ Available — Flink `numRestarts` (Prometheus + Datadog) | Same |
+| **Checkpoint health** | N/A (KC stateless) | ✅ Improvement — Flink `lastCheckpointDuration`, `numberOfFailedCheckpoints` | Same |
 
-**Production gap (Spike S1/S10):** Debezium JMX metrics (connector lag, snapshot status, binlog position) have no direct Flink CDC equivalent yet. Until S1/S10 resolves this, Datadog monitors #4–#7 for KC connectors cannot be directly mapped to Flink jobs.
+**Datadog monitors #4–#7** (connector lag, snapshot status, binlog position, snapshot abort) cannot be directly mapped until Spike S1 resolves Flink metric equivalents.
 
-**Target state:** One shared Terraform module per platform (KC module owned by the Module Owner; Flink module by Flink Platform Team), consumed by each tribe's `config.tf` — ~600 monitors across 26 teams at end-state.
+**Interim mitigation (pre-S1):**
+- Monitor `numRestarts` as a lag proxy (repeated restarts → binlog position stale)
+- MySQL-side: query `SHOW MASTER STATUS` + compare against last known Flink binlog offset from checkpoint metadata
+- Datadog alert on Flink source `records.consumed.rate` dropping to 0
+
+**Target state:** One shared Terraform module per platform (KC module owned by Module Owner; Flink module by Flink Platform Team), consumed by each tribe's `config.tf` — ~600 monitors across 26 teams at end-state.
 
 ---
 

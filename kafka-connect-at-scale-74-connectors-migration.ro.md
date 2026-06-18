@@ -401,9 +401,20 @@ sequenceDiagram
 
 ## Slide 17 — Monitorizare Centralizată: KC și Flink
 
-**Acoperire POC** (local): Flink Dashboard (:8081) + Kafka UI (:8080) acoperă aceleași semnale ca Datadog — restart-uri, durata checkpoint-ului, eșecuri checkpoint.
+| | Acum (KC / Debezium JMX) | Gap | Țintă (Flink, post-S1) |
+|--|--------------------------|-----|------------------------|
+| **Lag conector** | Debezium JMX `kafka.consumer.fetch-manager-metrics` | Fără echivalent direct Flink CDC | Metrică backlog sursă Flink (investigație S1) |
+| **Stare snapshot** | Debezium JMX `snapshot.running` / `snapshot.aborted` | Fără echivalent încă (Spike S4) | Status job Flink + metrică personalizată via S1/S4 |
+| **Poziție binlog** | Debezium JMX `source.pos` | Fără echivalent direct | Verificare poziție binlog din MySQL sau metrică offset Flink (S1) |
+| **Restart-uri** | Restart-uri worker Kafka Connect | ✅ Disponibil — Flink `numRestarts` (Prometheus + Datadog) | Același |
+| **Sănătate checkpoint** | N/A (KC stateless) | ✅ Îmbunătățire — Flink `lastCheckpointDuration`, `numberOfFailedCheckpoints` | Același |
 
-**Gap producție (Spike S1/S10):** Metricile Debezium JMX (lag conector, stare snapshot, poziție binlog) nu au încă un echivalent direct în Flink CDC. Până când S1/S10 rezolvă aceasta, monitoarele Datadog #4–#7 pentru conectorii KC nu pot fi mapate direct la joburile Flink.
+**Monitoarele Datadog #4–#7** (lag conector, stare snapshot, poziție binlog, abort snapshot) nu pot fi mapate direct până când Spike S1 rezolvă echivalentele de metrici Flink.
+
+**Atenuare interimară (pre-S1):**
+- Monitorizare `numRestarts` ca proxy pentru lag (restart-uri repetate → poziție binlog stale)
+- Din MySQL: interogare `SHOW MASTER STATUS` + comparare cu ultimul offset binlog Flink din metadatele checkpoint
+- Alertă Datadog pe `records.consumed.rate` Flink sursă care scade la 0
 
 **Starea țintă:** Un modul Terraform partajat per platformă (modulul KC deținut de Module Owner; modulul Flink de Flink Platform Team), consumat de `config.tf` al fiecărei echipe — ~600 monitoare pentru 26 de echipe la starea finală.
 
