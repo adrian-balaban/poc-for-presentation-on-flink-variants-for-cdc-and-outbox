@@ -392,8 +392,9 @@ sequenceDiagram
 | S5 | Production failure modes (RDS IAM, binlog leases, IRSA rotation) | POC can't surface these; staging soak needed | Phase 1 | ≥7-day soak |
 | S6 | Cutover automation tooling (KC → Flink) | Manual switches won't scale across tribes | Pre-Phase 3 | TBD |
 | S7 | Self-service Claude migration tooling for tribes | Tribes can't wait for Flink Platform Team hand-holding | Phase 1 | 3 days |
+| S8 | Schema evolution — ALTER TABLE behavior per Flink variant; no dbhistory.* equivalent; downstream schema-registry compat policy | Per-tribe blast radius for schema changes; daily production reality | Phase 0 | 2 days |
 
-**Phase 0 total (S1–S4): ~9 engineering days — parallelisable within 1 sprint.**
+**Phase 0 total (S1–S4, S8): ~11 engineering days — parallelisable within 1 sprint.**
 
 ---
 
@@ -563,7 +564,7 @@ s3.secret-key: minioadmin
 - Kafka signal topic (`private.debezium.signal.*.v1`)
 - `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, `SignalMessage` Java classes
 - Confluent Kafka Connect for the 74 Debezium MySQL connectors
-- `dbhistory.*` schema history topics for those 74 connectors
+- `dbhistory.*` schema history topics for those 74 connectors — **replaced by in-job schema tracking in Flink CDC** (no external topic; ALTER TABLE behavior differs by variant — see Spike S8)
 
 ---
 

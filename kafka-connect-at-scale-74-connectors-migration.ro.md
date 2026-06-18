@@ -393,8 +393,9 @@ sequenceDiagram
 | S5 | Moduri de eșec în producție (RDS IAM, lease-uri binlog, rotație IRSA) | POC-ul nu le poate suprafața; soak-ul de staging este necesar | Faza 1 | ≥7 zile soak |
 | S6 | Instrumente de automatizare cutover (KC → Flink) | Switch-urile manuale nu vor scala pe 26 de echipe | Pre-Faza 3 | TBD |
 | S7 | Instrumente Claude de migrare self-service pentru echipe | Echipele nu pot aștepta asistență de la Flink Platform Team | Faza 1 | 3 zile |
+| S8 | Evoluție schemă — comportamentul ALTER TABLE per variantă Flink; fără echivalent dbhistory.*; politică compat schema-registry | Raza de impact per echipă pentru schimbări de schemă; realitate zilnică în producție | Faza 0 | 2 zile |
 
-**Total Faza 0 (S1–S4): ~9 zile inginerie — paralelizabil într-un singur sprint.**
+**Total Faza 0 (S1–S4, S8): ~11 zile inginerie — paralelizabil într-un singur sprint.**
 
 ---
 
@@ -564,7 +565,7 @@ s3.secret-key: minioadmin
 - Topicul de semnal Kafka (`private.debezium.signal.*.v1`)
 - Clasele Java `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, `SignalMessage`
 - Confluent Kafka Connect pentru cei 74 de conectori Debezium MySQL
-- Topicurile de schema history `dbhistory.*` pentru acei 74 de conectori
+- Topicurile de schema history `dbhistory.*` pentru acei 74 de conectori — **înlocuite de urmărirea schemei in-job în Flink CDC** (fără topic extern; comportamentul ALTER TABLE diferă per variantă — vezi Spike S8)
 
 ---
 
