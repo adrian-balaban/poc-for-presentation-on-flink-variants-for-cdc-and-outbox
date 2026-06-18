@@ -26,12 +26,15 @@ Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flin
 7. **The trade-offs** (4 min) — What changes, what remains, new operational surface
 8. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others
 9. **Open questions** (3 min) — 7 spikes
+10. **Recommendation & next step** (2 min) — commit decision, first tribe, timeline
 
 **Q&A: 15 minutes**
 
+*(agenda total: 43 min + 15 min Q&A)*
+
 ---
 
-## Slide 1c — Context in 30 seconds (for those new to Kafka)
+## Slide 1c — Context in ~75 seconds (for those new to Kafka)
 
 ```
 MySQL binlog  →  Debezium  →  Kafka  →  consumers
@@ -87,7 +90,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | Confluent Kafka Cloud licensing | Organisation | Monthly | **Material monthly licensing cost** |
 | Centralised security patching | Maintenance team | Every release cycle | Fleet-wide coordination overhead |
 
-> One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and every row above maps to a concrete improvement (see the Improvements slide).
+> One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and most rows above map to a concrete improvement (see the Improvements slide).
 
 ---
 
@@ -268,7 +271,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
 | Per-variant component tests | Passing (5 Flink + 5 KC variants) |
 | StatementSet → 1 JobGraph | Verified (SQL API only; Table API uses single INSERT, not StatementSet) |
-| All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 1 table, 2 outbox destinations, in-memory state) |
+| All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 3 tables, 2 outbox destinations, in-memory state) |
 
 ---
 
@@ -288,7 +291,8 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 ![Kafka UI — poc cluster overview](images/slides/kafka-ui.png)
 
 > Topics auto-created by CDC connectors. 32 topics = per-table topics for all 5 variants
-> plus schema-history and signal topics.
+> plus schema-history topics. Signal topics (`private.debezium.signal.*`) are KC-only;
+> Flink CDC does not use them.
 
 ### Kafka Connect REST API — 5 KC Connectors (side-by-side comparison)
 
@@ -309,7 +313,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 - **Exactly-once sink** — requires Kafka transactions (`DeliveryGuarantee.EXACTLY_ONCE` + transactional ID prefix in `KafkaSinkFactory`); Kafka broker must have transactions enabled
 - **Independent upgrades** — per-job versioning; no fleet-wide coordinated upgrades
 
-> Every row in the "Challenges" table maps to a concrete improvement here.
+> Most rows in the "Challenges" table map to a concrete improvement here.
 
 ---
 
@@ -412,7 +416,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 ## Slide 18 — Recommendation
 
-**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC validates the mechanism at POC scale (see the POC Evidence slide: 5 variants running simultaneously, 1 table, 2 outbox destinations, in-memory state); production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is pending S2/S3/S5.
+**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC validates the mechanism at POC scale (see the POC Evidence slide: 5 variants running simultaneously, 3 tables, 2 outbox destinations, in-memory state); production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is pending S2/S3/S5.
 
 Per-tribe cost is Helm overrides only — no Java, no fork, no per-tribe release pipeline.
 
@@ -471,7 +475,8 @@ Checkpoint state is persisted to S3-compatible storage (MinIO locally, AWS S3 in
 configured in `flink-conf.yaml`:
 
 ```yaml
-state.backend: rocksdb
+# Local POC: uses default HashMapStateBackend (no state.backend override needed)
+# Production: set state.backend: rocksdb via cluster config or FLINK_PROPERTIES
 state.checkpoints.dir: s3://flink-checkpoints/checkpoints
 state.savepoints.dir:  s3://flink-checkpoints/savepoints
 s3.endpoint: http://minio:9000
@@ -509,7 +514,8 @@ s3.secret-key: minioadmin
 
 - **Flink runtime 2.2** — base image `flink-base-image` (Flink Platform Team)
 - **Flink CDC 3.6.0** (suffix `3.6.0-2.2`) — bundled in variant images; version must match runtime
-- **Built-in plugins** — `flink-s3-fs-presto-2.2.0.jar` (version-stamped, must match base image)
+- **Built-in plugins** — `flink-s3-fs-presto-2.2.1.jar` (version-stamped, must match base image)
+- **Built-in plugins** — `flink-metrics-prometheus-2.2.1.jar` (enables Prometheus scraping on port 9249)
 - **`mysql-connector-j`** — mounted into both JobManager and TaskManager; classloader parent-first pattern required (`com.mysql.`)
 - **Checkpointing** — per-job unique `checkpointing.dir`; exactly-once; S3-backed
 
@@ -538,7 +544,7 @@ s3.secret-key: minioadmin
   - `flink-stream-api-base-image`
   - `flink-table-api-base-image`
   - `flink-sql-api-base-image`
-- Per-variant fat-jar images: 5 Docker images; Shadow plugin
+- Per-variant fat-jar images: 4 Flink fat-jars + 1 KC SMT shadow JAR; Shadow plugin
 
 ### Object Storage (S3)
 
@@ -621,7 +627,7 @@ s3.secret-key: minioadmin
 
 | Command | What it does |
 |---------|-------------|
-| `./gradlew shadowJar` | Builds all 5 fat-jars |
+| `./gradlew shadowJar` | Builds all 4 Flink fat-jars + KC SMT shadow JAR |
 | `./gradlew :component-tests:test` | Runs all component tests (Flink + KC) |
 | `./gradlew all` | Full cycle: build → podman-compose restart → wait for services (180 s) → deploy KC connectors → run CTs |
 | `podman-compose -f podman-compose.yml up -d` | Starts the full 11-service stack |
@@ -674,7 +680,7 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **State backend** | RocksDB (production recommendation; configured via cluster config) | In-memory / HashMapStateBackend (default for local demo) |
 | **Kafka topic naming** | `<tribe>.<schema>.<table>` with per-variant prefixes across all 26 teams | `poc.cdc.<variant>.<table>` (single `poc_db` schema) |
 | **Observability ownership** | Three-way: Module Owner (KC module) / Flink Platform Team (Flink module) / each tribe (config.tf) | Single developer; no ownership model needed |
-| **Scale** | 74 CDC connectors → 26 teams → ~600 monitors at end-state | 1 schema (`poc_db`), 1 table (`orders`), 5 variants, 60 unit tests + CT per variant |
+| **Scale** | 74 CDC connectors → 26 teams → ~600 monitors at end-state | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 60 unit tests + CT per variant |
 | **YAML Pipeline submission** | `flink-cdc.sh` via init-container or `kubectl exec`; `FlinkDeployment` comes up with empty JM until wired | `flink-cdc-submitter` container runs `flink-cdc.sh` automatically on JM ready |
 
 ---

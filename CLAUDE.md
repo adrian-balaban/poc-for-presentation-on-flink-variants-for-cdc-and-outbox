@@ -284,4 +284,4 @@ To add SpotBugs or OWASP Dependency Check in the future, see the archived config
 
 ## Context
 
-This POC supports the architecture described in `../markdown/proposalA/`. The five variants map directly to the decision matrix in section 5 of that proposal. The recommended production path is the **DataStream CDC shared-job model** (Jereczek, May 2026): one parametrisable image per tribe, Helm-chart env overrides, no per-tribe Java fork.
+This POC supports the architecture described in `../markdown/proposalA/`. The five variants map directly to the decision matrix in section 5 of that proposal. The recommended production path is the **DataStream CDC shared-job model** : one parametrisable image per tribe, Helm-chart env overrides, no per-tribe Java fork.
