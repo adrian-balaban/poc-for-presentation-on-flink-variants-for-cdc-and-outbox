@@ -421,11 +421,6 @@ s3.secret-key: minioadmin
 4. **Month 2** — Pilot Phase 1 (10–15 connectors); measure lag, monitoring coverage
 5. **Month 3+** — Phase 2 & 3 per schedule; migrate remaining 60–65 connectors
 
-### Questions for Stakeholders
-
-- Can we commit to Phase 0 timeline (≤3 weeks critical path)?
-- Is per-tribe Helm-based deployment acceptable, or do we need a UI/GitOps layer?
-- Monitoring: acceptable to use Flink Dashboard + custom Datadog metrics until S1/S10 resolves?
 
 ---
 

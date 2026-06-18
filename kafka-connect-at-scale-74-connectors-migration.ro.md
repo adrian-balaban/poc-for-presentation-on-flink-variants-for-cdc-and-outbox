@@ -421,11 +421,6 @@ s3.secret-key: minioadmin
 4. **Luna 2** — Pilot Faza 1 (10–15 conectori); măsurați lag-ul, acoperirea monitorizării
 5. **Luna 3+** — Faza 2 & 3 conform programului; migrați restul de 60–65 de conectori
 
-### Întrebări pentru Stakeholders
-
-- Putem ne angaja la calendarul Fazei 0 (≤3 săptămâni pe calea critică)?
-- Este deployment-ul bazat pe Helm per echipă acceptabil, sau avem nevoie de un strat UI/GitOps?
-- Monitorizare: este acceptabil să folosim Flink Dashboard + metrici Datadog personalizate până când S1/S10 rezolvă?
 
 ---
 
