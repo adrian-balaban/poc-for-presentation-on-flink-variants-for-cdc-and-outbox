@@ -90,7 +90,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | Shared blast radius — 95 connectors, one cluster | All 26 teams | Every incident | No isolation between tribes |
 | Recurring lag — no per-tribe lever | Team + consumers | Ongoing | SLA risk on downstream consumers |
 | Production-only failures — surface only after deploy | New-connector teams | New-connector window | Defects reach prod undetected |
-| Confluent Kafka Cloud licensing | Organisation | Monthly | *[£ figure — confirm with client]* |
+| Confluent Kafka Cloud licensing | Organisation | Monthly | **Material monthly licensing cost** |
 | Centralised security patching | Maintenance team | Every release cycle | Fleet-wide coordination overhead |
 
 > One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and every row above maps to a concrete improvement (see the Improvements slide).
@@ -200,7 +200,7 @@ pipeline:
 
 ## Slide 9 — Recommended Architecture: Shared Job Model
 
-**One base image. 74 tribes. Zero Java per tribe.**
+**One base image. 74 MySQL connectors. Zero Java per tribe.**
 
 Flink Platform Team owns and maintains parametrisable images for the 5 variants.
 Each tribe gets their connector by overriding Helm values only — no fork, no Java, no release pipeline.
@@ -509,7 +509,7 @@ s3.secret-key: minioadmin
 - **Kafka topics** (per-variant prefixes): `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*`
 - **Schema history topics** (KC/Debezium): `dbhistory.<variant>` — one per connector
 - **Signal topic** (pre-migration only, dropped after): `private.debezium.signal.<connector>.v1`
-- **Kafka Connect (Confluent)** — retained for SFTP (25) and SingleStore (1); 74 Debezium MySQL connectors migrated to Flink
+- **Kafka Connect (Confluent)** — retained for SFTP (20) and SingleStore (1); 74 Debezium MySQL connectors migrated to Flink
 - **Heartbeat topic** — KC monitor #1; Flink equivalent: Restart Loop + TM heartbeat
 
 ### Container Registry / Images
@@ -640,7 +640,7 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **MySQL** | RDS (AWS); IAM auth; IRSA for S3; production data | `mysql:8.0` container; user `flink`/`flink`; `poc_db`; seed data via `init.sql` |
 | **MySQL binlog server-ID** | Non-overlapping ranges 5600–6099 enforced by CI lint + base image template | Same ranges enforced by `JobConfig`; KC uses reserved 5500–5599 |
 | **Kafka** | Confluent Kafka Cloud (managed) | `cp-kafka:7.6.1` KRaft container; single broker; `localhost:9092` |
-| **Kafka Connect** | Confluent managed KC for SFTP (25) + SingleStore (1); being replaced for 74 CDC connectors | Local KC container + Debezium + custom SMTs; side-by-side comparison only |
+| **Kafka Connect** | Confluent managed KC for SFTP (20) + SingleStore (1); being replaced for 74 CDC connectors | Local KC container + Debezium + custom SMTs; side-by-side comparison only |
 | **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | In-memory / local (no S3 in compose); same code config (30 s interval, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (image build, `yq` delete, variant select) + ArgoCD (deploy/restart) | `./gradlew all` (build → compose restart → deploy connectors → CTs) |
 | **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` |

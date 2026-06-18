@@ -90,7 +90,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 | Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident | Fără izolare între echipe |
 | Lag recurent — niciun reglaj per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
 | Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | La fereastră conector nou | Defecte ajung în prod nedetectate |
-| Licențiere Confluent Kafka Cloud | Organizația | Lunar | *[sumă £ — de confirmat cu clientul]* |
+| Licențiere Confluent Kafka Cloud | Organizația | Lunar | **Cost lunar de licențiere semnificativ** |
 | Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release | Overhead de coordonare la nivel de flotă |
 
 > Un singur restart de conector declanșează o **rebalansare în cascadă între echipe fără legătură** — și fiecare rând de mai sus corespunde unei îmbunătățiri concrete (vezi slide-ul Îmbunătățiri).
@@ -200,7 +200,7 @@ pipeline:
 
 ## Slide 9 — Arhitectura Recomandată: Modelul Shared-Job
 
-**O imagine de bază. 74 de echipe. Zero Java per echipă.**
+**O imagine de bază. 74 de conectori MySQL. Zero Java per echipă.**
 
 Echipa Flink Platform deține și menține imagini parametrizabile pentru cele 5 variante.
 Fiecare echipă primește conectorul lor prin overriding exclusiv de valori Helm — fără fork, fără Java, fără pipeline de release.
@@ -510,7 +510,7 @@ s3.secret-key: minioadmin
 - **Topicuri Kafka** (prefixe per variantă): `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*`
 - **Topicuri schema history** (KC/Debezium): `dbhistory.<variantă>` — câte unul per conector
 - **Topic semnal** (doar pre-migrare, abandonat după): `private.debezium.signal.<conector>.v1`
-- **Kafka Connect (Confluent)** — păstrat pentru SFTP (25) și SingleStore (1); 74 de conectori Debezium MySQL migrați la Flink
+- **Kafka Connect (Confluent)** — păstrat pentru SFTP (20) și SingleStore (1); 74 de conectori Debezium MySQL migrați la Flink
 - **Topic heartbeat** — monitor KC #1; echivalent Flink: Restart Loop + heartbeat TM
 
 ### Container Registry / Imagini
@@ -641,7 +641,7 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 | **MySQL** | RDS (AWS); autentificare IAM; IRSA pentru S3; date de producție | Container `mysql:8.0`; user `flink`/`flink`; `poc_db`; date seed via `init.sql` |
 | **Server-ID binlog MySQL** | Intervale neoverlapping 5600–6099 impuse prin lint CI + template imagine de bază | Aceleași intervale impuse prin `JobConfig`; KC folosește rezervat 5500–5599 |
 | **Kafka** | Confluent Kafka Cloud (managed) | Container KRaft `cp-kafka:7.6.1`; broker unic; `localhost:9092` |
-| **Kafka Connect** | Confluent managed KC pentru SFTP (25) + SingleStore (1); înlocuit pentru 74 conectori CDC | Container KC local + Debezium + SMT-uri personalizate; comparație alăturată doar |
+| **Kafka Connect** | Confluent managed KC pentru SFTP (20) + SingleStore (1); înlocuit pentru 74 conectori CDC | Container KC local + Debezium + SMT-uri personalizate; comparație alăturată doar |
 | **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | In-memory / local (fără S3 în compose); aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (build imagine, ștergere `yq`, selectare variantă) + ArgoCD (deploy/restart) | `./gradlew all` (build → restart compose → deploy conectori → CT-uri) |
 | **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` |
