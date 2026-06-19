@@ -481,13 +481,16 @@ All five variants share one extraction point — `CheckpointConfigurer.applyExac
 rather than repeating the five calls below in every entry class:
 
 ```java
-// common/src/main/java/poc/common/config/CheckpointConfigurer.java
+// common/src/main/java/poc/common/checkpoint/CheckpointConfigurer.java
 public static void applyExactlyOnce(StreamExecutionEnvironment env) {
     env.enableCheckpointing(30_000);
     env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
     env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
     env.getCheckpointConfig().setCheckpointTimeout(60_000);
     env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+    env.getCheckpointConfig()
+        .setExternalizedCheckpointRetention(
+            ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
 }
 ```
 

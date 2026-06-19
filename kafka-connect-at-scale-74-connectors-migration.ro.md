@@ -481,13 +481,16 @@ Toate cele cinci variante partajează un singur punct de extracție — `Checkpo
 în loc să repete cele cinci apeluri de mai jos în fiecare clasă de intrare:
 
 ```java
-// common/src/main/java/poc/common/config/CheckpointConfigurer.java
+// common/src/main/java/poc/common/checkpoint/CheckpointConfigurer.java
 public static void applyExactlyOnce(StreamExecutionEnvironment env) {
     env.enableCheckpointing(30_000);
     env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
     env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
     env.getCheckpointConfig().setCheckpointTimeout(60_000);
     env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
+    env.getCheckpointConfig()
+        .setExternalizedCheckpointRetention(
+            ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
 }
 ```
 

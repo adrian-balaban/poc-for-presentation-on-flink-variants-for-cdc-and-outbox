@@ -2,6 +2,7 @@ package poc.common.checkpoint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -23,5 +24,8 @@ class CheckpointConfigurerTest {
     assertEquals(CheckpointConfigurer.CHECKPOINT_TIMEOUT_MS, cfg.getCheckpointTimeout());
     assertEquals(
         CheckpointConfigurer.MIN_PAUSE_BETWEEN_CHECKPOINTS_MS, cfg.getMinPauseBetweenCheckpoints());
+    assertEquals(
+        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION,
+        cfg.getExternalizedCheckpointRetention());
   }
 }
