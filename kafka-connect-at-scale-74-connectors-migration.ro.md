@@ -197,7 +197,7 @@ source:
 sink:
   type: kafka
   properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
-  topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline
+  topic: ${KAFKA_TOPIC_PREFIX}.yaml.orders
 pipeline:
   name: Flink CDC YAML Pipeline CDC Job
 ```
