@@ -1,6 +1,6 @@
 package poc.common.sink;
 
-import org.apache.flink.connector.kafka.sink.DeliveryGuarantee;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import poc.common.config.JobConfig;
@@ -15,7 +15,7 @@ public class KafkaSinkFactory {
     return KafkaSink.<String>builder()
         .setBootstrapServers(config.kafkaBootstrap)
         .setDeliveryGuarantee(DeliveryGuarantee.EXACTLY_ONCE)
-        .setTransactionalIdPrefix("flink-cdc-poc-" + topicSuffix)
+        .setTransactionalIdPrefix(config.kafkaTopicPrefix + "-" + topicSuffix)
         .setRecordSerializer(
             KafkaRecordSerializationSchema.builder()
                 .setTopic(topicFor(config, topicSuffix))

@@ -1,5 +1,6 @@
 package poc.common.checkpoint;
 
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -26,7 +27,8 @@ public final class CheckpointConfigurer {
 
   /**
    * Enables exactly-once checkpointing on the given environment with the POC-standard interval,
-   * timeout, pause, and concurrency settings.
+   * timeout, pause, and concurrency settings. Checkpoints are retained on cancellation so that safe
+   * stateful upgrades (savepoint-less recovery) remain possible.
    */
   public static void applyExactlyOnce(StreamExecutionEnvironment env) {
     env.enableCheckpointing(CHECKPOINT_INTERVAL_MS);
@@ -34,5 +36,8 @@ public final class CheckpointConfigurer {
     env.getCheckpointConfig().setMaxConcurrentCheckpoints(MAX_CONCURRENT_CHECKPOINTS);
     env.getCheckpointConfig().setCheckpointTimeout(CHECKPOINT_TIMEOUT_MS);
     env.getCheckpointConfig().setMinPauseBetweenCheckpoints(MIN_PAUSE_BETWEEN_CHECKPOINTS_MS);
+    env.getCheckpointConfig()
+        .setExternalizedCheckpointRetention(
+            ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
   }
 }

@@ -54,7 +54,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | **StatementSet** | Flink Table API construct that compiles several INSERTs into one JobGraph (one checkpoint) |
 | **IRSA** | IAM Roles for Service Accounts — how K8s pods get AWS permissions (S3 checkpoint access) |
 | **RDS** | AWS managed relational database — the production MySQL source here (IAM auth) |
-| **transactron** | The client's internal outbox connector, migrated in Phase 3 (see Spike S4) | TOCHECK
+| **transactron** | The client's internal outbox connector, migrated in Phase 3 (see Spike S4) |
 
 > **Key point:** every variant in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
 > The difference is *how* and *where* the reading process runs.
@@ -257,7 +257,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 ---
 
-## Slide 11 — CDC Snapshotting: Before vs After TOCHECK
+## Slide 11 — CDC Snapshotting: Before vs After
 
 **Post-Migration:** re-snapshotting is now native to Flink CDC.
 
@@ -283,8 +283,8 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 | StatementSet → 1 JobGraph | Verified (SQL API only; Table API uses single INSERT, not StatementSet) |
 | All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 3 tables, 2 outbox destinations, in-memory state) |
 
-> The POC validates the mechanism at POC scale — 5 variants, 60 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3). TOCHECK
-Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is the open spike work (S2/S3/S5).TOCHECK
+> The POC validates the mechanism at POC scale — 5 variants, 60 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3).
+Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is the open spike work (S2/S3/S5).
 
 ---
 
@@ -378,7 +378,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 | Cost axis | KC today (95 connectors) | Flink proposal (74 CDC → Flink; 21 KC retained) |
 |-----------|--------------------------|--------------------------------------------------|
 | Confluent licensing | Full 95-connector bill | ~22% of connectors retained (21/95); pricing is not strictly per-connector — see caveat |
-| Compute (K8s CPU/RAM) | KC managed by Confluent (included in license) | One JM + TM pod pair per tribe; size per tribe against peak change rate (POC estimate: ~0.5 vCPU + 1 GB RAM at low binlog throughput) |TOCHECK
+| Compute (K8s CPU/RAM) | KC managed by Confluent (included in license) | One JM + TM pod pair per tribe; size per tribe against peak change rate (POC estimate: ~0.5 vCPU + 1 GB RAM at low binlog throughput; production sizing pending Spike S2) |
 | Operational overhead | Shared cluster ops centralised | Per-tribe isolation; Flink Platform Team owns base image |
 | Per-tribe migration cost | Zero (status quo) | S5/S6 spike deliverables (cutover automation) |
 
@@ -574,7 +574,7 @@ s3.secret-key: minioadmin
 ### Observability (Datadog via Terraform)
 
 - **`<datadog-tf-repo>`** — central Terraform repo for all 26 teams (target state)
-- **Shipped monitors** (16 total; 3 Flink-specific today: Restart Loop, Checkpoint Duration, Checkpoint Failures — full list in `<datadog-tf-repo>`) TOCHECK
+- **Shipped monitors** (3 Flink-specific confirmed: Restart Loop, Checkpoint Duration, Checkpoint Failures; full count across all teams tracked in `<datadog-tf-repo>`)
 - **Shipped dashboards** (2): `[Platform] Flink Jobs Monitoring`, `[Platform] Flink CDC Streamer`
 - **~600 monitors** at end-state across 26 teams — quota forecast needed (open item)
 - **Notification routing**: 3 global channels (1/env) + per-team Slack/Zendesk/PagerDuty

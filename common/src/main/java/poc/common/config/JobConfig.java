@@ -180,7 +180,8 @@ public class JobConfig implements java.io.Serializable {
         throw new IllegalStateException("mysqlHost is required");
       if (mysqlUser == null || mysqlUser.isBlank())
         throw new IllegalStateException("mysqlUser is required");
-      if (mysqlPassword == null) throw new IllegalStateException("mysqlPassword is required");
+      if (mysqlPassword == null || mysqlPassword.isBlank())
+        throw new IllegalStateException("mysqlPassword is required");
       if (mysqlDatabase == null || mysqlDatabase.isBlank())
         throw new IllegalStateException("mysqlDatabase is required");
       if (mysqlTables == null || mysqlTables.isBlank())

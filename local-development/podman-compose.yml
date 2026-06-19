@@ -51,7 +51,7 @@ services:
       - --binlog-format=ROW
       - --binlog-row-image=FULL
       - --server-id=1
-      - --expire_logs_days=1
+      - --expire_logs_days=30
     healthcheck:
       test: mysqladmin ping -h localhost -u flink -pflink
       interval: 10s
@@ -130,7 +130,7 @@ services:
       MYSQL_USER: flink
       MYSQL_PASSWORD: flink
       MYSQL_DATABASE: poc_db
-      MYSQL_TABLES: poc_db.orders
+      MYSQL_TABLES: poc_db.orders,poc_db.customers,poc_db.outbox_events
       KAFKA_BOOTSTRAP: kafka:29092
       KAFKA_TOPIC_PREFIX: poc.cdc
     depends_on:
