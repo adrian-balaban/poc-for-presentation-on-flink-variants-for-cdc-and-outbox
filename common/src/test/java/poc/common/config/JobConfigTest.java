@@ -19,7 +19,7 @@ class JobConfigTest {
     assertEquals("flink", cfg.mysqlUser);
     assertEquals("flink", cfg.mysqlPassword);
     assertEquals("poc_db", cfg.mysqlDatabase);
-    assertEquals("poc_db.orders", cfg.mysqlTables);
+    assertEquals("poc_db.orders,poc_db.customers,poc_db.outbox_events", cfg.mysqlTables);
     assertEquals("localhost:9092", cfg.kafkaBootstrap);
     assertEquals("poc.cdc", cfg.kafkaTopicPrefix);
     assertEquals("5900-5999", cfg.serverId);

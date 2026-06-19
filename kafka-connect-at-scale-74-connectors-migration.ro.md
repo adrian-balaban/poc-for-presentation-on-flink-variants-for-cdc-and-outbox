@@ -275,7 +275,7 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 | Verificare | Rezultat |
 |-------------|--------|
-| Teste unitare | 60/60 trecute |
+| Teste unitare | 57/57 trecute |
 | Toate cele 8 module compilează | Curat |
 | Formatare (Spotless — Google Java Format) | Conformă |
 | Flink CDC 3.6.0 pe Flink 2.2 | Verificat |
@@ -703,7 +703,7 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 | **Backend stare** | RocksDB (recomandare producție; configurat via cluster config) | In-memory / HashMapStateBackend (implicit pentru demo local) |
 | **Nomenclatură topicuri Kafka** | `<echipă>.<schemă>.<tabel>` cu prefixe per variantă pentru toate cele 26 de echipe | `poc.cdc.<variantă>.<tabel>` (schemă unică `poc_db`) |
 | **Proprietate observabilitate** | Trei direcții: Module Owner (modul KC) / Flink Platform Team (modul Flink) / fiecare echipă (config.tf) | Dezvoltator unic; model de proprietate nu este necesar |
-| **Scară** | 74 conectori CDC → 26 echipe → ~600 monitoare la starea finală | 1 schemă (`poc_db`), 3 tabele (`orders`, `customers`, `outbox_events`), 5 variante, 60 teste unitare + CT per variantă |
+| **Scară** | 74 conectori CDC → 26 echipe → ~600 monitoare la starea finală | 1 schemă (`poc_db`), 3 tabele (`orders`, `customers`, `outbox_events`), 5 variante, 57 teste unitare + CT per variantă |
 | **Submitere YAML Pipeline** | `flink-cdc.sh` via init-container sau `kubectl exec`; `FlinkDeployment` pornește cu JM gol până când este cablat | Containerul `flink-cdc-submitter` rulează `flink-cdc.sh` automat la JM gata |
 
 ---

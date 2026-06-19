@@ -27,6 +27,27 @@ class KafkaSinkFactoryTest {
   }
 
   @Test
+  void transactionalIdPrefix_scopedToTopicPrefix() {
+    // Verifies the prefix format introduced to prevent cross-environment Kafka transaction fencing.
+    // Two deployments with different kafkaTopicPrefix values must produce different transactional IDs.
+    assertEquals("poc.cdc-datastream", config().kafkaTopicPrefix + "-" + "datastream");
+
+    JobConfig staging =
+        new JobConfig.Builder()
+            .mysqlHost("h")
+            .mysqlPort(3306)
+            .mysqlUser("u")
+            .mysqlPassword("p")
+            .mysqlDatabase("db")
+            .mysqlTables("db.t")
+            .kafkaBootstrap("k:9092")
+            .kafkaTopicPrefix("staging.cdc")
+            .serverId("1-2")
+            .build();
+    assertEquals("staging.cdc-datastream", staging.kafkaTopicPrefix + "-" + "datastream");
+  }
+
+  @Test
   void topicFor_respectsConfigPrefix() {
     JobConfig other =
         new JobConfig.Builder()

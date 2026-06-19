@@ -275,7 +275,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 | Verification | Result |
 |-------------|--------|
-| Unit tests | 60/60 passing |
+| Unit tests | 57/57 passing |
 | All 8 modules compile | Clean |
 | Format (Spotless — Google Java Format) | Compliant |
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
@@ -283,7 +283,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 | StatementSet → 1 JobGraph | Verified (SQL API only; Table API uses single INSERT, not StatementSet) |
 | All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 3 tables, 2 outbox destinations, in-memory state) |
 
-> The POC validates the mechanism at POC scale — 5 variants, 60 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3).
+> The POC validates the mechanism at POC scale — 5 variants, 57 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3).
 Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is the open spike work (S2/S3/S5).
 
 ---
@@ -703,7 +703,7 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **State backend** | RocksDB (production recommendation; configured via cluster config) | In-memory / HashMapStateBackend (default for local demo) |
 | **Kafka topic naming** | `<tribe>.<schema>.<table>` with per-variant prefixes across all 26 teams | `poc.cdc.<variant>.<table>` (single `poc_db` schema) |
 | **Observability ownership** | Three-way: Module Owner (KC module) / Flink Platform Team (Flink module) / each tribe (config.tf) | Single developer; no ownership model needed |
-| **Scale** | 74 CDC connectors → 26 teams → ~600 monitors at end-state | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 60 unit tests + CT per variant |
+| **Scale** | 74 CDC connectors → 26 teams → ~600 monitors at end-state | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 57 unit tests + CT per variant |
 | **YAML Pipeline submission** | `flink-cdc.sh` via init-container or `kubectl exec`; `FlinkDeployment` comes up with empty JM until wired | `flink-cdc-submitter` container runs `flink-cdc.sh` automatically on JM ready |
 
 ---
