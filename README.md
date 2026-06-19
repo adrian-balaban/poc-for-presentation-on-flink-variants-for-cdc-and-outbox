@@ -235,7 +235,7 @@ All variants read configuration from environment variables with sensible default
 | `MYSQL_USER` | `flink` | MySQL username |
 | `MYSQL_PASSWORD` | `flink` | MySQL password |
 | `MYSQL_DATABASE` | `poc_db` | Database name |
-| `MYSQL_TABLES` | `poc_db.orders` | Fully-qualified table list |
+| `MYSQL_TABLES` | `poc_db.orders,poc_db.customers,poc_db.outbox_events` | Fully-qualified table list |
 | `MYSQL_SERVER_ID` | `5900-5999` | Binlog replica server-ID range |
 | `KAFKA_BOOTSTRAP` | `localhost:9092` | Kafka bootstrap servers |
 | `KAFKA_TOPIC_PREFIX` | `poc.cdc` | Topic prefix; variant name appended |
