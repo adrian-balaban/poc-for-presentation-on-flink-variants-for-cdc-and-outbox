@@ -19,18 +19,18 @@ Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Fli
 1. **Unde suntem** (2 min) — Contextul clientului + sfera migrării: 95 de conectori pe un singur cluster, 74 ținte MySQL, 21 rămân pe KC
 2. **De ce doare și ce cerem** (4 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească
 3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink într-un cadru; pool partajat vs. izolare per-job
-4. **POC-ul** (8 min) — 5 variante Flink rulând simultan; un snippet de cod
+4. **POC-ul + dovezi** (8 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC
 5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi
-5b. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi
 6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare
 7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă
 8. **De ce aceasta față de alternative** (5 min) — Matrice de decizie: de ce Flink CDC vs KC vs altele
-9. **Întrebări deschise** (3 min) — 7 spike-uri
+8b. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi
+9. **Întrebări deschise** (3 min) — 8 spike-uri
 10. **Recomandare & pasul următor** (2 min) — decizia de adoptare, prima echipă, calendar
 
 **Q&A: 15 minute**
 
-*(total agendă: 43 min + 15 min Q&A)*
+*(total agendă: 45 min + 15 min Q&A; Slide 1c este un primer Kafka opțional de ~75 s, iar capturile de ecran live Slide 12b se arată doar dacă timpul permite — niciuna nu e inclusă în cei 45 min.)*
 
 ---
 
@@ -47,8 +47,14 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 | **MySQL binlog** | Jurnalul intern MySQL cu toate INSERT/UPDATE/DELETE — Debezium îl citește ca un replica |
 | **Debezium** | Bibliotecă open-source care transformă binlog-ul în evenimente JSON |
 | **Kafka Connect** | Platforma care rulează Debezium (și alți conectori) ca workere gestionate |
+| **SMT** | Single Message Transformer — un plugin KC care modifică fiecare înregistrare în zbor (enrichment, routing) |
 | **Confluent Cloud** | Kafka + Kafka Connect ca serviciu managed (nu îl administrezi tu, îl plătești) |
 | **Apache Flink** | Motor de procesare a stream-urilor; poate face același lucru ca Debezium + KC, dar ca job izolat pe K8s |
+| **Flink Operator / CR** | Operator K8s care rulează fiecare job Flink ca un `FlinkDeployment` Custom Resource (JM + TM proprii) |
+| **StatementSet** | Construct Flink Table API care compilează mai multe INSERT-uri într-un singur JobGraph (un checkpoint) |
+| **IRSA** | IAM Roles for Service Accounts — cum primesc pod-urile K8s permisiuni AWS (acces S3 la checkpoint-uri) |
+| **RDS** | Bază de date relațională AWS managed — sursa MySQL de producție aici (auth IAM) |
+| **transactron** | Conectorul intern de outbox al clientului, migrat în Faza 3 (vezi Spike S4) |
 
 > **De reținut:** toate variantele din acest talk citesc același lucru — binlog-ul MySQL — și scriu în Kafka.
 > Diferența este *cum* și *unde* rulează procesul de citire.
@@ -110,7 +116,7 @@ Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce
 | Offset-uri / stare | topic partajat de offset | checkpoint-uri exactly-once per job (S3) |
 | Licențiere | Confluent Cloud (cu plată) | Apache 2.0 (gratuit) |
 
-> **"CDC" înseamnă două lucruri — nu le confunda:** (1) **Debezium CDC** — la nivel de tabel, citește binlog-ul MySQL, un eveniment per schimbare per topic (rulează atât pe KC cât și pe Flink). (2) **Flink CDC** — *framework-ul declarativ de pipeline YAML* deasupra acelui flux (fără Java). Această prezentare acoperă ambele; Varianta 5 este "Flink CDC" în sensul (2).
+> **"CDC" înseamnă două lucruri — nu le confunda:** (1) **Flink CDC `MySqlSource`** — conectorul care citește binlog-ul MySQL prin algoritmul propriu de snapshot incremental Flink CDC (variantele 1–4: DataStream / Table API / SQL API / Outbox; reuzește intern parserul de binlog Debezium, dar **nu** rulează pe conectorul Debezium Kafka Connect). (2) **Flink CDC YAML pipeline** — *framework-ul declarativ de pipeline YAML* deasupra aceleiași surse, fără Java (Varianta 5). Această prezentare acoperă ambele sensuri.
 ---
 
 ## Slide 5 — Scopul Migrării
@@ -130,10 +136,10 @@ Am construit **5 variante** și le-am rulat
 
 | # | Variantă | Dimensiune Clasă Principală | Format Output | Java Necesar |
 |---|---------|-----------|---------------|---------------|
-| 1 | DataStream CDC | 50 linii | Aplatizat + îmbogățire | Da |
-| 2 | Table API | 99 linii | Plic Debezium nativ | Da |
-| 3 | SQL API | 156 linii | Plic Debezium nativ | Minim |
-| 4 | Outbox | 56 linii | Payload brut per destinație | Da |
+| 1 | DataStream CDC | 50 linii | Plic Debezium + îmbogățire | Da |
+| 2 | Table API | 99 linii | Rând proiectat aplatizat (upsert-kafka) | Da |
+| 3 | SQL API | 156 linii | Rând proiectat aplatizat (upsert-kafka) | Minim |
+| 4 | Outbox | 56 linii | Plic Debezium al rândului outbox (topic unic; routing per destinație este producție, nu în POC) | Da |
 | 5 | YAML Pipeline | 47 linii YAML | Plic Debezium nativ | **Nu** |
 
 > Toate cele patru variante Java partajează în plus ~391 linii de infrastructură `common/`
@@ -183,23 +189,27 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
 source:
   type: mysql
   hostname: ${MYSQL_HOST}
-  database-name: ${MYSQL_DB}
-  table-name: ${MYSQL_TABLE}
+  port: ${MYSQL_PORT}
+  username: ${MYSQL_USER}
+  password: ${MYSQL_PASSWORD}
+  tables: ${MYSQL_DATABASE}.orders
+  server-id: 5700-5709
 sink:
   type: kafka
-  topic: ${KAFKA_TOPIC}
+  properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
+  topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline
 pipeline:
-  name: ${JOB_NAME}
+  name: Flink CDC YAML Pipeline CDC Job
 ```
 
 ---
 
 ## Slide 9 — Arhitectura Recomandată: Modelul Shared-Job
 
-**O imagine de bază. 74 de conectori MySQL. Zero Java per echipă.**
+**O imagine de bază per variantă. 74 de conectori MySQL. Fără fork Java per echipă.**
 
 Echipa Flink Platform deține și menține imagini parametrizabile pentru cele 5 variante.
-Fiecare echipă primește conectorul lor prin overriding exclusiv de valori Helm — fără fork, fără Java, fără pipeline de release.
+Fiecare echipă primește conectorul lor prin overriding exclusiv de valori Helm — fără fork, fără pipeline de release per echipă (variantele YAML/SQL/Table nu necesită Java; echipele DataStream customizează imaginea deținută de platformă, nu propriul repo Java).
 
 ![Topologie Deployment K8s: Modelul Shared-Job](images/k8s-deployment-topology.svg)
 
@@ -210,7 +220,7 @@ applicationJobs:
     image: flink-stream-api-base-image:1.0.0
     extraEnvs:
       MYSQL_HOST: my-db.internal
-      MYSQL_DB: my_schema
+      MYSQL_DATABASE: my_schema
       KAFKA_TOPIC_PREFIX: my-tribe.cdc
 ```
 
@@ -253,7 +263,7 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 ![CDC Snapshotting: Before vs After — re-snapshot workflow](images/cdc-resnapshot-sequence.svg)
 
-**Ce dispare:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, topic Kafka de semnal
+**Ce dispare:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, `SignalMessage` (3 clase Java) + topic Kafka de semnal
 — **3 clase Java și 1 topic Kafka eliminate**.
 
 > **Atenție:** `stateless` este un mecanism de re-snapshot o singură dată — revertați întotdeauna la `last-state`.
@@ -272,6 +282,8 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 | Teste de componente per variantă | Trecute (5 variante Flink + 5 KC) |
 | StatementSet → 1 JobGraph | Verificat (doar SQL API; Table API folosește un singur INSERT, nu StatementSet) |
 | Toate cele 5 variante rulând simultan | Rulează la scară POC (localhost:8081; 3 tabele, 2 destinații outbox, stare in-memory) |
+
+> POC-ul validează mecanismul la scară POC — 5 variante, 60 de teste unitare, toate verzi; routing-ul outbox este doar logat într-un topic unic în POC (fan-out per destinație via side-output este producție, Spike S3). Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de eșec de producție) este munca de spike deschis (S2/S3/S5).
 
 ---
 
@@ -347,13 +359,13 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 | Kafka Connect self-managed (renunță la licență) | Elimină costul licenței dar păstrează raza de impact partajată + adaugă povară operațională (nu este un serviciu managed ca Confluent) |
 | Clustere KC dedicate per echipă | Rezolvă izolarea dar înmulțește costul și overhead-ul operațional de 26 ori (un cluster KC per echipă față de unul partajat) |
 | Flink — fork Java per echipă | Izolare reală, dar fiecare echipă menține Java + un pipeline de release |
-| **Flink — modelul shared-job (ales)** | Izolare + fără Java per echipă; o imagine de bază, overrides exclusiv Helm |
+| **Flink — modelul shared-job (ales)** | Izolare + fără fork Java per echipă; o imagine de bază per variantă, overrides exclusiv Helm |
 
 > **Raționament:** Flink este singura opțiune care elimină atât raza de impact **cât și**
 > costul licenței. În cadrul Flink, modelul shared-job păstrează câștigul de izolare fără a forța 26 de
 > echipe să dețină fiecare cod Java — calea cu cel mai mic efort spre aceleași garanții.
 >
-> **Încadrare:** Flink **"nu este un replacement, ci o alternativă, adoptată programatic"** — adoptă unde se potrivește, surfacează probleme de practică reală în producție, păstrează KC unde nu are echivalent (SFTP, SingleStore).
+> **Încadrare:** sfera este delimitată — migrează cei 74 de conectori MySQL CDC la Flink; păstrează cei 21 de conectori SFTP/SingleStore pe KC (fără echivalent Flink). Flink este adoptat unde se potrivește, nu ca replacement general.
 
 ---
 
@@ -365,8 +377,8 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 | Axă de cost | KC azi (95 conectori) | Propunere Flink (74 CDC → Flink; 21 KC rămân) |
 |-------------|----------------------|------------------------------------------------|
-| Licențiere Confluent | Factură completă pentru 95 conectori | ~22% din cea actuală (21/95 conectori rămân) |
-| Compute (CPU/RAM K8s) | KC gestionat de Confluent (inclus în licență) | O pereche JM + TM per echipă; estimat: ~0,5 vCPU + 1 GB RAM per job inactiv |
+| Licențiere Confluent | Factură completă pentru 95 conectori | ~22% conectori reținuți (21/95); prețul este pe task/throughput, nu strict per-conector — vezi atenționarea |
+| Compute (CPU/RAM K8s) | KC gestionat de Confluent (inclus în licență) | O pereche JM + TM per echipă; dimensionează per echipă față de rata de schimbare la vârf (estimare POC: ~0,5 vCPU + 1 GB RAM la throughput binlog scăzut) |
 | Overhead operațional | Ops cluster partajat centralizat | Izolare per echipă; Flink Platform Team deține imaginea de bază |
 | Cost migrare per echipă | Zero (status quo) | Livrabilele spike-urilor S5/S6 (automatizare cutover) |
 
@@ -399,7 +411,7 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 | | Acum (KC / Debezium JMX) | Gap | Țintă (Flink, post-S1) |
 |--|--------------------------|-----|------------------------|
-| **Lag conector** | Debezium JMX `kafka.consumer.fetch-manager-metrics` | Fără echivalent direct Flink CDC | Metrică backlog sursă Flink (investigație S1) |
+| **Lag conector** | Debezium JMX `debezium.mysql:type=connector-metrics` → `MillisSinceLastEvent` | Fără echivalent direct Flink CDC | Metrică backlog sursă Flink (investigație S1) |
 | **Stare snapshot** | Debezium JMX `snapshot.running` / `snapshot.aborted` | Fără echivalent încă (Spike S4) | Status job Flink + metrică personalizată via S1/S4 |
 | **Poziție binlog** | Debezium JMX `source.pos` | Fără echivalent direct | Verificare poziție binlog din MySQL sau metrică offset Flink (S1) |
 | **Restart-uri** | Restart-uri worker Kafka Connect | ✅ Disponibil — Flink `numRestarts` (Prometheus + Datadog) | Același |
@@ -420,9 +432,15 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 **Adoptați modelul Flink CDC shared-job.** Elimină raza de impact partajată și costul de licențiere (vezi slide-ul Îmbunătățiri) menținând în același timp izolarea per echipă — iar POC-ul validează mecanismul la scară POC (5 variante simultan, 3 tabele, 2 destinații outbox, stare in-memory); scara de producție (tabel 15M rânduri, ~15 destinații, RocksDB, moduri de eșec producție) este în așteptarea S2/S3/S5.
 
-Costul per echipă este doar overrides Helm — fără Java, fără fork, fără pipeline de release per echipă.
+Costul per echipă este doar overrides Helm — fără fork Java sau pipeline de release per echipă (variantele YAML/SQL/Table nu necesită Java; echipele DataStream customizează imaginea deținută de platformă).
 
 **Următorul pas:** aprobați spike-urile Faza 0 (vezi slide-ul Spike-uri Deschise) — S2 și S3 sunt blockerele de go/no-go pentru Faza 1.
+
+**Calendar fazat (orientativ):**
+- **Faza 0** (1 sprint, paralelizabil): spike-urile S1–S4 + S8 (~11 zile-inginerie) → răspunsuri paritate-metrici, memorie, scară-outbox, status-snapshot, evoluție-schemă
+- **Faza 1** (pilot prima echipă): alegeți o echipă pilot (`<pilot-tribe>`, TBD cu guild); soak staging ≥7 zile (S5); go-live condiționat de S2 + S3 + S5
+- **Faza 2** (extindere): rulați modelul shared-job pe echipe în valuri (automatizare cutover S6: dual-run, gate paritate, runbook rollback)
+- **Faza 3** (outbox + transactron): migrați conectorii outbox/transactron (S4 deblochează)
 
 
 ---
@@ -556,7 +574,7 @@ s3.secret-key: minioadmin
 ### Observabilitate (Datadog via Terraform)
 
 - **`<datadog-tf-repo>`** — repo Terraform central pentru toate cele 26 de echipe (starea țintă)
-- **Monitoare livrate** (16): Restart Loop, Durata Checkpoint, Eșecuri Checkpoint
+- **Monitoare livrate** (16 total; 3 specifice Flink azi: Restart Loop, Durata Checkpoint, Eșecuri Checkpoint — lista completă în `<datadog-tf-repo>`)
 - **Dashboard-uri livrate** (2): `[Platform] Flink Jobs Monitoring`, `[Platform] Flink CDC Streamer`
 - **~600 monitoare** la starea finală pentru 26 de echipe — previzionare cotă necesară (item deschis)
 - **Rutare notificări**: 3 canale globale (1/env) + Slack/Zendesk/PagerDuty per echipă
@@ -607,10 +625,10 @@ s3.secret-key: minioadmin
 | `flink-cdc-submitter` | personalizat | — | Rulează `flink-cdc.sh` pentru varianta YAML Pipeline la JM gata; `restart: on-failure` |
 | `kafka-connect` | personalizat (Debezium + SMT JAR-uri) | 8083 | REST API KC; comparație alăturată; `restart: on-failure` |
 | `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8080 | Browser topicuri Kafka |
-| `minio` | `minio/minio:RELEASE.2024-01-16T16-07-38Z` | 9000 (API), 9001 (consolă) | Stocare checkpoint compatibilă S3; bucket `flink-checkpoints` |
+| `minio` | `minio/minio:latest` | 9000 (API), 9001 (consolă) | Stocare checkpoint compatibilă S3; bucket `flink-checkpoints` |
 | `minio-init` | `minio/mc` | — | One-shot: creează bucket-ul `flink-checkpoints` la pornire |
-| `prometheus` | `prom/prometheus:latest` | 9090 | Scraping metrici Flink JM/TM la 15 s; doar local |
-| `grafana` | `grafana/grafana:latest` | 3001 | Dashboard + reguli alertă (gestionate de Terraform); admin/admin |
+| `prometheus` | `prom/prometheus:v2.52.0` | 9090 | Scraping metrici Flink JM/TM la 15 s; doar local |
+| `grafana` | `grafana/grafana:10.4.3` | 3001 | Dashboard + reguli alertă (gestionate de Terraform); admin/admin |
 
 ### Module Gradle
 
@@ -673,9 +691,9 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 | **Server-ID binlog MySQL** | Intervale neoverlapping 5600–6099 impuse prin lint CI + template imagine de bază | Aceleași intervale impuse prin `JobConfig`; KC folosește rezervat 5500–5599 |
 | **Kafka** | Confluent Kafka Cloud (managed) | Container KRaft `cp-kafka:7.6.1`; broker unic; `localhost:9092` |
 | **Kafka Connect** | Confluent managed KC pentru SFTP (20) + SingleStore (1); înlocuit pentru 74 conectori CDC | Container KC local + Debezium + SMT-uri personalizate; comparație alăturată doar |
-| **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | In-memory / local (fără S3 în compose); aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
+| **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | Compatibil S3 (MinIO) via `s3://flink-checkpoints`; HashMapStateBackend (stare in-memory, checkpoint-uri persistate în MinIO); aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (build imagine, ștergere `yq`, selectare variantă) + ArgoCD (deploy/restart) | `./gradlew all` (build → restart compose → deploy conectori → CT-uri) |
-| **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
+| **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare total, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Versiune Java** | 17 (joburi Flink); SMT nu se aplică (fără KC în calea Flink producție) | 17 (joburi Flink); 11 (KC SMT-uri — constrângere cp-kafka-connect 7.6.1) |
 | **IAM / Securitate** | Token-uri RDS IAM, IRSA, gestionare lease binlog | Fără IAM; credențiale plain `flink`/`flink`; testarea rotației nu este posibilă |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` în ArgoCD (post-migrare) | Anulare job, ștergere stare, re-submitere (`flink cancel <JOB_ID>` + `flink run`) |

@@ -19,18 +19,18 @@ Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flin
 1. **Where we are** (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC
 2. **Why it hurts & what we require** (4 min) — Challenges + the 3 requirements any solution must meet
 3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation
-4. **The POC** (8 min) — 5 Flink variants running simultaneously; one code snippet
+4. **The POC + evidence** (8 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table
 5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges
-5b. **Cost of the change** (2 min) — TCO: what you stop paying, what you add
 6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring
 7. **The trade-offs** (4 min) — What changes, what remains, new operational surface
 8. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others
-9. **Open questions** (3 min) — 7 spikes
+8b. **Cost of the change** (2 min) — TCO: what you stop paying, what you add
+9. **Open questions** (3 min) — 8 spikes
 10. **Recommendation & next step** (2 min) — commit decision, first tribe, timeline
 
 **Q&A: 15 minutes**
 
-*(agenda total: 43 min + 15 min Q&A)*
+*(agenda total: 45 min + 15 min Q&A; Slide 1c is an optional ~75 s Kafka primer and Slide 12b live screenshots are shown only if time permits — neither counted in the 45 min.)*
 
 ---
 
@@ -47,8 +47,14 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | **MySQL binlog** | MySQL's internal journal of every INSERT/UPDATE/DELETE — Debezium reads it like a replica |
 | **Debezium** | Open-source library that turns the binlog into JSON change events |
 | **Kafka Connect** | The platform that runs Debezium (and other connectors) as managed workers |
+| **SMT** | Single Message Transformer — a KC plugin that modifies each record in-flight (enrichment, routing) |
 | **Confluent Cloud** | Kafka + Kafka Connect as a managed service (you pay for it, you don't operate it) |
 | **Apache Flink** | Stream-processing engine; can do the same job as Debezium + KC, but as an isolated K8s job |
+| **Flink Operator / CR** | K8s operator that runs each Flink job as a `FlinkDeployment` Custom Resource (own JM + TM) |
+| **StatementSet** | Flink Table API construct that compiles several INSERTs into one JobGraph (one checkpoint) |
+| **IRSA** | IAM Roles for Service Accounts — how K8s pods get AWS permissions (S3 checkpoint access) |
+| **RDS** | AWS managed relational database — the production MySQL source here (IAM auth) |
+| **transactron** | The client's internal outbox connector, migrated in Phase 3 (see Spike S4) | TOCHECK
 
 > **Key point:** every variant in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
 > The difference is *how* and *where* the reading process runs.
@@ -110,7 +116,7 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 | Offsets / state | shared offset topic | per-job exactly-once checkpoints (S3) |
 | Licensing | Confluent Cloud (paid) | Apache 2.0 (free) |
 
-> **"CDC" means two things — don't confuse them:** (1) **Debezium CDC** — table-level, reads the MySQL binlog, one event per change per topic (runs on both KC and Flink). (2) **Flink CDC** — the declarative *YAML pipeline framework* on top of that flow (no Java). This talk covers both; Variant 5 is "Flink CDC" in sense (2).
+> **"CDC" means two things — don't confuse them:** (1) **Flink CDC `MySqlSource`** — the connector that reads the MySQL binlog via Flink CDC's own incremental-snapshot algorithm (variants 1–4: DataStream / Table API / SQL API / Outbox; it reuses Debezium's binlog parser internally but does **not** run on the Debezium Kafka Connect connector). (2) **Flink CDC YAML pipeline** — the declarative *YAML pipeline framework* on top of that same source, no Java (Variant 5). This talk covers both senses.
 ---
 
 ## Slide 5 — Scope of the Migration
@@ -130,10 +136,10 @@ We built **5 variants** and ran them
 
 | # | Variant | Entry-Class Size | Output Format | Java Required |
 |---|---------|-----------|---------------|---------------|
-| 1 | DataStream CDC | 50 lines | Flattened + enrichment | Yes |
-| 2 | Table API | 99 lines | Native Debezium envelope | Yes |
-| 3 | SQL API | 156 lines | Native Debezium envelope | Minimal |
-| 4 | Outbox | 56 lines | Raw payload per destination | Yes |
+| 1 | DataStream CDC | 50 lines | Debezium envelope + enrichment | Yes |
+| 2 | Table API | 99 lines | Flattened projected row (upsert-kafka) | Yes |
+| 3 | SQL API | 156 lines | Flattened projected row (upsert-kafka) | Minimal |
+| 4 | Outbox | 56 lines | Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC) | Yes |
 | 5 | YAML Pipeline | 47 lines YAML | Native Debezium envelope | **No** |
 
 > All four Java variants additionally share ~391 lines of `common/` infrastructure
@@ -183,23 +189,27 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
 source:
   type: mysql
   hostname: ${MYSQL_HOST}
-  database-name: ${MYSQL_DB}
-  table-name: ${MYSQL_TABLE}
+  port: ${MYSQL_PORT}
+  username: ${MYSQL_USER}
+  password: ${MYSQL_PASSWORD}
+  tables: ${MYSQL_DATABASE}.orders
+  server-id: 5700-5709
 sink:
   type: kafka
-  topic: ${KAFKA_TOPIC}
+  properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
+  topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline
 pipeline:
-  name: ${JOB_NAME}
+  name: Flink CDC YAML Pipeline CDC Job
 ```
 
 ---
 
 ## Slide 9 — Recommended Architecture: Shared Job Model
 
-**One base image. 74 MySQL connectors. Zero Java per tribe.**
+**One base image per variant. 74 MySQL connectors. No per-tribe Java fork.**
 
 Flink Platform Team owns and maintains parametrisable images for the 5 variants.
-Each tribe gets their connector by overriding Helm values only — no fork, no Java, no release pipeline.
+Each tribe gets their connector by overriding Helm values only — no fork, no per-tribe release pipeline; tribes customize the platform-owned image, not their own Java repo).
 
 ![K8s Deployment Topology: Shared Job Model](images/k8s-deployment-topology.svg)
 
@@ -210,7 +220,7 @@ applicationJobs:
     image: flink-stream-api-base-image:1.0.0
     extraEnvs:
       MYSQL_HOST: my-db.internal
-      MYSQL_DB: my_schema
+      MYSQL_DATABASE: my_schema
       KAFKA_TOPIC_PREFIX: my-tribe.cdc
 ```
 
@@ -247,13 +257,13 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 ---
 
-## Slide 11 — CDC Snapshotting: Before vs After
+## Slide 11 — CDC Snapshotting: Before vs After TOCHECK
 
 **Post-Migration:** re-snapshotting is now native to Flink CDC.
 
 ![CDC Snapshotting: Before vs After — re-snapshot workflow](images/cdc-resnapshot-sequence.svg)
 
-**What disappears:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, signal Kafka topic
+**What disappears:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, `SignalMessage` (3 Java classes) + signal Kafka topic
 — **3 Java classes and 1 Kafka topic eliminated**.
 
 > **Caution:** `stateless` is a one-shot re-snapshot lever — always revert to `last-state`.
@@ -272,6 +282,9 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 | Per-variant component tests | Passing (5 Flink + 5 KC variants) |
 | StatementSet → 1 JobGraph | Verified (SQL API only; Table API uses single INSERT, not StatementSet) |
 | All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 3 tables, 2 outbox destinations, in-memory state) |
+
+> The POC validates the mechanism at POC scale — 5 variants, 60 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3). TOCHECK
+Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is the open spike work (S2/S3/S5).TOCHECK
 
 ---
 
@@ -346,13 +359,13 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 | Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden (not a managed service like Confluent) |
 | Per-tribe dedicated KC clusters | Solves isolation but multiplies cost and operational overhead 26× (one KC cluster per tribe vs one shared) |
 | Flink — per-tribe Java fork | True isolation, but every tribe maintains Java + a release pipeline |
-| **Flink — shared-job model (chosen)** | Isolation + no per-tribe Java; one base image, Helm-only overrides |
+| **Flink — shared-job model (chosen)** | Isolation + no per-tribe Java fork; one base image per variant, Helm-only overrides |
 
 > **Reasoning:** Flink is the only option that removes blast radius **and** licensing
 > cost. Within Flink, the shared-job model keeps the isolation win without forcing 26
 > teams to each own Java code — the lowest-friction path to the same guarantees.
 >
-> **Framing:** Flink is **"not a replacement, but an alternative, programmatically adopted"** — adopt where it fits, surface real-practice issues in production, keep KC where it has no equivalent (SFTP, SingleStore).
+> **Framing:** scope is bounded — migrate the 74 MySQL CDC connectors to Flink; retain the 21 SFTP/SingleStore connectors on KC (no Flink equivalent). Flink is adopted where it fits, not as a blanket replacement.
 
 ---
 
@@ -364,8 +377,8 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 | Cost axis | KC today (95 connectors) | Flink proposal (74 CDC → Flink; 21 KC retained) |
 |-----------|--------------------------|--------------------------------------------------|
-| Confluent licensing | Full 95-connector bill | ~22% of current (21/95 connectors remain) |
-| Compute (K8s CPU/RAM) | KC managed by Confluent (included in license) | One JM + TM pod pair per tribe; estimate: ~0.5 vCPU + 1 GB RAM per idle job |
+| Confluent licensing | Full 95-connector bill | ~22% of connectors retained (21/95); pricing is not strictly per-connector — see caveat |
+| Compute (K8s CPU/RAM) | KC managed by Confluent (included in license) | One JM + TM pod pair per tribe; size per tribe against peak change rate (POC estimate: ~0.5 vCPU + 1 GB RAM at low binlog throughput) |TOCHECK
 | Operational overhead | Shared cluster ops centralised | Per-tribe isolation; Flink Platform Team owns base image |
 | Per-tribe migration cost | Zero (status quo) | S5/S6 spike deliverables (cutover automation) |
 
@@ -398,7 +411,7 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 | | Now (KC / Debezium JMX) | Gap | Target (Flink, post-S1) |
 |--|-------------------------|-----|-------------------------|
-| **Connector lag** | Debezium JMX `kafka.consumer.fetch-manager-metrics` | No direct Flink CDC equivalent | Flink source backlog metric (S1 investigation) |
+| **Connector lag** | Debezium JMX `debezium.mysql:type=connector-metrics` → `MillisSinceLastEvent` | No direct Flink CDC equivalent | Flink source backlog metric (S1 investigation) |
 | **Snapshot status** | Debezium JMX `snapshot.running` / `snapshot.aborted` | No equivalent yet (Spike S4) | Flink job status + custom metric via S1/S4 |
 | **Binlog position** | Debezium JMX `source.pos` | No direct equivalent | MySQL-side binlog position check or Flink offset metric (S1) |
 | **Restarts** | Kafka Connect worker restarts | ✅ Available — Flink `numRestarts` (Prometheus + Datadog) | Same |
@@ -419,9 +432,15 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 **Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC validates the mechanism at POC scale (see the POC Evidence slide: 5 variants running simultaneously, 3 tables, 2 outbox destinations, in-memory state); production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is pending S2/S3/S5.
 
-Per-tribe cost is Helm overrides only — no Java, no fork, no per-tribe release pipeline.
+Per-tribe cost is Helm overrides only — no per-tribe Java fork or release pipeline (YAML/SQL/Table variants need no Java; DataStream tribes customize the platform-owned image).
 
 **Next step:** approve Phase 0 spikes (see the Open Spikes slide) — S2 and S3 are the Phase-1 go/no-go blockers.
+
+**Phased timeline (indicative):**
+- **Phase 0** (1 sprint, parallelisable): spikes S1–S4 + S8 (~11 engineering days) → metric-parity, memory, outbox-scale, snapshot-status, schema-evolution answers
+- **Phase 1** (first-tribe pilot): pick one pilot tribe (`<pilot-tribe>`, TBD with guild); ≥7-day staging soak (S5); go-live gated on S2 + S3 + S5
+- **Phase 2** (expansion): roll the shared-job model across tribes in waves (S6 cutover automation: dual-run, parity gate, rollback runbook)
+- **Phase 3** (outbox + transactron): migrate outbox/transactron connectors (S4 unblocks)
 
 
 ---
@@ -555,7 +574,7 @@ s3.secret-key: minioadmin
 ### Observability (Datadog via Terraform)
 
 - **`<datadog-tf-repo>`** — central Terraform repo for all 26 teams (target state)
-- **Shipped monitors** (16): Restart Loop, Checkpoint Duration, Checkpoint Failures
+- **Shipped monitors** (16 total; 3 Flink-specific today: Restart Loop, Checkpoint Duration, Checkpoint Failures — full list in `<datadog-tf-repo>`) TOCHECK
 - **Shipped dashboards** (2): `[Platform] Flink Jobs Monitoring`, `[Platform] Flink CDC Streamer`
 - **~600 monitors** at end-state across 26 teams — quota forecast needed (open item)
 - **Notification routing**: 3 global channels (1/env) + per-team Slack/Zendesk/PagerDuty
@@ -606,12 +625,12 @@ s3.secret-key: minioadmin
 | `flink-cdc-submitter` | custom | — | Runs `flink-cdc.sh` for YAML Pipeline variant on JM ready; `restart: on-failure` |
 | `kafka-connect` | custom (Debezium + SMT JARs) | 8083 | KC REST API; side-by-side comparison; `restart: on-failure` |
 | `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8080 | Kafka topic browser |
-| `minio` | `minio/minio:RELEASE.2024-01-16T16-07-38Z` | 9000 (API), 9001 (console) | S3-compatible checkpoint storage; `flink-checkpoints` bucket |
+| `minio` | `minio/minio:latest` | 9000 (API), 9001 (console) | S3-compatible checkpoint storage; `flink-checkpoints` bucket |
 | `minio-init` | `minio/mc` | — | One-shot: creates `flink-checkpoints` bucket on startup |
-| `prometheus` | `prom/prometheus:latest` | 9090 | Scrapes Flink JM/TM metrics every 15 s; local only |
-| `grafana` | `grafana/grafana:latest` | 3001 | Dashboard + alert rules (managed by Terraform); admin/admin |
+| `prometheus` | `prom/prometheus:v2.52.0` | 9090 | Scrapes Flink JM/TM metrics every 15 s; local only |
+| `grafana` | `grafana/grafana:10.4.3` | 3001 | Dashboard + alert rules (managed by Terraform); admin/admin |
 
-### Gradle Modules
+### Gradle Modules TO MODIFY with links to README.md
 
 | Module | Role |
 |--------|------|
@@ -624,7 +643,7 @@ s3.secret-key: minioadmin
 | `component-tests` | End-to-end: submits fat-jars to JM REST; polls Kafka; covers all 5 Flink + 5 KC variants |
 | `kafka-connect-smts` | `EnrichmentTransform` + `OutboxRoutingTransform` (Java 11, shadow JAR) |
 
-### Build & Test Commands
+### Build & Test Commands TO MODIFY with links to README.md
 
 | Command | What it does |
 |---------|-------------|
@@ -672,9 +691,9 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **MySQL binlog server-ID** | Non-overlapping ranges 5600–6099 enforced by CI lint + base image template | Same ranges enforced by `JobConfig`; KC uses reserved 5500–5599 |
 | **Kafka** | Confluent Kafka Cloud (managed) | `cp-kafka:7.6.1` KRaft container; single broker; `localhost:9092` |
 | **Kafka Connect** | Confluent managed KC for SFTP (20) + SingleStore (1); being replaced for 74 CDC connectors | Local KC container + Debezium + custom SMTs; side-by-side comparison only |
-| **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | In-memory / local (no S3 in compose); same code config (30 s interval, EXACTLY_ONCE) |
+| **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | S3-compatible (MinIO) via `s3://flink-checkpoints`; HashMapStateBackend (state in-memory, checkpoints persisted to MinIO); same code config (30 s interval, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (image build, `yq` delete, variant select) + ArgoCD (deploy/restart) | `./gradlew all` (build → compose restart → deploy connectors → CTs) |
-| **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
+| **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors total, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Java version** | 17 (Flink jobs); SMT not applicable (no KC in production Flink path) | 17 (Flink jobs); 11 (KC SMTs — cp-kafka-connect 7.6.1 constraint) |
 | **IAM / Security** | RDS IAM tokens, IRSA, binlog lease management | No IAM; plain `flink`/`flink` credentials; no rotation testing possible |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` in ArgoCD (post-migration) | Cancel job, delete state, re-submit (`flink cancel <JOB_ID>` + `flink run`) |
