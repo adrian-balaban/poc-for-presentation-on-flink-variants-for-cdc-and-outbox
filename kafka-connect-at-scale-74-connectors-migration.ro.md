@@ -574,7 +574,7 @@ s3.secret-key: minioadmin
 ### Observabilitate (Datadog via Terraform)
 
 - **`<datadog-tf-repo>`** — repo Terraform central pentru toate cele 26 de echipe (starea țintă)
-- **Monitoare livrate** (16 total; 3 specifice Flink azi: Restart Loop, Durata Checkpoint, Eșecuri Checkpoint — lista completă în `<datadog-tf-repo>`)
+- **Monitoare livrate** (3 specifice Flink confirmate: Restart Loop, Durata Checkpoint, Eșecuri Checkpoint; numărul total pentru toate echipele urmărit în `<datadog-tf-repo>`)
 - **Dashboard-uri livrate** (2): `[Platform] Flink Jobs Monitoring`, `[Platform] Flink CDC Streamer`
 - **~600 monitoare** la starea finală pentru 26 de echipe — previzionare cotă necesară (item deschis)
 - **Rutare notificări**: 3 canale globale (1/env) + Slack/Zendesk/PagerDuty per echipă
@@ -696,7 +696,7 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 | **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare total, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Versiune Java** | 17 (joburi Flink); SMT nu se aplică (fără KC în calea Flink producție) | 17 (joburi Flink); 11 (KC SMT-uri — constrângere cp-kafka-connect 7.6.1) |
 | **IAM / Securitate** | Token-uri RDS IAM, IRSA, gestionare lease binlog | Fără IAM; credențiale plain `flink`/`flink`; testarea rotației nu este posibilă |
-| **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` în ArgoCD (post-migrare) | Anulare job, ștergere stare, re-submitere (`flink cancel <JOB_ID>` + `flink run`) |
+| **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` în ArgoCD — **o singură dată**, revertați imediat la `last-state` după | Anulare job, ștergere stare, re-submitere (`flink cancel <JOB_ID>` + `flink run`) |
 | **Backend stare** | RocksDB (recomandare producție; configurat via cluster config) | In-memory / HashMapStateBackend (implicit pentru demo local) |
 | **Nomenclatură topicuri Kafka** | `<echipă>.<schemă>.<tabel>` cu prefixe per variantă pentru toate cele 26 de echipe | `poc.cdc.<variantă>.<tabel>` (schemă unică `poc_db`) |
 | **Proprietate observabilitate** | Trei direcții: Module Owner (modul KC) / Flink Platform Team (modul Flink) / fiecare echipă (config.tf) | Dezvoltator unic; model de proprietate nu este necesar |

@@ -696,7 +696,7 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors total, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Java version** | 17 (Flink jobs); SMT not applicable (no KC in production Flink path) | 17 (Flink jobs); 11 (KC SMTs — cp-kafka-connect 7.6.1 constraint) |
 | **IAM / Security** | RDS IAM tokens, IRSA, binlog lease management | No IAM; plain `flink`/`flink` credentials; no rotation testing possible |
-| **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` in ArgoCD (post-migration) | Cancel job, delete state, re-submit (`flink cancel <JOB_ID>` + `flink run`) |
+| **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` in ArgoCD — **one-shot only**, revert to `last-state` immediately after | Cancel job, delete state, re-submit (`flink cancel <JOB_ID>` + `flink run`) |
 | **State backend** | RocksDB (production recommendation; configured via cluster config) | In-memory / HashMapStateBackend (default for local demo) |
 | **Kafka topic naming** | `<tribe>.<schema>.<table>` with per-variant prefixes across all 26 teams | `poc.cdc.<variant>.<table>` (single `poc_db` schema) |
 | **Observability ownership** | Three-way: Module Owner (KC module) / Flink Platform Team (Flink module) / each tribe (config.tf) | Single developer; no ownership model needed |
