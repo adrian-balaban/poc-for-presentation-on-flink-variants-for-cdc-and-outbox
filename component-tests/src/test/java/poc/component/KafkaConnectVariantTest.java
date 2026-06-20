@@ -75,7 +75,9 @@ class KafkaConnectVariantTest extends KafkaConnectBase {
                 return false;
               }
             });
-    assertThat(message).as("expected enriched CDC message with status=" + expectedStatus).isNotNull();
+    assertThat(message)
+        .as("expected enriched CDC message with status=" + expectedStatus)
+        .isNotNull();
 
     // Verify enrichment using shared helper
     assertEnrichmentMetadata("Enrichment metadata", message, variantName, topicPrefix);
