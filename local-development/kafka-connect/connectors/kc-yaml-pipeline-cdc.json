@@ -14,7 +14,7 @@
     "transforms": "enrichment",
     "transforms.enrichment.type": "poc.kafka.connect.EnrichmentTransform",
     "transforms.enrichment.variant.name": "yaml-pipeline-cdc",
-    "transforms.enrichment.topic.prefix": "poc.cdc.yaml",
+    "transforms.enrichment.topic.prefix": "poc.kc.yaml",
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
     "key.converter.schemas.enable": false,
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
@@ -23,6 +23,6 @@
     "include.schema.changes": false,
     "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
     "schema.history.internal.kafka.topic": "dbhistory.yaml",
-    "topic.prefix": "poc.cdc.yaml"
+    "topic.prefix": "poc.kc.yaml"
   }
 }

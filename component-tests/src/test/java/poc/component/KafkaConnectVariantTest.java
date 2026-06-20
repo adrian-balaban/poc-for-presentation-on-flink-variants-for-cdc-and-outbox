@@ -25,7 +25,7 @@ class KafkaConnectVariantTest extends KafkaConnectBase {
     "kc-datastream-cdc,5510,mysql,poc_db.orders,datastream-cdc,poc.cdc.datastream,DataStream CDC",
     "kc-table-api-cdc,5520,mysql-tableapi,poc_db.orders,table-api-cdc,poc.cdc.tableapi,Table API CDC",
     "kc-sql-api-cdc,5530,mysql-sqlapi,poc_db.orders,sql-api-cdc,poc.cdc.sqlapi,SQL API CDC",
-    "kc-yaml-pipeline-cdc,5540,mysql-yaml,poc_db.orders,yaml-pipeline-cdc,poc.cdc.yaml,YAML Pipeline CDC",
+    "kc-yaml-pipeline-cdc,5540,mysql-yaml,poc_db.orders,yaml-pipeline-cdc,poc.kc.yaml,YAML Pipeline CDC",
   })
   @Timeout(120)
   void connector_capturesSnapshot_andPublishesEnrichedEventToKafka(
