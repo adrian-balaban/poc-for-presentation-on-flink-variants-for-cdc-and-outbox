@@ -229,7 +229,7 @@ tasks.register('all') { // buildAndTest
             println "WARNING: Grafana not healthy — skipping Terraform apply."
         } else {
             exec {
-                commandLine 'bash', '-c', 'cd local-development/terraform && terraform init -input=false && terraform apply -auto-approve -input=false'
+                commandLine 'bash', '-c', 'cd local-development/terraform && rm -f terraform.tfstate terraform.tfstate.backup && terraform init -input=false && terraform apply -auto-approve -input=false'
             }
             println '✓ Terraform apply complete — Grafana datasource, dashboard and alert rules provisioned.'
         }
