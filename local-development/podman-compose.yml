@@ -119,6 +119,9 @@ services:
         execution.checkpointing.max-concurrent-checkpoints: 1
         execution.checkpointing.min-pause: 5000
         execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.backend.rocksdb.memory.managed: true
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: minioadmin
@@ -173,6 +176,9 @@ services:
         execution.checkpointing.max-concurrent-checkpoints: 1
         execution.checkpointing.min-pause: 5000
         execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.backend.rocksdb.memory.managed: true
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: minioadmin
@@ -215,6 +221,9 @@ services:
         execution.checkpointing.max-concurrent-checkpoints: 1
         execution.checkpointing.min-pause: 5000
         execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
+        state.backend: rocksdb
+        state.backend.incremental: true
+        state.backend.rocksdb.memory.managed: true
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: minioadmin

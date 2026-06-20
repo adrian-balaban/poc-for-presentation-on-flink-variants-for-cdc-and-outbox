@@ -29,7 +29,8 @@ class KafkaSinkFactoryTest {
   @Test
   void transactionalIdPrefix_scopedToTopicPrefix() {
     // Verifies the prefix format introduced to prevent cross-environment Kafka transaction fencing.
-    // Two deployments with different kafkaTopicPrefix values must produce different transactional IDs.
+    // Two deployments with different kafkaTopicPrefix values must produce different transactional
+    // IDs.
     assertEquals("poc.cdc-datastream", config().kafkaTopicPrefix + "-" + "datastream");
 
     JobConfig staging =

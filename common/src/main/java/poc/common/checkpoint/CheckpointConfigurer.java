@@ -37,7 +37,6 @@ public final class CheckpointConfigurer {
     env.getCheckpointConfig().setCheckpointTimeout(CHECKPOINT_TIMEOUT_MS);
     env.getCheckpointConfig().setMinPauseBetweenCheckpoints(MIN_PAUSE_BETWEEN_CHECKPOINTS_MS);
     env.getCheckpointConfig()
-        .setExternalizedCheckpointRetention(
-            ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
+        .setExternalizedCheckpointRetention(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
   }
 }

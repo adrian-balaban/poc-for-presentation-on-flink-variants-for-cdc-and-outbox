@@ -123,7 +123,7 @@ On restart **with overlapping server-IDs but no savepoint**:
 
 - [ ] **Checkpointing enabled**: `env.enableCheckpointing()`
 - [ ] **Checkpoint mode**: Set to `EXACTLY_ONCE` for CDC
-- [ ] **State backend configured**: RocksDB for production (configured via `execution.checkpointing.storage` or cluster config / `FLINK_PROPERTIES`, not in Java code; local POC uses default HashMapStateBackend)
+- [x] **State backend configured**: `EmbeddedRocksDBStateBackend(true)` — incremental checkpoints enabled; configured in `CheckpointConfigurer.applyExactlyOnce()` and mirrored in `FLINK_PROPERTIES` (`state.backend: rocksdb`, `state.backend.incremental: true`, `state.backend.rocksdb.memory.managed: true`)
 - [ ] **Max concurrent checkpoints**: Set to 1
 - [ ] **Savepoint strategy**: Test savepoint/resume workflow
 - [ ] **Server-ID ranges**: Non-overlapping and documented

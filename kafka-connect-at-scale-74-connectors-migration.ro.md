@@ -491,6 +491,9 @@ public static void applyExactlyOnce(StreamExecutionEnvironment env) {
     env.getCheckpointConfig()
         .setExternalizedCheckpointRetention(
             ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
+    // State backend (RocksDB + incremental) configurat la nivel de cluster prin
+    // FLINK_PROPERTIES: state.backend=rocksdb, state.backend.incremental=true
+    // Astfel codul job-ului rămâne independent de alegerea backend-ului (flexibilitate operațională).
 }
 ```
 
