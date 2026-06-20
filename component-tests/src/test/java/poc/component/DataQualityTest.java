@@ -98,7 +98,7 @@ class DataQualityTest extends FlinkTestBase {
   }
 
   @Test
-  @Timeout(90)
+  @Timeout(180)
   void kafkaMessage_preservesNullValues() throws Exception {
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
@@ -107,10 +107,12 @@ class DataQualityTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
+    // Exactly-once Kafka sink only makes messages visible after checkpoint commit (30s interval).
+    // 90s gives two full checkpoint windows as margin.
     String msg =
         waitForKafkaMessage(
             TOPIC,
-            Duration.ofSeconds(45),
+            Duration.ofSeconds(90),
             m -> {
               JSONObject a = afterOf(m);
               return a != null && a.optLong("customer_id") == 3000 && a.isNull("status");
