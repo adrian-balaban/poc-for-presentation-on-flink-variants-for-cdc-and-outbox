@@ -9,7 +9,7 @@
     "database.server.id": "5540",
     "database.server.name": "mysql-yaml",
     "database.include.list": "poc_db",
-    "table.include.list": "poc_db.orders,poc_db.customers,poc_db.products",
+    "table.include.list": "poc_db.orders",
     "snapshot.mode": "initial",
     "transforms": "enrichment",
     "transforms.enrichment.type": "poc.kafka.connect.EnrichmentTransform",

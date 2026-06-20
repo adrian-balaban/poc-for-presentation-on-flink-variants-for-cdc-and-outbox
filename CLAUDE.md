@@ -164,7 +164,7 @@ Ranges must be non-overlapping because Flink CDC 3.x incremental snapshot alloca
 
 All variants read from env vars via `poc.common.config.JobConfig.fromEnv()`. Defaults work against the Podman Compose setup without any extra config.
 
-Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_TABLES`, `KAFKA_BOOTSTRAP`, `KAFKA_TOPIC_PREFIX`.
+Key vars: `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_TABLES` (default: `poc_db.orders,poc_db.customers,poc_db.outbox_events`), `KAFKA_BOOTSTRAP`, `KAFKA_TOPIC_PREFIX`.
 
 Per-variant server-ID ranges are also env-overridable (defaults match the [server-ID table](#server-id-ranges-do-not-overlap)): `MYSQL_SERVER_ID` (DataStream, `5900-5999`), `MYSQL_OUTBOX_SERVER_ID` (Outbox, `5600-5699`), `MYSQL_TABLE_API_SERVER_ID` (Table API, `6000-6099`), `MYSQL_SQL_API_ORDERS_SERVER_ID` (SQL API orders, `5800-5849`), `MYSQL_SQL_API_CUSTOMERS_SERVER_ID` (SQL API customers, `5850-5899`). All are validated as non-blank in `JobConfig.Builder.build()`.
 
