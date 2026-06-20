@@ -38,7 +38,7 @@ resource "grafana_rule_group" "flink_cdc_poc" {
         from = 300
         to   = 0
       }
-      datasource_uid = grafana_data_source.prometheus.uid
+      datasource_uid = data.grafana_data_source.prometheus.uid
       model = jsonencode({
         expr         = "increase(flink_jobmanager_job_numRestarts[5m])"
         legendFormat = "{{job_name}}"
@@ -93,7 +93,7 @@ resource "grafana_rule_group" "flink_cdc_poc" {
         from = 300
         to   = 0
       }
-      datasource_uid = grafana_data_source.prometheus.uid
+      datasource_uid = data.grafana_data_source.prometheus.uid
       model = jsonencode({
         expr         = "flink_jobmanager_job_lastCheckpointDuration"
         legendFormat = "{{job_name}}"
@@ -148,7 +148,7 @@ resource "grafana_rule_group" "flink_cdc_poc" {
         from = 300
         to   = 0
       }
-      datasource_uid = grafana_data_source.prometheus.uid
+      datasource_uid = data.grafana_data_source.prometheus.uid
       model = jsonencode({
         expr         = "increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m])"
         legendFormat = "{{job_name}}"
@@ -191,5 +191,5 @@ resource "grafana_rule_group" "flink_cdc_poc" {
     for = "1m"
   }
 
-  depends_on = [grafana_data_source.prometheus]
+  depends_on = [data.grafana_data_source.prometheus]
 }

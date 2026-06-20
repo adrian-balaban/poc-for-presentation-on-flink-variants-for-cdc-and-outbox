@@ -138,7 +138,9 @@ terraform apply
 
 `terraform apply` is idempotent — safe to re-run. State in `terraform/terraform.tfstate` (local backend).
 
-Resources managed: Prometheus datasource (uid `prometheus`) · dashboard · folder "Flink CDC POC" · 3 alert rules · contact point · notification policy.
+Resources managed: dashboard · folder "Flink CDC POC" · 3 alert rules · contact point · notification policy.
+
+**Datasource ownership:** The Prometheus datasource (uid `prometheus`) is auto-provisioned by Grafana from `local-development/grafana/provisioning/datasources/prometheus.yml`. Terraform reads it as a `data` source (`data.grafana_data_source.prometheus`) — it does **not** create it. Adding it as a Terraform `resource` would cause a 409 conflict on every `all` run.
 
 ## Adding a new variant
 
