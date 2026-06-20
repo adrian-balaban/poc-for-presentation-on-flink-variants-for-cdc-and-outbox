@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,22 +47,37 @@ class KafkaConnectVariantTest extends KafkaConnectBase {
     deployConnector(connectorName, config);
     waitForConnectorRunning(connectorName, Duration.ofSeconds(60));
 
-    // Insert a test row
+    // Insert a test row with a unique status tag for this variant
+    String expectedStatus =
+        String.format("KC-%s-TEST", variantName.toUpperCase().replace("-", "_"));
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
           String.format(
-              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (999, 99.99, 'KC-%s-TEST')",
-              variantName.toUpperCase().replace("-", "_")));
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (999, 99.99, '%s')",
+              expectedStatus));
       log.info("Inserted test row for {}", displayName);
     }
 
-    // Poll Kafka topic
-    List<String> messages = pollKafka(topic, 1, Duration.ofSeconds(60));
-    assertThat(messages).isNotEmpty();
+    // Wait for the specific test row rather than taking the first available message.
+    // The topic may contain stale snapshot messages from previous connector runs that
+    // pre-date the EnrichmentTransform, so filtering by status ensures we validate
+    // enrichment on a message produced by the current connector deployment.
+    String message =
+        waitForKafkaMessage(
+            topic,
+            Duration.ofSeconds(60),
+            m -> {
+              try {
+                JSONObject after = new JSONObject(m).optJSONObject("after");
+                return after != null && expectedStatus.equals(after.optString("status"));
+              } catch (Exception e) {
+                return false;
+              }
+            });
+    assertThat(message).as("expected enriched CDC message with status=" + expectedStatus).isNotNull();
 
     // Verify enrichment using shared helper
-    String message = messages.get(0);
     assertEnrichmentMetadata("Enrichment metadata", message, variantName, topicPrefix);
     log.info("{}: Kafka Connect produced enriched event", displayName);
   }
