@@ -244,7 +244,7 @@ pipeline:
 **One base image per variant. 74 MySQL connectors. No per-tribe Java fork.**
 
 Flink Platform Team owns and maintains parametrisable images for the 5 variants.
-Each tribe gets their connector by overriding Helm values only — no fork, no per-tribe release pipeline; tribes customize the platform-owned image, not their own Java repo).
+Each tribe gets their connector by overriding Helm values only — no fork, no per-tribe release pipeline (YAML/SQL/Table variants need no Java; DataStream tribes customize the platform-owned image, not their own Java repo).
 
 ![K8s Deployment Topology: Shared Job Model](images/k8s-deployment-topology.svg)
 
@@ -342,7 +342,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 > plus schema-history topics. Signal topics (`private.debezium.signal.*`) are KC-only;
 > Flink CDC does not use them.
 
-### Kafka Connect REST API — 5 KC Conectori (comparație alăturată)
+### Kafka Connect REST API — 5 KC Connectors (side-by-side comparison)
 
 ![Kafka Connect — 5 connectors list](images/slides/kafka-connect.png)
 
@@ -418,7 +418,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 | Cost axis | KC today (95 connectors) | Flink proposal (74 CDC → Flink; 21 KC retained) |
 |-----------|--------------------------|--------------------------------------------------|
-| Confluent licensing | Full 95-connector bill | ~22% of connectors retained (21/95); pricing is not strictly per-connector — see caveat |
+| Confluent licensing | Full 95-connector bill | ~22% of connectors retained (21/95); pricing is per task/throughput, not strictly per-connector — see caveat |
 | Compute (K8s CPU/RAM) | KC managed by Confluent (included in license) | One JM + TM pod pair per tribe; size per tribe against peak change rate (POC estimate: ~0.5 vCPU + 1 GB RAM at low binlog throughput; production sizing pending Spike S2) |
 | Operational overhead | Shared cluster ops centralised | Per-tribe isolation; Flink Platform Team owns base image |
 | Per-tribe migration cost | Zero (status quo) | S5/S6 spike deliverables (cutover automation) |

@@ -1,7 +1,7 @@
 # Kafka Connect @ Scară: Cazul Migrării a 74 de Conectori
 
 **Autor:** Adrian Balaban  
-**Data:** 2026-06
+**Data:** 2026-06-26
 
 ---
 
@@ -10,7 +10,7 @@
 > Nu doar o relatare a migrării unui client — un **playbook reutilizabil**. După
 > acest talk poți reproduce CDC-ul cu Kafka Connect sau cu Flink la alt client.
 
-Cinci lucruri pe care îi iei de aici:
+Cinci lucruri pe care le iei de aici:
 
 1. **Drumul clientului** — cum s-a plecat acum câțiva ani de la o arhitectură
    **centrată pe DB** și s-a ajuns la una **event-driven** adăugând doar Kafka și
@@ -39,6 +39,10 @@ Cinci lucruri pe care îi iei de aici:
 > întrebarea dacă Flink este calea de ieșire corectă.
 
 Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Flink, cu un proof of concept acoperind toate 5 variantele.
+
+Prezentarea demo a fost livrată inițial **Comunității Java Cognizant România**.
+
+Al doilea obiectiv: producerea de cod aproape de calitatea producției.
 
 ---
 
@@ -311,7 +315,7 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 | StatementSet → 1 JobGraph | Verificat (doar SQL API; Table API folosește un singur INSERT, nu StatementSet) |
 | Toate cele 5 variante rulând simultan | Rulează la scară POC (localhost:8081; 3 tabele, 2 destinații outbox, stare in-memory) |
 
-> POC-ul validează mecanismul la scară POC — 5 variante, 60 de teste unitare, toate verzi; routing-ul outbox este doar logat într-un topic unic în POC (fan-out per destinație via side-output este producție, Spike S3). Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de eșec de producție) este munca de spike deschis (S2/S3/S5).
+> POC-ul validează mecanismul la scară POC — 5 variante, 57 de teste unitare, toate verzi; routing-ul outbox este doar logat într-un topic unic în POC (fan-out per destinație via side-output este producție, Spike S3). Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de eșec de producție) este munca de spike deschis (S2/S3/S5).
 
 ---
 
@@ -340,6 +344,12 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 > Conectorii KC rulează în paralel doar pentru compararea output-ului. Server-ID-uri în intervalul rezervat
 > `5500–5599` pentru a evita coliziunea cu variantele Flink.
+
+### Grafana Dashboard — Monitorizare Flink CDC POC
+
+![Grafana — dashboard Monitorizare Flink CDC POC](images/slides/grafana-dashboard.png)
+
+> 3 monitoare livrate (mirroring Datadog): Restart Loop, Durata Checkpoint, Eșecuri Checkpoint — toate cele 5 variante verzi. Monitoarele #4–#7 (lag conector, stare snapshot, poziție binlog) în așteptarea Spike S1.
 
 ---
 
@@ -401,7 +411,7 @@ Mapa `applicationJobs` din `flink-base-chart` emite per cheie:
 
 **Starea actuală (Confluent KC):** o singură factură de cluster partajat acoperă toți 95 de conectori.
 
-**Starea propusă (Flink):** factura Confluent redusă la 21 de conectori; Flink rulează pe compute K8s existent.
+**Starea propusă (Flink):** factura Confluent redusă la 21 de conectori; Flink rulează pe K8s existent fara licente suplimentare.
 
 | Axă de cost | KC azi (95 conectori) | Propunere Flink (74 CDC → Flink; 21 KC rămân) |
 |-------------|----------------------|------------------------------------------------|
