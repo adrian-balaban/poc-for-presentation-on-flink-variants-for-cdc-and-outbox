@@ -192,6 +192,7 @@ tasks.register('allK8s') {
         } finally {
             println '=== Stopping kubectl port-forwards ==='
             portForwards*.destroy()
+            portForwards*.waitFor()  // ensure ports are released before JVM exits
         }
     }
 }
