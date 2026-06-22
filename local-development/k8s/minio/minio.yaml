@@ -1,0 +1,96 @@
+# MinIO for the flink-cdc-poc k8s slice.
+#
+# Mirrors the Podman Compose `minio` + `minio-init` services: S3 API on 9000,
+# console on 9001, credentials minioadmin/minioadmin, bucket flink-checkpoints
+# (where Flink writes checkpoints/savepoints — s3://flink-checkpoints/...).
+#
+# The bucket is created by a one-shot Job (`mc mb -p`) that waits for MinIO to
+# accept connections first. Idempotent via `mc mb --ignore-existing`.
+# Exposed only inside the cluster: Flink reaches it at http://minio:9000.
+# Host console access is via `kubectl port-forward svc/minio 9001:9001`.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: poc
+spec:
+  selector:
+    app: minio
+  ports:
+    - name: api
+      port: 9000
+    - name: console
+      port: 9001
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: poc
+spec:
+  serviceName: minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: docker.io/minio/minio:latest
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              value: minioadmin
+            - name: MINIO_ROOT_PASSWORD
+              value: minioadmin
+          ports:
+            - containerPort: 9000
+              name: api
+            - containerPort: 9001
+              name: console
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+# One-shot: create the flink-checkpoints bucket (idempotent). Waits for MinIO
+# to be reachable, then `mc mb --ignore-existing`. Retries on failure.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+  namespace: poc
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: docker.io/minio/mc:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              until mc alias set minio http://minio:9000 minioadmin minioadmin; do
+                echo "waiting for minio..."; sleep 2;
+              done
+              mc mb --ignore-existing minio/flink-checkpoints
+              echo "bucket flink-checkpoints ready"

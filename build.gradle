@@ -93,6 +93,109 @@ tasks.register('fmtCheck') {
     dependsOn 'spotlessCheck'
 }
 
+// ── allK8s ───────────────────────────────────────────────────────────────────
+// Deploys the full k8s stack (kind cluster, 5 Flink variants, 5 Kafka Connect
+// variants, monitoring) via deploy.sh, then runs the component test suite against
+// the k8s stack via kubectl port-forward.
+//
+// Prerequisites: kind, kubectl, helm, podman (all on PATH).
+// Stop the Podman Compose stack before running this task to avoid port conflicts.
+//
+// Port-forward mapping used during tests (all on high ports — no Podman conflicts):
+//   MySQL:                 localhost:13306  → svc/mysql
+//   Kafka:                 localhost:19092  → svc/poc-kafka-kafka-bootstrap
+//   DataStream JM REST:    localhost:18081  → svc/datastream-cdc-rest
+//   Table API JM REST:     localhost:18082  → svc/table-api-cdc-rest
+//   SQL API JM REST:       localhost:18083  → svc/sql-api-cdc-rest
+//   Outbox JM REST:        localhost:18084  → svc/outbox-cdc-rest
+//   YAML Pipeline JM REST: localhost:18085  → svc/yaml-pipeline-cdc-rest
+//   Kafka Connect REST:    localhost:18086  → svc/poc-connect-connect-api
+//
+// Each Flink variant test class runs in a separate Gradle invocation with its own
+// FLINK_REST_URL pointing to the variant's JM — every variant gets its own isolated
+// test run against the correct cluster. KC tests share one invocation with
+// KAFKA_CONNECT_URL=http://localhost:18086 and SCHEMA_HISTORY_KAFKA_BOOTSTRAP
+// pointing to the in-cluster Kafka.
+tasks.register('allK8s') {
+    group = 'flink-cdc-poc'
+    description = 'Deploy k8s stack (kind) via deploy.sh and run component tests via kubectl port-forward'
+
+    doLast {
+        // ── prerequisites ────────────────────────────────────────────────────
+        ['kind', 'kubectl', 'helm', 'podman'].each { tool ->
+            boolean found = false
+            try { found = ['bash', '-c', "command -v ${tool} >/dev/null 2>&1"].execute().waitFor() == 0 }
+            catch (Exception ignored) { }
+            if (!found) throw new GradleException("'${tool}' not found on PATH — required for allK8s")
+        }
+
+        // ── deploy ───────────────────────────────────────────────────────────
+        println '=== Running deploy.sh (kind cluster + 5 Flink + 5 KC + monitoring) ==='
+        exec {
+            commandLine 'bash', 'local-development/k8s/deploy.sh'
+        }
+
+        // ── port-forwards ────────────────────────────────────────────────────
+        // One tunnel per variant REST service so each test class targets the right JM.
+        // Killed in the finally block regardless of test outcome.
+        println '=== Starting kubectl port-forwards ==='
+        def portForwards = [
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/mysql',                     '13306:3306'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/poc-kafka-kafka-bootstrap',  '19092:9092'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/datastream-cdc-rest',        '18081:8081'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/table-api-cdc-rest',         '18082:8081'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/sql-api-cdc-rest',           '18083:8081'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/outbox-cdc-rest',            '18084:8081'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/yaml-pipeline-cdc-rest',     '18085:8081'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/poc-connect-connect-api',    '18086:8083'],
+        ].collect { it.execute() }
+
+        println '=== Waiting 5 s for port-forwards to stabilise ==='
+        Thread.sleep(5000)
+
+        // Common env vars shared by all test invocations.
+        def commonEnv = [
+            MYSQL_PORT:        '13306',
+            KAFKA_BOOTSTRAP:   'localhost:19092',
+        ]
+
+        // Per-variant Flink test runs — each targets its own JM via FLINK_REST_URL.
+        // Running as separate Gradle invocations ensures FlinkRestClient.BASE_URL
+        // (a static field read once per JVM at class-load) picks up the right URL.
+        def flinkVariants = [
+            [test: 'poc.component.DataStreamCdcTest',   url: 'http://localhost:18081'],
+            [test: 'poc.component.TableApiCdcTest',     url: 'http://localhost:18082'],
+            [test: 'poc.component.SqlApiCdcTest',       url: 'http://localhost:18083'],
+            [test: 'poc.component.DataStreamOutboxTest',url: 'http://localhost:18084'],
+            [test: 'poc.component.YamlPipelineCdcTest', url: 'http://localhost:18085'],
+        ]
+
+        try {
+            flinkVariants.each { variant ->
+                println "=== Flink test: ${variant.test} → ${variant.url} ==="
+                exec {
+                    commandLine './gradlew', ':component-tests:test', '--tests', variant.test
+                    environment commonEnv
+                    environment 'FLINK_REST_URL', variant.url
+                }
+            }
+
+            println '=== Running Kafka Connect tests → http://localhost:18086 ==='
+            exec {
+                commandLine './gradlew', ':component-tests:test',
+                    '--tests', 'poc.component.KafkaConnect*'
+                environment commonEnv
+                environment 'KAFKA_CONNECT_URL',           'http://localhost:18086'
+                // Debezium connectors inside KC connect to Kafka via in-cluster address.
+                environment 'SCHEMA_HISTORY_KAFKA_BOOTSTRAP', 'poc-kafka-kafka-bootstrap:9092'
+            }
+        } finally {
+            println '=== Stopping kubectl port-forwards ==='
+            portForwards*.destroy()
+        }
+    }
+}
+
 tasks.register('all') { // buildAndTest
     group = 'flink-cdc-poc'
     description = 'Build all, restart the container stack (Podman), and run component tests'

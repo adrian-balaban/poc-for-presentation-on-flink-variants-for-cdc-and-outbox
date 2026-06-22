@@ -22,7 +22,8 @@ import org.json.JSONObject;
 @Slf4j
 class FlinkRestClient {
 
-  private static final String BASE_URL = "http://localhost:8081";
+  private static final String BASE_URL =
+      System.getenv().getOrDefault("FLINK_REST_URL", "http://localhost:8081");
   private static final HttpClient http = HttpClient.newHttpClient();
 
   boolean isAvailable() {

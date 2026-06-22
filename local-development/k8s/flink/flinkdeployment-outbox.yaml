@@ -1,0 +1,98 @@
+# FlinkDeployment for the Outbox CDC variant (variant-4) on k8s.
+#
+# Same init-container + volume artifact pattern as the DataStream variant — see
+# flinkdeployment-datastream.yaml for the full pattern explanation and the
+# v1beta1 schema notes. Only the per-variant specifics differ:
+#
+#   - artifact image:  flink-cdc-artifact-outbox:latest
+#   - jarURI:          local:///opt/flink/usrlib/outbox-job.jar
+#   - entryClass:      poc.outbox.OutboxJob
+#   - server-id env:   MYSQL_OUTBOX_SERVER_ID = 5600-5699
+#   - Kafka topic:     poc.cdc.outbox.flink (KAFKA_TOPIC_PREFIX + ".outbox.flink")
+#
+# The Outbox job reads ONLY the outbox_events table (tableList is hardcoded to
+# <db>.outbox_events) and server-id from MYSQL_OUTBOX_SERVER_ID (NOT
+# MYSQL_SERVER_ID — it has its own range so it can coexist with the DataStream
+# job). The OutboxRouter logs a per-destination topic
+# (poc.cdc.outbox.flink.<destination>) for routing visibility, but the actual
+# Kafka sink is the single topic poc.cdc.outbox.flink (per-row dynamic topic
+# routing would need side outputs — a production enhancement, not in the POC).
+# MYSQL_TABLES is set for uniformity but is NOT read by this variant.
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: outbox-cdc
+  namespace: poc
+spec:
+  image: flink-with-mysql:latest
+  imagePullPolicy: Never
+  flinkVersion: v2_2
+  serviceAccount: flink
+  flinkConfiguration:
+    state.backend: rocksdb
+    execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
+    execution.checkpointing.savepoint-dir: s3://flink-checkpoints/savepoints
+    s3.endpoint: http://minio:9000
+    s3.path.style.access: "true"
+    s3.access-key: minioadmin
+    s3.secret-key: minioadmin
+    metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+  jobManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+    podTemplate:
+      spec:
+        initContainers:
+          - name: fetch-job-jar
+            image: flink-cdc-artifact-outbox:latest
+            imagePullPolicy: Never
+            command:
+              - sh
+              - -c
+              - "cp /artifacts/outbox-job.jar /opt/flink/usrlib/outbox-job.jar"
+            volumeMounts:
+              - mountPath: /opt/flink/usrlib
+                name: flink-usrlib
+  taskManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+  job:
+    jarURI: local:///opt/flink/usrlib/outbox-job.jar
+    entryClass: poc.outbox.OutboxJob
+    parallelism: 1
+    state: running
+    upgradeMode: last-state
+  podTemplate:
+    spec:
+      containers:
+        - name: flink-main-container
+          volumeMounts:
+            - mountPath: /opt/flink/usrlib
+              name: flink-usrlib
+          env:
+            - name: MYSQL_HOST
+              value: mysql
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: flink
+            - name: MYSQL_PASSWORD
+              value: flink
+            - name: MYSQL_DATABASE
+              value: poc_db
+            - name: MYSQL_TABLES
+              value: poc_db.orders,poc_db.customers,poc_db.outbox_events
+            - name: MYSQL_OUTBOX_SERVER_ID
+              value: 5600-5699
+            - name: KAFKA_BOOTSTRAP
+              value: poc-kafka-kafka-bootstrap:9092
+            - name: KAFKA_TOPIC_PREFIX
+              value: poc.cdc
+      volumes:
+        - name: flink-usrlib
+          emptyDir: {}

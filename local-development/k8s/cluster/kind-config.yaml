@@ -1,0 +1,20 @@
+# kind cluster config for the flink-cdc-poc k8s slice.
+#
+# Single-node (control-plane only) cluster — enough for the minimal vertical
+# slice (MySQL + Kafka + MinIO + Flink Operator + one FlinkDeployment).
+#
+# No extraPortMappings: host access is via `kubectl port-forward`, so the k8s
+# stack coexists with the running Podman Compose stack (which already owns host
+# ports 3306/9092/8081/9001/9090). The two are an either/or POC, but avoiding
+# host-port binding lets you compare them side by side without tearing either
+# down. It also sidesteps rootless-podman host-port binding quirks: kind uses
+# the podman provider here (`docker` is a podman shim, podman is rootless), and
+# rootless extraPortMappings can be unreliable.
+#
+# Node image pinned to k8s 1.32 (Strimzi 1.0.x requires k8s >= 1.30).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: flink-cdc-poc
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.32.0

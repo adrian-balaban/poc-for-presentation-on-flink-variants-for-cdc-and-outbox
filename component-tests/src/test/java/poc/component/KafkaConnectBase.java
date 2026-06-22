@@ -24,7 +24,15 @@ public abstract class KafkaConnectBase extends ContainerBase {
   static final String DB_HOST =
       System.getProperty("db.host", System.getenv().getOrDefault("DB_HOST", "mysql"));
 
-  private static final String KAFKA_CONNECT_URL = "http://localhost:8083";
+  // Override with KAFKA_CONNECT_URL env var to target a different KC instance
+  // (e.g. kubectl port-forward to a non-default port for k8s testing).
+  static final String KAFKA_CONNECT_URL =
+      System.getenv().getOrDefault("KAFKA_CONNECT_URL", "http://localhost:8083");
+
+  // Bootstrap address used by Debezium connectors inside KC for schema history storage.
+  // Podman bridge default: kafka:29092. k8s: poc-kafka-kafka-bootstrap:9092.
+  static final String SCHEMA_HISTORY_BOOTSTRAP =
+      System.getenv().getOrDefault("SCHEMA_HISTORY_KAFKA_BOOTSTRAP", "kafka:29092");
   private static volatile Boolean kafkaConnectAvailable = null;
   private static final Object connectCheckLock = new Object();
   protected static final HttpClient httpClient = HttpClient.newHttpClient();
@@ -260,7 +268,7 @@ public abstract class KafkaConnectBase extends ContainerBase {
                 "value.converter.schemas.enable": false,
                 "decimal.handling.mode": "string",
                 "include.schema.changes": false,
-                "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
+                "schema.history.internal.kafka.bootstrap.servers": "%s",
                 "schema.history.internal.kafka.topic": "dbhistory.%s",
                 "topic.prefix": "%s"
               }
@@ -273,6 +281,7 @@ public abstract class KafkaConnectBase extends ContainerBase {
         tableList,
         variantName,
         topicPrefix,
+        SCHEMA_HISTORY_BOOTSTRAP,
         variantName,
         topicPrefix);
   }

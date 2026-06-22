@@ -1,0 +1,8 @@
+# Namespace for the flink-cdc-poc k8s slice.
+# Everything (MySQL, Kafka, MinIO, Flink Operator jobs) lives here so the slice
+# is easy to tear down (`kubectl delete namespace poc`) without touching the
+# operator releases installed in their own namespaces.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: poc

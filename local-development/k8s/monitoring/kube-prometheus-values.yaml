@@ -1,0 +1,72 @@
+# kube-prometheus-stack Helm values for the flink-cdc-poc k8s stack.
+#
+# Minimal install: only Prometheus + Grafana. All Kubernetes infra monitors
+# (kube-state-metrics, node-exporter, control-plane scrapers) and Alertmanager
+# are disabled — they consume CPU/memory that the kind node needs for Flink + KC.
+#
+# Prometheus watches PodMonitors and PrometheusRules in ALL namespaces so the
+# poc-namespace resources (pod-monitor.yaml, prometheus-rules.yaml) are picked up
+# without being in the monitoring namespace.
+#
+# Grafana sidecar is enabled with searchNamespace: ALL so the dashboard ConfigMap
+# (grafana-dashboard-cm.yaml) in the monitoring namespace is auto-imported.
+#
+# Default Grafana datasource: name=Prometheus, uid=prometheus — matches the uid
+# used in the existing flink-cdc-monitoring.json dashboard panels.
+# Admin credentials: admin/admin (matches Podman stack; do not change via UI —
+# the provisioned password is the source of truth).
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 2h
+    # Watch PodMonitors/PrometheusRules in every namespace — picks up poc namespace
+    # resources without requiring them to be in the monitoring namespace.
+    podMonitorNamespaceSelector: {}
+    podMonitorSelector: {}
+    ruleNamespaceSelector: {}
+    ruleSelector: {}
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+grafana:
+  adminPassword: admin
+  sidecar:
+    dashboards:
+      enabled: true
+      # Discover dashboard ConfigMaps (label grafana_dashboard: "1") in all namespaces.
+      searchNamespace: ALL
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# ── disabled components ──────────────────────────────────────────────────────
+alertmanager:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+nodeExporter:
+  enabled: false
+# Kubernetes control-plane scrapers (not useful for this application-level POC)
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+# Default Kubernetes infra alert rules (OOMKilled, PVC full, etc.) — not relevant
+defaultRules:
+  create: false

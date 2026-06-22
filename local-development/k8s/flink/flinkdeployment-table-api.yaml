@@ -1,0 +1,98 @@
+# FlinkDeployment for the Table API CDC variant (variant-2) on k8s.
+#
+# Same init-container + volume artifact pattern as the DataStream variant — see
+# flinkdeployment-datastream.yaml for the full pattern explanation and the
+# v1beta1 schema notes (job under spec.job; resource is operator type
+# {cpu,memory}; main container MUST be named flink-main-container; no top-level
+# env/service; operator auto-creates <name>-rest). Only the per-variant
+# specifics differ:
+#
+#   - artifact image:  flink-cdc-artifact-table-api:latest
+#   - jarURI:          local:///opt/flink/usrlib/table-api-job.jar
+#   - entryClass:      poc.tableapi.TableApiCdcJob
+#   - server-id env:   MYSQL_TABLE_API_SERVER_ID = 6000-6099
+#   - Kafka topic:     poc.cdc.table-api.flink (KAFKA_TOPIC_PREFIX + ".table-api.flink")
+#
+# The Table API job declares its source table in SQL DDL with a hardcoded
+# `table-name = 'orders'` and reads server-id from MYSQL_TABLE_API_SERVER_ID
+# (NOT MYSQL_SERVER_ID). MYSQL_TABLES is set for uniformity with the DataStream
+# manifest but is NOT read by this variant. Server-ID range 6000-6099 is
+# non-overlapping with the other variants (see CLAUDE.md server-ID table).
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: table-api-cdc
+  namespace: poc
+spec:
+  image: flink-with-mysql:latest
+  imagePullPolicy: Never
+  flinkVersion: v2_2
+  serviceAccount: flink
+  flinkConfiguration:
+    state.backend: rocksdb
+    execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
+    execution.checkpointing.savepoint-dir: s3://flink-checkpoints/savepoints
+    s3.endpoint: http://minio:9000
+    s3.path.style.access: "true"
+    s3.access-key: minioadmin
+    s3.secret-key: minioadmin
+    metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+  jobManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+    podTemplate:
+      spec:
+        initContainers:
+          - name: fetch-job-jar
+            image: flink-cdc-artifact-table-api:latest
+            imagePullPolicy: Never
+            command:
+              - sh
+              - -c
+              - "cp /artifacts/table-api-job.jar /opt/flink/usrlib/table-api-job.jar"
+            volumeMounts:
+              - mountPath: /opt/flink/usrlib
+                name: flink-usrlib
+  taskManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+  job:
+    jarURI: local:///opt/flink/usrlib/table-api-job.jar
+    entryClass: poc.tableapi.TableApiCdcJob
+    parallelism: 1
+    state: running
+    upgradeMode: last-state
+  podTemplate:
+    spec:
+      containers:
+        - name: flink-main-container
+          volumeMounts:
+            - mountPath: /opt/flink/usrlib
+              name: flink-usrlib
+          env:
+            - name: MYSQL_HOST
+              value: mysql
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: flink
+            - name: MYSQL_PASSWORD
+              value: flink
+            - name: MYSQL_DATABASE
+              value: poc_db
+            - name: MYSQL_TABLES
+              value: poc_db.orders,poc_db.customers,poc_db.outbox_events
+            - name: MYSQL_TABLE_API_SERVER_ID
+              value: 6000-6099
+            - name: KAFKA_BOOTSTRAP
+              value: poc-kafka-kafka-bootstrap:9092
+            - name: KAFKA_TOPIC_PREFIX
+              value: poc.cdc
+      volumes:
+        - name: flink-usrlib
+          emptyDir: {}

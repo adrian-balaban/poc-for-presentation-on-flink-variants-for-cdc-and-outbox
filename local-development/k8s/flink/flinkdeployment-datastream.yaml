@@ -1,0 +1,179 @@
+# FlinkDeployment for the DataStream CDC variant (variant-1) on k8s.
+#
+# This is the k8s equivalent of submitting the DataStream fat-jar to the Podman
+# Flink JobManager. The Flink Kubernetes Operator (1.15.0, supports Flink 2.2.x
+# via the v2_2 flinkVersion enum) runs the job from the generic
+# flink-with-mysql base image (Flink 2.2 + mysql-connector-j + flink-s3-fs-presto
+# + flink-metrics-prometheus). The variant fat-jar is NOT baked into the image;
+# it is mounted as a volume via an init-container — the official Flink Operator
+# artifact pattern (upstream examples/pod-template.yaml at release-1.15.0):
+#
+#   1. `spec.image` = flink-with-mysql:latest (generic, variant-agnostic).
+#   2. The top-level podTemplate declares an emptyDir volume `flink-usrlib` and
+#      mounts it at /opt/flink/usrlib on the main container.
+#   3. jobManager.podTemplate.spec.initContainers[0] uses the per-variant
+#      artifact image (flink-cdc-artifact-datastream:latest, a busybox image
+#      holding ONLY the fat-jar at /artifacts/datastream-job.jar) and copies
+#      the jar into the emptyDir before the JM starts.
+#   4. `job.jarURI: local:///opt/flink/usrlib/datastream-job.jar` runs it.
+#
+# In application/native mode the JM loads the jar locally and ships it to TMs
+# via Flink's blob store, so the init-container only needs to run on the JM
+# (the TM emptyDir stays empty — that is fine, matching the upstream example).
+#
+# This pattern is identical for all 4 Java fat-jar variants (DataStream, Table
+# API, SQL API, Outbox): only the artifact image name, jarURI, entryClass,
+# server-ID, and Kafka topic differ. Variant 5 (YAML Pipeline) is zero-code
+# (no fat-jar, no entry class — submitted via `flink-cdc.sh pipeline.yaml`) and
+# does NOT fit this pattern; it needs a session-cluster FlinkDeployment + a
+# one-shot flink-cdc-submitter Job (expand phase).
+#
+# API VERSION: this operator build serves FlinkDeployment at **v1beta1** only
+# (no v1). The v1beta1 schema differs from v1 in several places — read the
+# comments below if editing:
+#   - job details (jarURI/entryClass/parallelism/state/upgradeMode) live under
+#     spec.job, NOT at the top level.
+#   - mode enum is native|standalone (default native = operator-managed); there
+#     is no `application` value — a FlinkDeployment with spec.job is the
+#     application-mode equivalent (operator runs the cluster + submits the job).
+#   - JM/TM memory comes from spec.jobManager/taskManager.resource, not from
+#     flinkConfiguration memory keys.
+#   - there is no top-level `service` field; the operator auto-creates a
+#     `<name>-rest` ClusterIP Service (datastream-cdc-rest) for the JM REST API.
+#   - there is no top-level `env`; the Flink process env (MYSQL_*, KAFKA_*) is
+#     set on the top-level podTemplate's main container (name MUST be
+#     `flink-main-container` — the operator's main container; any other name
+#     becomes an imageless sidecar and the JM Deployment is rejected with
+#     `containers[0].image: Required value`).
+#
+# Checkpoint/state + S3 config lives in spec.flinkConfiguration — the k8s
+# replacement for the `flink-cdc.sh -D` flags in
+# local-development/flink-cdc-submitter/entrypoint.sh. The operator translates
+# these keys into the JM/TM execution environment (unlike the Pipeline API's
+# pipeline: section, which ignores them). The DataStream job's
+# CheckpointConfigurer sets interval/mode/timeout/min-pause/retention in code,
+# so those are intentionally NOT repeated here (code wins); only the dir,
+# savepoint-dir, state backend, and S3 credentials are set.
+#
+# spec.job.upgradeMode is `last-state`, NOT `stateless` — per CLAUDE.md, never
+# leave upgradeMode stateless permanently (every restart would re-snapshot the
+# full table).
+#
+# Server-ID range 5900–5999 matches the Podman production default
+# (MYSQL_SERVER_ID) — non-overlapping with the other variants (Table API
+# 6000-6099, SQL API 5800-5899, Outbox 5600-5699, YAML 5700-5709) and with
+# Kafka Connect (5500–5599).
+#
+# Kafka topic: poc.cdc.datastream.flink (= KAFKA_TOPIC_PREFIX + ".datastream.flink"
+# — the .flink suffix, added by the 0427a45 rename, disambiguates from the
+# Kafka Connect variant's poc.cdc.datastream.kc topic).
+#
+# JM/TM resources: cpu 1 + memory 2Gi each. The original slice used cpu 2 each,
+# but 4 coexisting variants × 4 CPU = 16 CPU exhausted the kind node and starved
+# the 4th TaskManager (Pending). 1 CPU per JM/TM is ample for parallelism=1 CDC
+# and leaves headroom for variant 5 + Kafka Connect + monitoring (see K8S.md
+# Prerequisites).
+#
+# Images are loaded into kind via `kind load docker-image` (imagePullPolicy:
+# Never — never pull a registry). Both flink-with-mysql:latest (the JM/TM runtime
+# image) and flink-cdc-artifact-datastream:latest (the init-container artifact
+# image) must be loaded — see k8s/deploy.sh.
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: datastream-cdc
+  namespace: poc
+spec:
+  image: flink-with-mysql:latest
+  imagePullPolicy: Never
+  flinkVersion: v2_2
+  serviceAccount: flink
+  flinkConfiguration:
+    state.backend: rocksdb
+    execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
+    execution.checkpointing.savepoint-dir: s3://flink-checkpoints/savepoints
+    # S3 filesystem plugin (flink-s3-fs-presto, baked into flink-with-mysql) needs
+    # these to resolve s3:// URIs — the k8s equivalent of the submitter's
+    # FLINK_PROPERTIES S3 block. minio is the in-cluster Service name.
+    s3.endpoint: http://minio:9000
+    s3.path.style.access: "true"
+    s3.access-key: minioadmin
+    s3.secret-key: minioadmin
+    # Prometheus reporter is bundled in flink-with-mysql; surfaced for the
+    # monitoring expand phase (ServiceMonitor). Harmless until scraped.
+    metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+  # resource is the operator's own type (cpu: number, memory: string) — a
+  # single value used as both the request and the limit (no requests/limits
+  # nesting; that is a v1/ResourceRequirements shape and is rejected here).
+  jobManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+    # Init-container that populates the emptyDir with the variant fat-jar before
+    # the JM main container starts. Runs on the JM only — in application/native
+    # mode the JM loads the jar locally and ships it to TMs via Flink's blob
+    # store, so the TM does not need the jar on its volume (matches the upstream
+    # examples/pod-template.yaml pattern).
+    podTemplate:
+      spec:
+        initContainers:
+          - name: fetch-job-jar
+            image: flink-cdc-artifact-datastream:latest
+            imagePullPolicy: Never
+            command:
+              - sh
+              - -c
+              - "cp /artifacts/datastream-job.jar /opt/flink/usrlib/datastream-job.jar"
+            volumeMounts:
+              - mountPath: /opt/flink/usrlib
+                name: flink-usrlib
+  taskManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+  job:
+    jarURI: local:///opt/flink/usrlib/datastream-job.jar
+    entryClass: poc.datastream.DataStreamCdcJob
+    parallelism: 1
+    state: running
+    upgradeMode: last-state
+  # Top-level podTemplate applies to BOTH JM and TM pods. The emptyDir volume
+  # `flink-usrlib` is therefore present on both; the JM's init-container (above)
+  # is what fills it. The main container name MUST be `flink-main-container`
+  # (the operator's main container) so the volumeMount + env merge into the
+  # Flink process rather than spawning a sidecar. Env vars here are read by the
+  # JM via JobConfig.fromEnv().
+  podTemplate:
+    spec:
+      containers:
+        # Do not change the main container name — the operator injects
+        # spec.image into a container named exactly `flink-main-container`.
+        - name: flink-main-container
+          volumeMounts:
+            - mountPath: /opt/flink/usrlib
+              name: flink-usrlib
+          env:
+            - name: MYSQL_HOST
+              value: mysql
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: flink
+            - name: MYSQL_PASSWORD
+              value: flink
+            - name: MYSQL_DATABASE
+              value: poc_db
+            - name: MYSQL_TABLES
+              value: poc_db.orders,poc_db.customers,poc_db.outbox_events
+            - name: MYSQL_SERVER_ID
+              value: 5900-5999
+            - name: KAFKA_BOOTSTRAP
+              value: poc-kafka-kafka-bootstrap:9092
+            - name: KAFKA_TOPIC_PREFIX
+              value: poc.cdc
+      volumes:
+        - name: flink-usrlib
+          emptyDir: {}

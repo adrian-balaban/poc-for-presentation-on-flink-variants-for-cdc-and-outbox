@@ -1,0 +1,67 @@
+# FlinkDeployment for the YAML Pipeline variant (variant-5) on k8s — session cluster.
+#
+# This variant uses a fundamentally different pattern from the 4 Java variants:
+#
+#   Java variants (1-4):  application mode — spec.job bakes the jar in; operator
+#                         manages the full lifecycle (submit + cancel + upgrade).
+#   YAML pipeline (5):    session mode — no spec.job; a standalone JM+TM cluster
+#                         runs idle until the submitter Job (job-yaml-submitter.yaml)
+#                         calls `flink-cdc.sh pipeline.yaml` against the REST API.
+#
+# In session mode the operator:
+#   - Creates a JM Deployment + `yaml-pipeline-cdc-rest` ClusterIP Service (port 8081)
+#   - Pre-deploys taskManager.replicas TM pods so slots are available before the
+#     submitter runs (avoids slot-allocation timeout at submission time)
+#   - Does NOT manage job lifecycle (cancel/upgrade) — that is the submitter's job
+#
+# Checkpoint config in flinkConfiguration is propagated to job execution by the
+# session cluster. The submitter ALSO passes identical -D flags for belt-and-suspenders
+# (the Pipeline API ignores pipeline:-section keys for execution.checkpointing.* / state.*,
+# but the session cluster's flinkConfiguration does reach the job runtime).
+#
+# No init-container / artifact image needed — YAML pipeline is zero Java code.
+# No MYSQL_* / KAFKA_* env on pods — the pipeline.yaml config is resolved by the
+# submitter's envsubst before submission; the resolved literals are embedded in the
+# submitted job, not read from pod env at runtime.
+#
+# Server-ID range 5700–5709 matches Podman production defaults (non-overlapping
+# with all other variants and Kafka Connect — see CLAUDE.md).
+#
+# JM/TM: 1 CPU / 2 Gi each, matching the 4 Java variants. 5th variant on the
+# 8-CPU kind node (4 variants × 1 CPU each + yaml 1 CPU = 5 CPUs JM + 5 CPUs TM =
+# 10 CPUs total — just under the 12-CPU kind node default).
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: yaml-pipeline-cdc
+  namespace: poc
+spec:
+  image: flink-with-mysql:latest
+  imagePullPolicy: Never
+  flinkVersion: v2_2
+  serviceAccount: flink
+  flinkConfiguration:
+    state.backend: rocksdb
+    execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
+    execution.checkpointing.savepoint-dir: s3://flink-checkpoints/savepoints
+    # S3 filesystem plugin (flink-s3-fs-presto, baked into flink-with-mysql) resolves
+    # s3:// URIs. minio is the in-cluster Service name.
+    s3.endpoint: http://minio:9000
+    s3.path.style.access: "true"
+    s3.access-key: minioadmin
+    s3.secret-key: minioadmin
+    # Prometheus reporter bundled in flink-with-mysql; wired for monitoring expand phase.
+    metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+  jobManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+  taskManager:
+    replicas: 1
+    resource:
+      memory: 2Gi
+      cpu: 1
+  # No spec.job — session cluster mode. No podTemplate — nothing to override
+  # (no fat-jar volume, no MYSQL_*/KAFKA_* env needed on the Flink runtime pods).

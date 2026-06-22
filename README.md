@@ -38,14 +38,14 @@ See also [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-
 
 ## Prerequisites
 
-- **Podman + podman-compose** (the only supported container engine)
+**Podman Compose path (default, fast iteration):**
+- Podman + podman-compose (`pip install podman-compose`)
 - Java 17+
-- (Optional) `flink-cdc.sh` on PATH for variant 5
 
-Install podman-compose if needed:
-```bash
-pip install podman-compose
-```
+**Kubernetes path (production-shaped):**
+- `kind`, `kubectl`, `helm`, `podman` on PATH
+- Java 17+
+- See [K8S.md](./K8S.md) for full k8s setup and port-forward details
 
 ---
 
@@ -203,30 +203,31 @@ Resources managed: Prometheus datasource · dashboard · folder · 3 alert rules
 
 ## Full Integration Test
 
-For end-to-end validation, use the `all` goal:
+### Podman Compose (local fast loop)
 
 ```bash
 ./gradlew all
 ```
 
-This orchestrates a complete build-and-test cycle:
+Orchestrates: build all fat-jars → restart Podman Compose → wait for services → deploy Kafka Connect connectors → run component tests.
 
-1. Builds all modules — `./gradlew clean build -x test shadowJar` (includes the variant fat-jars)
-2. Restarts Podman Compose — `podman-compose -f podman-compose.yml down -v && ... up -d` (down errors are non-fatal — "container not found" on first run is normal)
-3. Waits for services — polls MySQL + Kafka + Kafka Connect + Flink JM until ready (up to 180 s)
-4. Builds Kafka Connect SMTs — `./gradlew :kafka-connect-smts:shadowJar`
-5. Deploys Kafka Connect connectors — REST API deployment via `deploy-connectors.sh`
-6. Runs component tests — Flink + Kafka Connect tests
+### Kubernetes (production-shaped)
 
-The task runs all steps sequentially, stopping on any failure.
+```bash
+./gradlew allK8s
+```
 
-During the component test run, all 5 Flink variant jobs are submitted to the Flink JobManager and are visible at http://localhost:8081/#/job/running. Jobs are **not cancelled** after tests — they remain running for the lifetime of the stack.
+Orchestrates: `./local-development/k8s/deploy.sh` (kind cluster + 5 Flink + 5 KC + monitoring) → kubectl port-forwards → run each Flink variant test with `FLINK_REST_URL` targeting its own JM → run KC tests → tear down tunnels.
+
+Each Flink variant test class runs against its own JM REST endpoint (one port-forward per variant, ports 18081–18085). KC tests target the Strimzi KC cluster at port 18086. See [K8S.md](./K8S.md) for details.
 
 ---
 
 ## Environment Variables
 
 All variants read configuration from environment variables with sensible defaults for local Podman use.
+
+**Flink job config** (read by `JobConfig.fromEnv()` in every variant):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -239,6 +240,14 @@ All variants read configuration from environment variables with sensible default
 | `MYSQL_SERVER_ID` | `5900-5999` | Binlog replica server-ID range |
 | `KAFKA_BOOTSTRAP` | `localhost:9092` | Kafka bootstrap servers |
 | `KAFKA_TOPIC_PREFIX` | `poc.cdc` | Topic prefix; variant name appended |
+
+**Component test targeting** (override defaults for k8s port-forwards):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FLINK_REST_URL` | `http://localhost:8081` | Flink JM REST endpoint (`FlinkRestClient`) |
+| `KAFKA_CONNECT_URL` | `http://localhost:8083` | Kafka Connect REST endpoint (`KafkaConnectBase`) |
+| `SCHEMA_HISTORY_KAFKA_BOOTSTRAP` | `kafka:29092` | Bootstrap servers for Debezium schema history topic inside KC; set to `poc-kafka-kafka-bootstrap:9092` for k8s |
 
 ---
 
@@ -326,7 +335,8 @@ All variants are configured with **exactly-once semantics** and **30-second chec
 ## References
 
 ### Project Documentation
-- [CLAUDE.md](./CLAUDE.md) — module structure, server-ID ranges, component tests
+- [CLAUDE.md](./CLAUDE.md) — module structure, server-ID ranges, component tests, build commands
+- [K8S.md](./K8S.md) — Kubernetes deployment path (kind + Flink Operator + Strimzi + monitoring)
 - [FLINK_CHECKPOINT_CONFIG.md](./FLINK_CHECKPOINT_CONFIG.md) — checkpoint semantics, monitoring, troubleshooting
 - [FLINK_SAVEPOINT_RUNBOOK.md](./FLINK_SAVEPOINT_RUNBOOK.md) — safe upgrade workflows, state recovery
 - [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, SMTs, comparison

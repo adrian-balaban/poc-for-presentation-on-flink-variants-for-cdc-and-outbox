@@ -1,0 +1,76 @@
+# Strimzi Kafka cluster for the flink-cdc-poc k8s slice.
+#
+# Strimzi 1.0.x is KRaft-only (no zookeeper field) AND splits the cluster across
+# TWO CRs: a Kafka CR (cluster-level config + listeners + broker config) and a
+# KafkaNodePool CR (replicas / roles / storage). The pool is linked to the
+# cluster by the `strimzi.io/cluster` label on the pool. This replaced the old
+# v1beta2 single-CR shape (spec.kafka.replicas / spec.kafka.storage) — those
+# fields are unknown in v1 and `kubectl apply` rejects them with
+# `strict decoding error`. The Kafka CR's status reports the pools by name.
+#
+# Single combined broker+controller node (roles: [controller, broker]) — the
+# minimal single-node KRaft topology from the upstream examples/kafka/
+# kafka-single-node.yaml. Replication factors forced to 1 with minISR=1 so a
+# single-broker KRaft cluster can serve InitProducerId for Flink's exactly-once
+# Kafka sinks — the k8s equivalent of the Podman stack's
+#   KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+#   KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+# (do not raise these while replicas=1 — Flink's exactly-once sinks would
+# restart-loop with TimeoutException on InitProducerId).
+#
+# NOTE: Strimzi 1.0.x supports Kafka 4.1.x/4.2.0 only, so the k8s stack runs a
+# *different Kafka version* than the Podman stack (cp-kafka 7.6.1 = Kafka
+# 3.7.0). Flink's Kafka client is broker-version compatible, so the CDC->Kafka
+# path is unaffected. The Kafka Connect variants (expand phase) will need
+# Debezium versions matched to Kafka 4.x — flagged as follow-up.
+#
+# Bootstrap: poc-kafka-kafka-bootstrap:9092 (internal). Host access for tests
+# via `kubectl port-forward svc/poc-kafka-kafka-bootstrap 19092:9092`.
+---
+# 1/2 — the broker nodes (replicas / roles / storage live here in 1.0.x)
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  namespace: poc
+  labels:
+    strimzi.io/cluster: poc-kafka
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 5Gi
+        deleteClaim: false
+        kraftMetadata: shared
+---
+# 2/2 — the cluster (listeners + broker config + entity operator)
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: poc-kafka
+  namespace: poc
+spec:
+  kafka:
+    version: 4.2.0
+    metadataVersion: 4.2-IV1
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      auto.create.topics.enable: true
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

@@ -1,0 +1,46 @@
+# RBAC for Flink jobs in the poc namespace.
+#
+# The Flink Kubernetes Operator runs in its own release namespace (installed by
+# Helm with cluster scope) and creates the JobManager/TaskManager pods for each
+# FlinkDeployment. Those JM/TM pods run as the `flink` ServiceAccount named in
+# spec.serviceAccount below. In native mode the JM's KubernetesResourceManagerDriver
+# creates TaskManager pods (core `pods`) and GETs its own owner Deployment
+# (`apps` group `deployments`) to reconcile; it also uses KubernetesHA leader
+# election via a ConfigMap lease. So the `flink` SA needs pod/configmap perms
+# AND deployments get/list/watch in poc — without `deployments` the JM logs
+# `403 Forbidden: cannot get resource "deployments" in API group "apps"` and
+# can never start a TaskManager (the CDC source task stays SCHEDULED, 0 slots).
+# (POC-scope Role — broad verbs, single namespace. Tighten for production.)
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flink
+  namespace: poc
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: flink
+  namespace: poc
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "events", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flink
+  namespace: poc
+subjects:
+  - kind: ServiceAccount
+    name: flink
+    namespace: poc
+roleRef:
+  kind: Role
+  name: flink
+  apiGroup: rbac.authorization.k8s.io

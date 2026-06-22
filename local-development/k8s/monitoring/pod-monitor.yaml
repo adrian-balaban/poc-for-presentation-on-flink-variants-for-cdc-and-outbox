@@ -1,0 +1,40 @@
+# PodMonitor — tells Prometheus Operator to scrape Flink JM and TM pods.
+#
+# All FlinkDeployments (5 variants) expose Prometheus metrics on port 9249 via
+# the flink-metrics-prometheus reporter (configured in flinkConfiguration:
+#   metrics.reporter.prom.class: org.apache.flink.metrics.prometheus.PrometheusReporter
+# baked into flink-with-mysql:latest).
+#
+# The Flink Kubernetes Operator labels JM/TM pods with `component: jobmanager`
+# and `component: taskmanager` respectively. Selecting on this label picks up all
+# Flink pods across all 5 variants in the poc namespace without needing per-variant
+# ServiceMonitors.
+#
+# targetPort: 9249 — numeric port target (Flink Operator does not expose a named
+# port for the Prometheus reporter endpoint, so we cannot use `port: <name>`).
+# Note: `targetPort` is deprecated in favor of named-port `port` in newer Prometheus
+# Operator versions but remains functional and is the practical choice here.
+#
+# The kube-prometheus-stack values set podMonitorNamespaceSelector: {} so this
+# PodMonitor (namespace poc) is discovered by the monitoring-namespace Prometheus.
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: flink-pods
+  namespace: poc
+spec:
+  namespaceSelector:
+    matchNames:
+      - poc
+  selector:
+    matchExpressions:
+      - key: component
+        operator: In
+        values:
+          - jobmanager
+          - taskmanager
+  podMetricsEndpoints:
+    - targetPort: 9249
+      path: /metrics
+      interval: 15s

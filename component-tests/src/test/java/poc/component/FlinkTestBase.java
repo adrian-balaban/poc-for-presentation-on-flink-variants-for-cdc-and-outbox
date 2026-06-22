@@ -8,11 +8,14 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 
 /**
- * Base class for Flink component tests that submit jobs to the real Flink JobManager container
- * (localhost:8081) via the REST API.
+ * Base class for Flink component tests that submit jobs to the Flink JobManager REST API.
+ *
+ * <p>The target URL is read from the {@code FLINK_REST_URL} environment variable (default {@code
+ * http://localhost:8081}). Set this variable to target a different JM — e.g. when running against
+ * a k8s variant via {@code kubectl port-forward}.
  *
  * <p>Tests are skipped gracefully if the Flink JM is not reachable. Submitted jobs remain running
- * after each test — visible at localhost:8081/#/job/running.
+ * after each test; resubmitting would collide on the MySQL server-id of the already-running job.
  *
  * <p>Jar paths are resolved from the root project dir (passed as system property 'rootProjectDir'
  * by component-tests/build.gradle).
@@ -31,10 +34,11 @@ abstract class FlinkTestBase extends ContainerBase {
       synchronized (flinkCheckLock) {
         if (flinkAvailable == null) {
           flinkAvailable = flink.isAvailable();
+          String url = System.getenv().getOrDefault("FLINK_REST_URL", "http://localhost:8081");
           if (flinkAvailable) {
-            log.info("Flink JobManager is available at localhost:8081");
+            log.info("Flink JobManager is available at {}", url);
           } else {
-            log.warn("Flink JobManager not available at localhost:8081");
+            log.warn("Flink JobManager not available at {}", url);
           }
         }
       }
@@ -42,7 +46,7 @@ abstract class FlinkTestBase extends ContainerBase {
     Assumptions.assumeTrue(
         flinkAvailable,
         "Flink JobManager not available — skipping test. "
-            + "Run: cd local-development && podman-compose -f podman-compose.yml up -d");
+            + "Set FLINK_REST_URL or run: cd local-development && podman-compose -f podman-compose.yml up -d");
   }
 
   /**

@@ -1,0 +1,53 @@
+# ConfigMap holding the YAML Pipeline pipeline.yaml template.
+#
+# The submitter Job (job-yaml-submitter.yaml) mounts this at /pipeline.yaml and
+# runs `envsubst < /pipeline.yaml > /tmp/pipeline-resolved.yaml` before calling
+# flink-cdc.sh — identical to the Podman Compose bind-mount pattern where
+# local-development/flink-cdc-submitter/pipeline.yaml is mounted at /pipeline.yaml.
+#
+# The ${...} placeholders are the same as in the source file
+# (variant-flink-cdc-yaml-pipeline-cdc-job/src/main/resources/pipeline.yaml).
+# envsubst resolves them from the submitter pod's env vars (MYSQL_HOST=mysql,
+# KAFKA_BOOTSTRAP=poc-kafka-kafka-bootstrap:9092, etc. — see job-yaml-submitter.yaml).
+#
+# Kafka topic: poc.cdc.yaml.flink.orders
+#   = KAFKA_TOPIC_PREFIX(poc.cdc) + ".yaml.flink.orders"
+#   The .flink suffix disambiguates from the Kafka Connect variant's
+#   poc.cdc.yaml.kc.orders topic (same as the Podman naming convention).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yaml-pipeline-config
+  namespace: poc
+data:
+  pipeline.yaml: |
+    # Variant 5 — YAML Pipeline (Flink CDC Pipeline API)
+    # Submitted via: flink-cdc.sh pipeline.yaml
+
+    source:
+      type: mysql
+      name: MySQL Source
+      hostname: ${MYSQL_HOST}
+      port: ${MYSQL_PORT}
+      username: ${MYSQL_USER}
+      password: ${MYSQL_PASSWORD}
+      tables: ${MYSQL_DATABASE}.orders
+      server-id: 5700-5709
+      server-time-zone: UTC
+      jdbc.properties.allowPublicKeyRetrieval: "true"
+      jdbc.properties.useSSL: "false"
+
+    sink:
+      type: kafka
+      name: Kafka Sink
+      properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
+      topic: ${KAFKA_TOPIC_PREFIX}.yaml.flink.orders
+
+    pipeline:
+      name: Flink CDC YAML Pipeline CDC Job
+      parallelism: 1
+      schema.change.behavior: evolve
+      # NOTE: checkpoint/state keys here are ignored by the Pipeline API — see
+      # CLAUDE.md. Checkpointing is configured via flink-cdc.sh -D flags in
+      # the submitter entrypoint and via the session cluster's flinkConfiguration.

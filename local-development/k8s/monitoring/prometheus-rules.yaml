@@ -1,0 +1,68 @@
+# PrometheusRule — 3 alert rules mirroring the Podman stack's Terraform alerts.tf
+# (grafana_rule_group.flink_cdc_poc) and the production Datadog monitors.
+#
+# These are evaluated by the Prometheus Operator (kube-prometheus-stack) against
+# the metrics scraped from Flink JM/TM pods via pod-monitor.yaml. Firing alerts
+# appear in the Prometheus UI (/alerts) and in the Grafana Alerting panel.
+#
+# Alertmanager is disabled in kube-prometheus-stack (local POC — no email relay),
+# so alerts fire visually but do not send notifications. To enable notifications,
+# set alertmanager.enabled: true in kube-prometheus-values.yaml and configure a
+# receiver.
+#
+# The kube-prometheus-stack values set ruleNamespaceSelector: {} so this
+# PrometheusRule (namespace poc) is picked up by the monitoring Prometheus.
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: flink-cdc-poc-alerts
+  namespace: poc
+spec:
+  groups:
+    - name: flink-cdc-poc
+      interval: 60s
+      rules:
+        # Mirror 1: Restart Loop
+        # Mirrors alerts.tf "Flink Restart Loop" / Datadog flink.job.numRestarts change() > 3
+        - alert: FlinkRestartLoop
+          expr: increase(flink_jobmanager_job_numRestarts[5m]) > 3
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Flink job restart loop detected"
+            description: >-
+              Job {{ $labels.job_name }} restarted more than 3 times in the last
+              5 minutes — likely stuck in a restart loop (OOM, slot unavailable,
+              or source connectivity failure).
+
+        # Mirror 2: Checkpoint Duration High
+        # Mirrors alerts.tf "Flink Checkpoint Duration High" / Datadog
+        # flink.jobmanager.job.lastCheckpointDuration > 180 000 ms
+        - alert: FlinkCheckpointDurationHigh
+          expr: flink_jobmanager_job_lastCheckpointDuration > 180000
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Flink checkpoint taking too long"
+            description: >-
+              Job {{ $labels.job_name }} last checkpoint duration exceeded 180 s
+              (current: {{ $value | humanizeDuration }}). Risk of checkpoint
+              timeout and job restart.
+
+        # Mirror 3: Checkpoint Failures
+        # Mirrors alerts.tf "Flink Checkpoint Failures" / Datadog
+        # flink.jobmanager.job.numberOfFailedCheckpoints change() > 3
+        - alert: FlinkCheckpointFailures
+          expr: increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m]) > 3
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Flink checkpoint failures spike"
+            description: >-
+              Job {{ $labels.job_name }} had more than 3 checkpoint failures in
+              the last 5 minutes. Persistent failures will eventually cause job
+              recovery from the last successful checkpoint.

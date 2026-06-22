@@ -186,14 +186,14 @@ Per-variant server-ID ranges are also env-overridable (defaults match the [serve
 
 ## Component tests
 
-Each Flink variant and Kafka Connect variant has corresponding component tests in the `component-tests` subproject. Flink tests submit fat-jars to the real Flink JobManager container via the REST API (jobs visible at http://localhost:8081 during the test run). Kafka Connect tests use the Kafka Connect REST API.
+Each Flink variant and Kafka Connect variant has corresponding component tests in the `component-tests` subproject. Flink tests submit fat-jars to the Flink JobManager REST API; Kafka Connect tests use the Kafka Connect REST API.
 
-**Prerequisites:**
+**Podman Compose prerequisites:**
 ```bash
 cd local-development && podman-compose -f podman-compose.yml up -d
 ```
 
-**Run tests:**
+**Run tests (Podman stack):**
 ```bash
 # All tests (unit + component) — component tests auto-skip if stack unavailable
 ./gradlew test
@@ -204,13 +204,39 @@ cd local-development && podman-compose -f podman-compose.yml up -d
 # Single component test
 ./gradlew :component-tests:test --tests "poc.component.DataStreamCdcTest"
 
-# Or run everything (all Flink, Kafka Connect, components, restarts Podman stack):
+# Or run everything (build, restart Podman stack, deploy connectors, test):
 ./gradlew all
 ```
 
+**Run tests (k8s stack — port-forwards must be active):**
+```bash
+# Fully automated: deploy + port-forward + test + teardown tunnels
+./gradlew allK8s
+
+# Single variant manually (port-forward its REST service first):
+FLINK_REST_URL=http://localhost:18081 MYSQL_PORT=13306 KAFKA_BOOTSTRAP=localhost:19092 \
+  ./gradlew :component-tests:test --tests "poc.component.DataStreamCdcTest"
+
+# KC tests manually:
+KAFKA_CONNECT_URL=http://localhost:18086 \
+  SCHEMA_HISTORY_KAFKA_BOOTSTRAP=poc-kafka-kafka-bootstrap:9092 \
+  MYSQL_PORT=13306 KAFKA_BOOTSTRAP=localhost:19092 \
+  ./gradlew :component-tests:test --tests 'poc.component.KafkaConnect*'
+```
+
+**Test targeting env vars:**
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `FLINK_REST_URL` | `http://localhost:8081` | Flink JM REST (`FlinkRestClient`) — override per variant for k8s |
+| `KAFKA_CONNECT_URL` | `http://localhost:8083` | KC REST (`KafkaConnectBase`) — override to 18086 for k8s |
+| `SCHEMA_HISTORY_KAFKA_BOOTSTRAP` | `kafka:29092` | Bootstrap inside KC for schema history; `poc-kafka-kafka-bootstrap:9092` for k8s |
+| `MYSQL_PORT` | `3306` | Set to `13306` for k8s port-forward |
+| `KAFKA_BOOTSTRAP` | `localhost:9092` | Set to `localhost:19092` for k8s port-forward |
+
 ### Flink Variants
 
-Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert Kafka output, then cancel. Server-IDs come from `JobConfig` defaults (production ranges), overridable per the env vars in [Configuration](#configuration).
+Tests submit the variant fat-jar to the JM at `FLINK_REST_URL`, wait for RUNNING, assert Kafka output. `FlinkTestBase.ensureJobRunning()` reuses an already-RUNNING job of the same name (jobs are not cancelled after tests — a second instance would collide on MySQL server-id). Server-IDs come from `JobConfig` defaults, overridable per [Configuration](#configuration).
 
 | Test class | Variant | Server-ID range | Kafka topic | Status |
 |---|---|---|---|---|

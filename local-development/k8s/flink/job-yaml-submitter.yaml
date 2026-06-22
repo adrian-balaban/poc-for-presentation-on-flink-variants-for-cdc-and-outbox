@@ -1,0 +1,81 @@
+# Kubernetes Job that submits the YAML Pipeline variant to the yaml-pipeline-cdc
+# session cluster (flinkdeployment-yaml.yaml).
+#
+# Uses the same flink-cdc-submitter image as the Podman Compose stack
+# (local-development/flink-cdc-submitter/Dockerfile). The entrypoint:
+#   1. Patches $FLINK_HOME/conf/config.yaml to point rest.address at JOBMANAGER_HOST
+#      (yaml-pipeline-cdc-rest, the ClusterIP Service auto-created by the operator)
+#   2. Runs mc to ensure the S3 bucket exists (harmless if minio-init Job ran first)
+#   3. Polls http://JOBMANAGER_HOST:8081/taskmanagers until slotsNumber ≥ 1
+#   4. Runs envsubst on the mounted pipeline.yaml template → /tmp/pipeline-resolved.yaml
+#   5. exec flink-cdc.sh /tmp/pipeline-resolved.yaml -D <checkpoint flags>
+#
+# flink-cdc.sh in session mode submits the job and exits 0 on success. The Job
+# pod therefore completes (not stays Running). The actual CDC pipeline continues
+# running on the yaml-pipeline-cdc JM/TM cluster.
+#
+# pipeline.yaml is mounted from the yaml-pipeline-config ConfigMap (see
+# configmap-yaml-pipeline.yaml) at /pipeline.yaml — same path the entrypoint
+# expects (mirrors the Podman bind-mount).
+#
+# JOBMANAGER_HOST = yaml-pipeline-cdc-rest:
+#   The Flink Kubernetes Operator auto-creates a ClusterIP Service named
+#   <FlinkDeployment.metadata.name>-rest exposing the JM REST API on port 8081.
+#   The entrypoint polls this endpoint for TM slot readiness before submitting.
+#
+# No serviceAccountName needed — the submitter only makes HTTP calls to the
+# Flink REST API; it does not interact with the Kubernetes API.
+#
+# backoffLimit: 3 mirrors Podman's restart: on-failure — retries on transient
+# failures (JM not yet ready, S3 not yet reachable, etc.).
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: yaml-pipeline-submitter
+  namespace: poc
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: submitter
+          image: flink-cdc-submitter:latest
+          imagePullPolicy: Never
+          env:
+            - name: MYSQL_HOST
+              value: mysql
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: flink
+            - name: MYSQL_PASSWORD
+              value: flink
+            - name: MYSQL_DATABASE
+              value: poc_db
+            - name: KAFKA_BOOTSTRAP
+              value: poc-kafka-kafka-bootstrap:9092
+            - name: KAFKA_TOPIC_PREFIX
+              value: poc.cdc
+            - name: JOBMANAGER_HOST
+              value: yaml-pipeline-cdc-rest
+            # S3 vars for mc bucket-ensure step in entrypoint.sh.
+            # Bucket is already created by the minio-init Job but mc --ignore-existing
+            # makes this idempotent.
+            - name: S3_ENDPOINT
+              value: http://minio:9000
+            - name: S3_ACCESS_KEY
+              value: minioadmin
+            - name: S3_SECRET_KEY
+              value: minioadmin
+          volumeMounts:
+            # Mount the pipeline.yaml template at the path entrypoint.sh expects.
+            # subPath mounts the single ConfigMap key as a file (not a directory).
+            - name: pipeline-config
+              mountPath: /pipeline.yaml
+              subPath: pipeline.yaml
+      volumes:
+        - name: pipeline-config
+          configMap:
+            name: yaml-pipeline-config
