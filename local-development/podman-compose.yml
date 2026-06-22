@@ -211,21 +211,13 @@ services:
       S3_ACCESS_KEY: minioadmin
       S3_SECRET_KEY: minioadmin
       S3_BUCKET: flink-checkpoints
-      # Flink CDC flink-cdc.sh builds the job graph on the client side using the
-      # submitter's local Flink config — checkpoint settings must be here, not only
-      # in the JM/TM cluster config, for them to be embedded in the submitted job.
+      # FLINK_PROPERTIES here configures only this flink-cdc.sh client process —
+      # it does NOT reach the submitted job's execution environment. Checkpoint/
+      # state config is passed to the job via flink-cdc.sh -D flags in
+      # entrypoint.sh (the documented mechanism per `flink-cdc.sh --help`).
+      # The S3 credentials below are needed so the client can resolve s3:// URIs
+      # when building the job graph, and for the mc bucket-check in entrypoint.sh.
       FLINK_PROPERTIES: |
-        execution.checkpointing.dir: s3://flink-checkpoints/yaml-pipeline-checkpoints
-        execution.checkpointing.savepoint-dir: s3://flink-checkpoints/yaml-pipeline-savepoints
-        execution.checkpointing.interval: 30000
-        execution.checkpointing.timeout: 60000
-        execution.checkpointing.mode: EXACTLY_ONCE
-        execution.checkpointing.max-concurrent-checkpoints: 1
-        execution.checkpointing.min-pause: 5000
-        execution.checkpointing.externalized-checkpoint-retention: RETAIN_ON_CANCELLATION
-        state.backend: rocksdb
-        state.backend.incremental: true
-        state.backend.rocksdb.memory.managed: true
         s3.endpoint: http://minio:9000
         s3.path.style.access: true
         s3.access-key: minioadmin

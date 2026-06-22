@@ -44,4 +44,23 @@ done
 echo "TaskManager registered. Submitting pipeline..."
 
 envsubst < /pipeline.yaml > /tmp/pipeline-resolved.yaml
-exec flink-cdc.sh /tmp/pipeline-resolved.yaml
+
+# Checkpoint/state config is passed to the submitted job via flink-cdc.sh -D flags.
+# The Flink CDC Pipeline API does NOT propagate execution.checkpointing.* / state.*
+# keys placed in the pipeline: section of pipeline.yaml, and this container's
+# FLINK_PROPERTIES only configures the flink-cdc.sh client process — neither
+# reaches the job's execution environment. -D is the documented mechanism (see
+# `flink-cdc.sh --help`: "-D  Session dynamic flink config key=val  ... options
+# can be found at flink-docs-stable/ops/config.html"). The dir matches the 4 Java
+# variants (s3://flink-checkpoints/checkpoints) so this job writes
+# checkpoints/<job-id>/ alongside them — 5 folders under checkpoints/ total.
+exec flink-cdc.sh /tmp/pipeline-resolved.yaml \
+  -D execution.checkpointing.interval=30000 \
+  -D execution.checkpointing.timeout=60000 \
+  -D execution.checkpointing.mode=EXACTLY_ONCE \
+  -D execution.checkpointing.max-concurrent-checkpoints=1 \
+  -D execution.checkpointing.min-pause=5000 \
+  -D execution.checkpointing.externalized-checkpoint-retention=RETAIN_ON_CANCELLATION \
+  -D execution.checkpointing.dir=s3://flink-checkpoints/checkpoints \
+  -D execution.checkpointing.savepoint-dir=s3://flink-checkpoints/savepoints \
+  -D state.backend=rocksdb
