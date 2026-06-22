@@ -26,7 +26,7 @@ public class OutboxRouter extends ProcessFunction<String, String> {
   @Override
   public void processElement(String event, Context ctx, Collector<String> out) {
     String destination = extractField(event, "destination");
-    String topic = config.kafkaTopicPrefix + ".outbox." + destination;
+    String topic = config.kafkaTopicPrefix + ".outbox.flink." + destination;
     // In production: use side outputs (one per destination) for per-topic exactly-once routing.
     // ctx.output(sideOutputTag(destination), event)
     LOG.info("event → topic={}  payload={}", topic, event);

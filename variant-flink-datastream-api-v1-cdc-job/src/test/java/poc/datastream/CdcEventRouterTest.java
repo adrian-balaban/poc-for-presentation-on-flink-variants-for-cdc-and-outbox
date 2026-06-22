@@ -47,7 +47,7 @@ class CdcEventRouterTest {
     assertEquals(1, collector.out.size());
     String enriched = collector.out.get(0);
     assertTrue(enriched.contains("\"variant\":\"datastream-cdc\""), "missing variant tag");
-    assertTrue(enriched.contains("\"topic\":\"poc.cdc.datastream\""), "missing topic tag");
+    assertTrue(enriched.contains("\"topic\":\"poc.cdc.datastream.flink\""), "missing topic tag");
   }
 
   @Test
@@ -70,7 +70,7 @@ class CdcEventRouterTest {
 
     router.processElement("{}", null, collector);
 
-    assertTrue(collector.out.get(0).contains("custom.prefix.datastream"));
+    assertTrue(collector.out.get(0).contains("custom.prefix.datastream.flink"));
   }
 
   @Test

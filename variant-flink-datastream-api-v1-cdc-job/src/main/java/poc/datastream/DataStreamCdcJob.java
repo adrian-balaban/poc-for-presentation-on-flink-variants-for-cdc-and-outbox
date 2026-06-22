@@ -43,7 +43,7 @@ public class DataStreamCdcJob {
 
     env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
         .process(new CdcEventRouter(config))
-        .sinkTo(KafkaSinkFactory.create(config, "datastream"));
+        .sinkTo(KafkaSinkFactory.create(config, "datastream.flink"));
 
     env.execute("Flink DataStream API v.1 CDC Job");
   }

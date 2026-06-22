@@ -48,12 +48,12 @@ class YamlPipelineCdcTest extends ContainerBase {
   @Timeout(60)
   void yamlPipeline_e2e_submitterRunsJobAndProducesKafkaEvents() {
     // The flink-cdc-submitter container submits the YAML pipeline on stack start.
-    // This test verifies that CDC events are flowing into poc.cdc.yaml.orders.
+    // This test verifies that CDC events are flowing into poc.cdc.yaml.flink.orders.
     // If the job has not started yet (fresh stack), the poll timeout gives it time.
-    List<String> messages = pollKafka("poc.cdc.yaml.orders", 1, Duration.ofSeconds(45));
+    List<String> messages = pollKafka("poc.cdc.yaml.flink.orders", 1, Duration.ofSeconds(45));
     assertThat(messages)
         .as(
-            "Expected at least one CDC event on poc.cdc.yaml.orders — "
+            "Expected at least one CDC event on poc.cdc.yaml.flink.orders — "
                 + "ensure flink-cdc-submitter started successfully")
         .isNotEmpty();
     log.info("YAML Pipeline CDC: {} Kafka message(s) received", messages.size());

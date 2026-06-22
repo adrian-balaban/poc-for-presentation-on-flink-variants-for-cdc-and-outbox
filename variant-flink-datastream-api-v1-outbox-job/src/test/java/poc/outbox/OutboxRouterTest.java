@@ -118,7 +118,7 @@ class OutboxRouterTest {
 
     String log = stderr.toString();
     assertTrue(
-        log.contains("poc.cdc.outbox.payments"),
+        log.contains("poc.cdc.outbox.flink.payments"),
         "topic should contain prefix + outbox + destination");
     assertTrue(log.contains(event), "log should contain the raw event");
   }
@@ -129,7 +129,7 @@ class OutboxRouterTest {
 
     router.processElement("{\"no-dest\":true}", null, NOOP);
 
-    assertTrue(stderr.toString().contains("poc.cdc.outbox.unknown"));
+    assertTrue(stderr.toString().contains("poc.cdc.outbox.flink.unknown"));
   }
 
   @Test
@@ -150,7 +150,7 @@ class OutboxRouterTest {
 
     router.processElement("{\"destination\":\"audit\"}", null, NOOP);
 
-    assertTrue(stderr.toString().contains("custom.outbox.audit"));
+    assertTrue(stderr.toString().contains("custom.outbox.flink.audit"));
   }
 
   @Test

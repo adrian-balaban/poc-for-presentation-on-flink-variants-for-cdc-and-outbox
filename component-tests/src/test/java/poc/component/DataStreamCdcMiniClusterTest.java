@@ -60,7 +60,7 @@ class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
 
     assertThat(collector.out).hasSize(2);
     assertThat(collector.out).allMatch(msg -> msg.contains("\"variant\":\"datastream-cdc\""));
-    assertThat(collector.out).allMatch(msg -> msg.contains("\"topic\":\"poc.cdc.datastream\""));
+    assertThat(collector.out).allMatch(msg -> msg.contains("\"topic\":\"poc.cdc.datastream.flink\""));
     log.info("Enriched {} events successfully", collector.out.size());
   }
 
@@ -121,7 +121,7 @@ class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
     router.processElement("{\"data\":\"test\"}", null, collector);
 
     assertThat(collector.out).hasSize(1);
-    assertThat(collector.out.get(0)).contains("custom.prefix.datastream");
+    assertThat(collector.out.get(0)).contains("custom.prefix.datastream.flink");
     log.info("Topic routing verified");
   }
 }

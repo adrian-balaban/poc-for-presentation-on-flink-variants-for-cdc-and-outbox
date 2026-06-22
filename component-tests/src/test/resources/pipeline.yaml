@@ -28,7 +28,7 @@ sink:
   name: Kafka Sink
   properties:
     bootstrap.servers: ${KAFKA_BOOTSTRAP:-localhost:9092}
-  topic: ${KAFKA_TOPIC_PREFIX:-poc.cdc}.yaml.orders
+  topic: ${KAFKA_TOPIC_PREFIX:-poc.cdc}.yaml.flink.orders
 
 ################################################################################
 # Pipeline metadata and checkpoint configuration

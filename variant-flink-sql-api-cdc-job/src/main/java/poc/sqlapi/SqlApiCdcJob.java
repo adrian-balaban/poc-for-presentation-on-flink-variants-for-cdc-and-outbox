@@ -110,7 +110,7 @@ public class SqlApiCdcJob {
                 PRIMARY KEY (id) NOT ENFORCED
             ) WITH (
                 'connector'                    = 'upsert-kafka',
-                'topic'                        = '%s.sql-api.orders',
+                'topic'                        = '%s.sql-api.flink.orders',
                 'properties.bootstrap.servers' = '%s',
                 'key.format'                   = 'json',
                 'value.format'                 = 'json'
@@ -128,7 +128,7 @@ public class SqlApiCdcJob {
                 PRIMARY KEY (id) NOT ENFORCED
             ) WITH (
                 'connector'                    = 'upsert-kafka',
-                'topic'                        = '%s.sql-api.customers',
+                'topic'                        = '%s.sql-api.flink.customers',
                 'properties.bootstrap.servers' = '%s',
                 'key.format'                   = 'json',
                 'value.format'                 = 'json'

@@ -24,7 +24,7 @@ class ErrorScenarioTest extends FlinkTestBase {
 
   private static final Path JAR = jarPath("variant-flink-datastream-api-v1-cdc-job");
   private static final String JOB_NAME = "Flink DataStream API v.1 CDC Job";
-  private static final String TOPIC = "poc.cdc.datastream";
+  private static final String TOPIC = "poc.cdc.datastream.flink";
 
   @Test
   @Timeout(120)
