@@ -114,7 +114,7 @@ tasks.register('all') { // buildAndTest
             engine = hasPodman ? 'podman' : 'docker'
         }
 
-        String composeUp   = engine == 'podman' ? 'podman-compose -f podman-compose.yml up -d'   : 'docker compose up -d'
+        String composeUp   = engine == 'podman' ? 'podman-compose -f podman-compose.yml up -d --build'   : 'docker compose up -d --build'
         String composeDown = engine == 'podman' ? 'podman-compose -f podman-compose.yml down -v' : 'docker compose down -v --remove-orphans'
         println "=== Using container engine: ${engine} ==="
 

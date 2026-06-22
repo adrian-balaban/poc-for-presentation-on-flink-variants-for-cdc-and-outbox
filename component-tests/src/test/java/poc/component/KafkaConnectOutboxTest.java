@@ -47,7 +47,8 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
     }
 
     // Poll orders-svc topic
-    List<String> ordersMessages = pollKafka("poc.cdc.outbox.kc.orders-svc", 1, Duration.ofSeconds(60));
+    List<String> ordersMessages =
+        pollKafka("poc.cdc.outbox.kc.orders-svc", 1, Duration.ofSeconds(60));
     assertThat(ordersMessages).isNotEmpty();
 
     // Verify routing metadata

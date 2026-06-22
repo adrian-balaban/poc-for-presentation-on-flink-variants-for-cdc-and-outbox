@@ -33,7 +33,7 @@ Formatting is enforced in the `check` task — `./gradlew build` will fail if co
 The `all` task orchestrates a complete build-and-test cycle:
 
 1. **Builds all modules** — `./gradlew clean build -x test shadowJar` (includes the variant fat-jars the component tests submit)
-2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d` (`down` exit is ignored — "container not found" on first run is normal)
+2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d --build` (`down` exit is ignored — "container not found" on first run is normal; `--build` ensures images like `flink-cdc-submitter` are always rebuilt from the current `Dockerfile`/`entrypoint.sh` so stale baked-in scripts never survive a stack restart)
 3. **Waits for services** — polls MySQL + Kafka + Kafka Connect + Flink (up to 180 s); if Flink container doesn't exist (image build failure) the task throws with a diagnostic message rather than silently skipping
 4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
 5. **Deploys Kafka Connect connectors** — REST API (with `DB_HOST=mysql` for bridge networking)
@@ -181,6 +181,7 @@ Per-variant server-ID ranges are also env-overridable (defaults match the [serve
 - Do not remove `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1` and `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1` from the Kafka service in `podman-compose.yml` — without them, a single-broker KRaft cluster cannot serve `InitProducerId` requests, causing Flink's exactly-once Kafka sinks to restart-loop indefinitely with `TimeoutException: Timeout expired after 60000ms while awaiting InitProducerId`
 - Do not use topic prefix `poc.cdc.yaml` for the Kafka Connect yaml-pipeline connector — the Flink YAML pipeline job writes to `${KAFKA_TOPIC_PREFIX}.yaml.orders` (= `poc.cdc.yaml.orders`), so the KC connector uses `poc.kc.yaml` to avoid collision; both variants would otherwise write to the same topic and the test would find Flink-produced messages (no `variant` field) instead of KC-produced ones
 - Do not add `DEFAULT 'PENDING'` (or any non-null default) to the `orders.status` column — Debezium 1.9.x applies column DEFAULT values when serialising null, so `DEFAULT 'PENDING'` causes CDC events to carry `"status":"PENDING"` instead of `"status":null` for explicitly-null inserts. The column is intentionally defined without a default (`status VARCHAR(1024)`) so that null values are faithfully preserved in CDC output
+- Do not manually append `FLINK_PROPERTIES` to `$FLINK_HOME/conf/config.yaml` inside `flink-cdc-submitter/entrypoint.sh` — the container restarts on failure (`restart: on-failure`), so a second startup appends the same keys again, producing a duplicate-key YAML that SnakeYAML rejects with `YamlEngineException: found duplicate key execution.checkpointing.dir`. The Flink CDC CLI reads `FLINK_PROPERTIES` directly from the environment; no shell-level append is needed.
 - When using Podman from a snap-installed VS Code: the snap overrides `XDG_DATA_HOME`, which splits podman storage between VS Code terminals (`~/snap/code/<rev>/.local/share/containers`) and the rest of the system (`~/.local/share/containers`). Symptoms: healthchecks stuck in `(starting)` forever, compose app invisible outside VS Code, stale aardvark-dns entries causing "No route to host" between containers. Fix: pin `graphroot` in `~/.config/containers/storage.conf` (already done on this machine)
 
 ## Component tests
@@ -217,7 +218,7 @@ Tests submit the variant fat-jar to `localhost:8081`, wait for RUNNING, assert K
 | `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (`MYSQL_TABLE_API_SERVER_ID` default) | `poc.cdc.table-api` | ✅ PASS |
 | `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (`MYSQL_SQL_API_*_SERVER_ID` defaults) | `poc.cdc.sql-api.orders` | ✅ PASS |
 | `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5600–5699 (`MYSQL_OUTBOX_SERVER_ID` default) | `poc.cdc.outbox` | ✅ PASS |
-| `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.cdc.yaml.orders` | ✅ PASS |
+| `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.cdc.yaml.flink.orders` | ✅ PASS |
 
 ### Kafka Connect Variants
 

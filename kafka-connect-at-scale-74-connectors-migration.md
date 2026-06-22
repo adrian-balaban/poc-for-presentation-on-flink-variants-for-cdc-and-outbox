@@ -13,9 +13,9 @@
 
 Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flink, with a proof of concept covering all 5 variants.
 
-
 Presentation demo originally delivered to the **Cognizant Java Community Romania**.  
-Shows how to build a serverless, event-driven integration platform on Kubernetes using [Knative](https://knative.dev) and [Apache Camel-K](https://camel.apache.org/camel-k/next/).
+
+2nd goal: give near prod.quality code
 
 ---
 
@@ -43,8 +43,8 @@ Shows how to build a serverless, event-driven integration platform on Kubernetes
 
 ```
 MySQL binlog  →  Debezium  →  Kafka  →  consumers
-               (captures       (message      (other systems,
-                changes)        bus)          databases)
+               (captures       topics      (other systems,
+                changes)                      databases)
 ```
 
 | Term | What it is (one sentence) |
@@ -109,7 +109,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 
 **Apache Flink** is a stateful stream-processing engine: a continuous job that reads events, keeps state, and writes results — with **exactly-once checkpoints** (durable, recoverable) and **event-time** semantics. Each job runs as its **own isolated K8s deployment** (own JobManager + TaskManager) under the Flink Operator.
 
-**Flink CDC** is the connector that does the same job as Debezium-on-Kafka-Connect — reads the MySQL binlog and emits change events to Kafka — but with an **incremental snapshot** algorithm that needs **no shared offset topic and no signal topic**, running inside that isolated job.
+**Flink** has MySql connector that use the same Debezium connector and does the same job as Debezium-on-Kafka-Connect — reads the MySQL binlog and emits change events to Kafka — but with an **incremental snapshot** algorithm that needs **no shared offset topic and no signal topic**, running inside that isolated job.
 
 The structural argument in one frame — this is the bridge from "why it hurts" to "why Flink fixes it":
 

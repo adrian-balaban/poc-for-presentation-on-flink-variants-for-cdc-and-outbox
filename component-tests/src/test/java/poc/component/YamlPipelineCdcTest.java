@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.io.InputStream;
 import java.time.Duration;
-import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
@@ -45,17 +44,31 @@ class YamlPipelineCdcTest extends ContainerBase {
   // ── Automated: e2e verification via flink-cdc-submitter ──────────────────
 
   @Test
-  @Timeout(60)
-  void yamlPipeline_e2e_submitterRunsJobAndProducesKafkaEvents() {
-    // The flink-cdc-submitter container submits the YAML pipeline on stack start.
-    // This test verifies that CDC events are flowing into poc.cdc.yaml.flink.orders.
-    // If the job has not started yet (fresh stack), the poll timeout gives it time.
-    List<String> messages = pollKafka("poc.cdc.yaml.flink.orders", 1, Duration.ofSeconds(45));
-    assertThat(messages)
+  @Timeout(120)
+  void yamlPipeline_e2e_submitterRunsJobAndProducesKafkaEvents() throws Exception {
+    // Insert a unique marker so this test is self-contained regardless of snapshot state.
+    // The YAML pipeline job is already running (submitted by flink-cdc-submitter on stack start);
+    // this binlog insert will be picked up and committed at the next checkpoint (≤30 s).
+    String marker = "YAML-E2E-" + System.currentTimeMillis();
+    try (java.sql.Connection c = flinkConn();
+        java.sql.Statement s = c.createStatement()) {
+      s.executeUpdate(
+          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (99, 99.99, '"
+              + marker
+              + "')");
+    }
+
+    // Poll up to 90 s to absorb checkpoint latency (30 s interval + processing time).
+    String msg =
+        waitForKafkaMessage(
+            "poc.cdc.yaml.flink.orders", Duration.ofSeconds(90), m -> m.contains(marker));
+    assertThat(msg)
         .as(
-            "Expected at least one CDC event on poc.cdc.yaml.flink.orders — "
+            "Expected CDC event containing '"
+                + marker
+                + "' on poc.cdc.yaml.flink.orders — "
                 + "ensure flink-cdc-submitter started successfully")
-        .isNotEmpty();
-    log.info("YAML Pipeline CDC: {} Kafka message(s) received", messages.size());
+        .isNotNull();
+    log.info("YAML Pipeline CDC: received event with marker {}", marker);
   }
 }

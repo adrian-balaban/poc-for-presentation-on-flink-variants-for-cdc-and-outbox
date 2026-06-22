@@ -60,7 +60,8 @@ class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
 
     assertThat(collector.out).hasSize(2);
     assertThat(collector.out).allMatch(msg -> msg.contains("\"variant\":\"datastream-cdc\""));
-    assertThat(collector.out).allMatch(msg -> msg.contains("\"topic\":\"poc.cdc.datastream.flink\""));
+    assertThat(collector.out)
+        .allMatch(msg -> msg.contains("\"topic\":\"poc.cdc.datastream.flink\""));
     log.info("Enriched {} events successfully", collector.out.size());
   }
 
