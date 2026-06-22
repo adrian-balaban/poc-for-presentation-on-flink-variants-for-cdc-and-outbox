@@ -2,7 +2,6 @@
 **/bin/*
 **/*.jar
 !gradle/wrapper/gradle-wrapper.jar
-!local-maven-repo/**/*.jar
 **/build
 .vscode
 .idea/
