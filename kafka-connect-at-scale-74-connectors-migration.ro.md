@@ -758,6 +758,10 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 - [Prezentare generală Kafka Connect (documentație Apache Kafka)](https://kafka.apache.org/documentation/#connect)
 - [Documentația Confluent Kafka Connect](https://docs.confluent.io/platform/current/connect/index.html)
 - [Documentația Flink Kubernetes Operator](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
+- [Documentația Apache Flink (stable)](https://nightlies.apache.org/flink/flink-docs-stable/)
+- [Documentația Flink Kubernetes Operator (stable)](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-stable/)
+- [Documentația Apache Flink CDC (stable)](https://nightlies.apache.org/flink/flink-cdc-docs-stable/) ![Apache Flink CDC](images/flink-cdc-logo.png)
+- [Documentația Conectorului Flink CDC MySQL](https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/docs/connectors/flink-sources/mysql-cdc/)
 - `flink-cdc-poc/FLINK_CHECKPOINT_CONFIG.md` — semantici checkpoint, monitorizare, depanare
 - `flink-cdc-poc/FLINK_SAVEPOINT_RUNBOOK.md` — fluxuri de upgrade sigure, recuperare stare
 - `flink-cdc-poc/KAFKA_CONNECT.md` — variante KC CDC, SMT-uri, comparație Flink vs KC

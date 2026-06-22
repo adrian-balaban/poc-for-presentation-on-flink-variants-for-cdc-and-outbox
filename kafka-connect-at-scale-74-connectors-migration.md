@@ -761,6 +761,10 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 - [Kafka Connect overview (Apache Kafka docs)](https://kafka.apache.org/documentation/#connect)
 - [Confluent Kafka Connect documentation](https://docs.confluent.io/platform/current/connect/index.html)
 - [Flink Kubernetes Operator documentation](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
+- [Apache Flink documentation (stable)](https://nightlies.apache.org/flink/flink-docs-stable/)
+- [Flink Kubernetes Operator documentation (stable)](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-stable/)
+- [Apache Flink CDC documentation (stable)](https://nightlies.apache.org/flink/flink-cdc-docs-stable/) ![Apache Flink CDC](images/flink-cdc-logo.png)
+- [Flink CDC MySQL Connector documentation](https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/docs/connectors/flink-sources/mysql-cdc/)
 - `flink-cdc-poc/FLINK_CHECKPOINT_CONFIG.md` — checkpoint semantics, monitoring, troubleshooting
 - `flink-cdc-poc/FLINK_SAVEPOINT_RUNBOOK.md` — safe upgrade workflows, state recovery
 - `flink-cdc-poc/KAFKA_CONNECT.md` — KC CDC variants, SMTs, Flink vs KC comparison
