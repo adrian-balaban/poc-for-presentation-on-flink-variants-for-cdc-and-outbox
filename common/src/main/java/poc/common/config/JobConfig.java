@@ -57,7 +57,7 @@ public class JobConfig implements java.io.Serializable {
     return fromEnv(System::getenv);
   }
 
-  // NOTE: default credentials below are POC-only for local Docker Compose.
+  // NOTE: default credentials below are POC-only for local Podman Compose.
   // In production always supply MYSQL_USER / MYSQL_PASSWORD via a secrets manager
   // or Kubernetes Secrets — never rely on these defaults outside the dev environment.
   static JobConfig fromEnv(Function<String, String> lookup) {

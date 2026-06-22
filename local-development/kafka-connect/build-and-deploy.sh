@@ -7,6 +7,16 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 echo "=== Building and Deploying Kafka Connect Variants ==="
 echo ""
 
+# Require podman and podman-compose
+if ! command -v podman >/dev/null 2>&1; then
+    echo "✗ podman not found — install Podman before running this script"
+    exit 1
+fi
+if ! command -v podman-compose >/dev/null 2>&1; then
+    echo "✗ podman-compose not found — install it with: pip install podman-compose"
+    exit 1
+fi
+
 # 1. Build SMTs with Gradle
 echo "Step 1: Building custom SMTs..."
 cd "$PROJECT_ROOT"
@@ -21,27 +31,27 @@ fi
 
 # 2. Build Kafka Connect image
 echo ""
-echo "Step 2: Building Kafka Connect Docker image..."
+echo "Step 2: Building Kafka Connect image..."
 cd "$SCRIPT_DIR"
 
-docker build -t poc/kafka-connect:latest . --build-arg BUILDKIT_INLINE_CACHE=1
+podman build -t poc/kafka-connect:latest . --build-arg BUILDKIT_INLINE_CACHE=1
 if [ $? -eq 0 ]; then
     echo "✓ Kafka Connect image built successfully"
 else
-    echo "✗ Docker build failed"
+    echo "✗ Podman build failed"
     exit 1
 fi
 
 # 3. Start services
 echo ""
-echo "Step 3: Starting Docker Compose services..."
-cd "$PROJECT_ROOT/docker"
+echo "Step 3: Starting Podman Compose services..."
+cd "$PROJECT_ROOT/local-development"
 
-docker compose up -d mysql kafka
+podman-compose -f podman-compose.yml up -d mysql kafka
 if [ $? -eq 0 ]; then
     echo "✓ MySQL and Kafka started"
 else
-    echo "✗ Docker Compose up failed"
+    echo "✗ podman-compose up failed"
     exit 1
 fi
 
@@ -53,7 +63,7 @@ sleep 5
 # 4. Start Kafka Connect
 echo ""
 echo "Step 4: Starting Kafka Connect..."
-docker compose up -d kafka-connect
+podman-compose -f podman-compose.yml up -d kafka-connect
 
 # Wait for Kafka Connect REST API
 echo "Waiting for Kafka Connect REST API..."
@@ -85,7 +95,7 @@ echo "View connector status:"
 echo "  curl http://localhost:8083/connectors"
 echo ""
 echo "View topics:"
-echo "  docker exec kafka kafka-topics --bootstrap-server localhost:9092 --list | grep poc"
+echo "  podman exec kafka kafka-topics --bootstrap-server localhost:9092 --list | grep poc"
 echo ""
 echo "Monitor events:"
-echo "  docker exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic poc.cdc.datastream.kc.orders --from-beginning"
+echo "  podman exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic poc.cdc.datastream.kc.orders --from-beginning"

@@ -4,8 +4,8 @@ set -e
 CONNECT_URL="http://localhost:8083"
 CONNECTORS_DIR="$(dirname "$0")/connectors"
 # DB_HOST: hostname of MySQL as seen from inside the Kafka Connect container.
-# Defaults to "localhost" for Docker host-network mode; set to "mysql" for Podman bridge.
-DB_HOST="${DB_HOST:-localhost}"
+# Defaults to "mysql" for Podman bridge networking (service name in podman-compose.yml).
+DB_HOST="${DB_HOST:-mysql}"
 MAX_RETRIES=90
 RETRY_DELAY=2
 

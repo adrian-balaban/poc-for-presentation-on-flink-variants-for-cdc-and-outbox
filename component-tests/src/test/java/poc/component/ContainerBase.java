@@ -14,8 +14,7 @@ import poc.common.config.JobConfig;
 
 /**
  * Base class for component tests that use existing container infrastructure. Tests connect to MySQL
- * + Kafka already running via podman-compose. This avoids Testcontainers Docker client
- * initialization issues.
+ * + Kafka already running via podman-compose.
  *
  * <p>Server-ID ranges reserved for component tests: 7000–7099 (not in CLAUDE.md prod ranges).
  */
@@ -31,25 +30,25 @@ public abstract class ContainerBase {
   private static final String KAFKA_BOOTSTRAP = "localhost:9092";
 
   private static volatile boolean schemaInitialized = false;
-  private static volatile Boolean dockerAvailable = null;
-  private static final Object dockerCheckLock = new Object();
+  private static volatile Boolean podmanAvailable = null;
+  private static final Object podmanCheckLock = new Object();
 
   @BeforeEach
-  void verifyDockerAvailable() {
-    if (dockerAvailable == null) {
-      synchronized (dockerCheckLock) {
-        if (dockerAvailable == null) {
-          dockerAvailable = checkDockerConnectivity();
+  void verifyPodmanAvailable() {
+    if (podmanAvailable == null) {
+      synchronized (podmanCheckLock) {
+        if (podmanAvailable == null) {
+          podmanAvailable = checkPodmanConnectivity();
         }
       }
     }
     Assumptions.assumeTrue(
-        dockerAvailable,
+        podmanAvailable,
         "Podman stack (MySQL/Kafka) not available — skipping component tests. "
             + "Run: cd local-development && podman-compose -f podman-compose.yml up -d");
   }
 
-  private static boolean checkDockerConnectivity() {
+  private static boolean checkPodmanConnectivity() {
     try (Connection c =
         DriverManager.getConnection(
             String.format(
@@ -57,10 +56,10 @@ public abstract class ContainerBase {
                 MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE),
             MYSQL_USER,
             MYSQL_PASSWORD)) {
-      log.info("Docker containers are available");
+      log.info("Podman stack is available");
       return true;
     } catch (SQLException e) {
-      log.warn("Docker containers not available: {}", e.getMessage());
+      log.warn("Podman stack not available: {}", e.getMessage());
       return false;
     }
   }

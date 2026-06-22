@@ -11,8 +11,7 @@ export KAFKA_TOPIC_PREFIX="${KAFKA_TOPIC_PREFIX:-poc.cdc}"
 
 # flink-cdc.sh submits to the JobManager REST endpoint read from rest.address in
 # $FLINK_HOME/conf/config.yaml (default 0.0.0.0, unreachable from this container).
-# On Docker host-networking the JM is on localhost; on a Podman bridge it is the
-# flink-jobmanager service. Override via JOBMANAGER_HOST (default localhost).
+# On Podman bridge the JM is the flink-jobmanager service; override via JOBMANAGER_HOST.
 JOBMANAGER_HOST="${JOBMANAGER_HOST:-localhost}"
 # Replace the address line immediately following the `rest:` key (nested 2.x YAML).
 sed -i "/^rest:/{n;s/address:.*/address: ${JOBMANAGER_HOST}/}" "${FLINK_HOME}/conf/config.yaml"

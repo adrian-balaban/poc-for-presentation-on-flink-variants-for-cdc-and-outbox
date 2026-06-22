@@ -99,22 +99,19 @@ tasks.register('all') { // buildAndTest
     dependsOn ':common:spotlessApply', spotlessCheck
 
     doLast {
-        // Determine container engine from gradle.properties (or auto-detect)
-        String configEngine = project.findProperty('container.engine') ?: 'auto'
-        String engine = configEngine
-
-        if (engine == 'auto') {
-            // Auto-detect: prefer Podman, fall back to Docker
-            boolean hasPodman = false
-            try {
-                hasPodman = ['bash', '-c', 'command -v podman-compose >/dev/null 2>&1'].execute().waitFor() == 0
-            } catch (Exception ignored) { }
-            engine = hasPodman ? 'podman' : 'docker'
+        // Require podman-compose — no Docker fallback
+        boolean hasPodman = false
+        try {
+            hasPodman = ['bash', '-c', 'command -v podman-compose >/dev/null 2>&1'].execute().waitFor() == 0
+        } catch (Exception ignored) { }
+        if (!hasPodman) {
+            throw new GradleException(
+                'podman-compose not found. Install it (e.g. pip install podman-compose) before running ./gradlew all.')
         }
 
-        String composeUp   = engine == 'podman' ? 'podman-compose -f podman-compose.yml up -d --build'   : 'docker compose up -d --build'
-        String composeDown = engine == 'podman' ? 'podman-compose -f podman-compose.yml down -v' : 'docker compose down -v --remove-orphans'
-        println "=== Using container engine: ${engine} ==="
+        String composeUp   = 'podman-compose -f podman-compose.yml up -d --build'
+        String composeDown = 'podman-compose -f podman-compose.yml down -v'
+        println '=== Using container engine: podman ==='
 
         // Build all modules, including the variant fat-jars the component tests submit
         exec {
@@ -122,7 +119,7 @@ tasks.register('all') { // buildAndTest
         }
 
         // Restart the container stack with improved diagnostics
-        println "=== Stopping and cleaning ${engine} stack ==="
+        println '=== Stopping and cleaning podman stack ==='
         exec {
             commandLine 'bash', '-c', "cd local-development && ${composeDown}"
             ignoreExitValue = true  // "container not found" on first run is not an error
@@ -131,7 +128,7 @@ tasks.register('all') { // buildAndTest
         println '=== Waiting 5 seconds before restart ==='
         Thread.sleep(5000)
 
-        println "=== Starting ${engine} stack ==="
+        println '=== Starting podman stack ==='
         exec {
             commandLine 'bash', '-c', "cd local-development && ${composeUp}"
         }
@@ -152,8 +149,8 @@ tasks.register('all') { // buildAndTest
             try {
                 if (!mysqlKafkaReady) {
                     mysqlKafkaReady = ['bash', '-c',
-                        "${engine} exec mysql mysqladmin ping -h localhost -u flink -pflink 2>/dev/null && " +
-                        "${engine} exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null"]
+                        'podman exec mysql mysqladmin ping -h localhost -u flink -pflink 2>/dev/null && ' +
+                        'podman exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null']
                         .execute().waitFor() == 0
                     if (mysqlKafkaReady) println "✓ MySQL and Kafka are ready!"
                 }
@@ -191,7 +188,7 @@ tasks.register('all') { // buildAndTest
         if (!mysqlKafkaReady) println "WARNING: MySQL/Kafka may not be fully ready. Proceeding anyway..."
         if (!flinkReady) {
             def flinkContainerExists = ['bash', '-c',
-                "${engine} inspect flink-jm >/dev/null 2>&1"].execute().waitFor() == 0
+                'podman inspect flink-jm >/dev/null 2>&1'].execute().waitFor() == 0
             if (!flinkContainerExists) {
                 throw new GradleException(
                     "flink-jm container does not exist. Image build likely failed during 'podman-compose up'. " +
@@ -202,7 +199,7 @@ tasks.register('all') { // buildAndTest
         if (!kafkaConnectReady) {
             // Check if the container even exists — helps diagnose silent image build failures
             def containerExists = ['bash', '-c',
-                "${engine} inspect kafka-connect >/dev/null 2>&1"].execute().waitFor() == 0
+                'podman inspect kafka-connect >/dev/null 2>&1'].execute().waitFor() == 0
             if (!containerExists) {
                 throw new GradleException(
                     "kafka-connect container does not exist. Image build likely failed during 'podman-compose up'. " +
@@ -239,12 +236,10 @@ tasks.register('all') { // buildAndTest
         }
 
         // Deploy Kafka Connect connectors
-        // DB_HOST=mysql: on Podman bridge, the Connect container reaches MySQL by service name;
-        // on Docker host-network, localhost is correct (the script default).
-        String dbHost = (engine == 'podman') ? 'mysql' : 'localhost'
+        // DB_HOST=mysql: on Podman bridge the Connect container reaches MySQL by service name.
         println '=== Deploying Kafka Connect connectors ==='
         exec {
-            commandLine 'bash', '-c', "cd local-development/kafka-connect && DB_HOST=${dbHost} ./deploy-connectors.sh"
+            commandLine 'bash', '-c', 'cd local-development/kafka-connect && DB_HOST=mysql ./deploy-connectors.sh'
         }
 
         // Run component tests (both Flink and Kafka Connect)
