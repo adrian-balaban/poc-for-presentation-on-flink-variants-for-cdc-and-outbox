@@ -33,7 +33,7 @@ Formatting is enforced in the `check` task — `./gradlew build` will fail if co
 The `all` task orchestrates a complete build-and-test cycle:
 
 1. **Builds all modules** — `./gradlew clean build -x test shadowJar` (includes the variant fat-jars the component tests submit)
-2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d --build` (`down` exit is ignored — "container not found" on first run is normal; `--build` ensures images like `flink-cdc-submitter` are always rebuilt from the current `Dockerfile`/`entrypoint.sh` so stale baked-in scripts never survive a stack restart)
+2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d --build` (`down` exit is ignored — "container not found" on first run is normal; `--build` ensures images like `flink-cdc-submitter` are always rebuilt from the current `Dockerfile`/`entrypoint.sh` so stale baked-in scripts never survive a stack restart). Layer cache keeps this cheap for unchanged build contexts (e.g. `flink-with-mysql`), so only services whose baked-in code actually changed are rebuilt — the tradeoff (rebuild attempt every run vs. silently stale scripts) is intentionally weighted toward correctness.
 3. **Waits for services** — polls MySQL + Kafka + Kafka Connect + Flink (up to 180 s); if Flink container doesn't exist (image build failure) the task throws with a diagnostic message rather than silently skipping
 4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
 5. **Deploys Kafka Connect connectors** — REST API (with `DB_HOST=mysql` for bridge networking)

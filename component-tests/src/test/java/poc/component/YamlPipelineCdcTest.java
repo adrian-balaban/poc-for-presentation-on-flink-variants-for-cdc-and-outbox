@@ -50,12 +50,16 @@ class YamlPipelineCdcTest extends ContainerBase {
     // The YAML pipeline job is already running (submitted by flink-cdc-submitter on stack start);
     // this binlog insert will be picked up and committed at the next checkpoint (≤30 s).
     String marker = "YAML-E2E-" + System.currentTimeMillis();
+    // Use a parameterised PreparedStatement rather than string concatenation — models the
+    // "near-production-quality" idiom this POC targets and avoids any quoting pitfalls.
     try (java.sql.Connection c = flinkConn();
-        java.sql.Statement s = c.createStatement()) {
-      s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (99, 99.99, '"
-              + marker
-              + "')");
+        java.sql.PreparedStatement ps =
+            c.prepareStatement(
+                "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (?, ?, ?)")) {
+      ps.setInt(1, 99);
+      ps.setDouble(2, 99.99);
+      ps.setString(3, marker);
+      ps.executeUpdate();
     }
 
     // Poll up to 90 s to absorb checkpoint latency (30 s interval + processing time).
