@@ -72,25 +72,26 @@ Prezentarea a fost facuta pentru **Comunitatea Java Cognizant România**.
 
 ```
 MySQL binlog  →  Debezium  →  Kafka  →  consumatori
-               (capturează     (magistrala     (alte sisteme,
-                schimbări)      de mesaje)       DB-uri)
+               (capturează     topics          (alte sisteme,
+                schimbări)                       DB-uri)
 ```
 
 | Termen | Ce este (o propoziție) |
 |--------|------------------------|
 | **MySQL binlog** | Jurnalul intern MySQL cu toate INSERT/UPDATE/DELETE — Debezium îl citește ca un replica |
-| **Debezium** | Bibliotecă open-source care transformă binlog-ul în evenimente JSON |
+| **Debezium** | Platformă CDC open-source care citește binlog-ul MySQL și emite fiecare INSERT/UPDATE/DELETE ca eveniment JSON structurat; folosit intern de Flink CDC ca parser de binlog (nu același conector KC Debezium) |
 | **Kafka Connect** | Platforma care rulează Debezium (și alți conectori) ca workere gestionate |
 | **SMT** | Single Message Transformer — un plugin KC care modifică fiecare înregistrare în zbor (enrichment, routing) |
 | **Confluent Cloud** | Kafka + Kafka Connect ca serviciu managed (nu îl administrezi tu, îl plătești) |
 | **Apache Flink** | Motor de procesare a stream-urilor; poate face același lucru ca Debezium + KC, dar ca job izolat pe K8s |
 | **Flink Operator / CR** | Operator K8s care rulează fiecare job Flink ca un `FlinkDeployment` Custom Resource (JM + TM proprii) |
 | **StatementSet** | Construct Flink Table API care compilează mai multe INSERT-uri într-un singur JobGraph (un checkpoint) |
-| **IRSA** | IAM Roles for Service Accounts — cum primesc pod-urile K8s permisiuni AWS (acces S3 la checkpoint-uri) |
+| **IAM** | AWS Identity and Access Management — sistemul de permisiuni care controlează ce principali pot accesa ce resurse AWS; aici folosit pentru a acorda job-urilor Flink acces S3 la checkpoint-uri |
 | **RDS** | Bază de date relațională AWS managed — sursa MySQL de producție aici (auth IAM) |
-| **transactron** | Conectorul intern de outbox al clientului, migrat în Faza 3 (vezi Spike S4) |
+| **Tabelă outbox** | O tabelă DB scrisă în aceeași tranzacție cu înregistrarea de business; CDC o citește și rutează evenimentul la topicul Kafka potrivit — decuplează publicarea evenimentelor de schema principală |
+| **transactron** | Schema MySQL a clientului care conține tabelele de tip outbox |
 
-> **De reținut:** toate variantele din acest talk citesc același lucru — binlog-ul MySQL — și scriu în Kafka.
+> **De reținut:** toate variantele (cu exceptia celei de tip oubox )folosesc același lucru — binlog-ul MySQL — și scriu în Kafka.
 > Diferența este *cum* și *unde* rulează procesul de citire.
 
 ---
