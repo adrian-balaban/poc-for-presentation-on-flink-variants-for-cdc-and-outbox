@@ -312,12 +312,18 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 > plus schema-history topics. Signal topics (`private.debezium.signal.*`) are KC-only;
 > Flink CDC does not use them.
 
-### Kafka Connect REST API — 5 KC Connectors (side-by-side comparison)
+### Kafka Connect REST API — 5 KC Conectori (comparație alăturată)
 
 ![Kafka Connect — 5 connectors list](images/slides/kafka-connect.png)
 
 > KC connectors run in parallel for output comparison only. Server-IDs in the reserved
 > `5500–5599` range to avoid collision with the Flink variants.
+
+### Grafana Dashboard — Flink CDC POC Monitoring
+
+![Grafana — Flink CDC POC Monitoring dashboard](images/slides/grafana-dashboard.png)
+
+> 3 monitors shipped (mirroring Datadog): Restart Loop, Checkpoint Duration, Checkpoint Failures — all 5 variants green. Monitors #4–#7 (connector lag, snapshot status, binlog position) pending Spike S1.
 
 ---
 
