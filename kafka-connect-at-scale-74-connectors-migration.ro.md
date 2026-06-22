@@ -145,7 +145,7 @@ Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce
 
 | | Kafka Connect azi | Flink (propus) |
 |--|--|--|
-| Deployment | 1 cluster partajat de workere | N joburi K8s izolate (Flink Operator) |
+| Deployment | 1 cluster partajat de workere | N joburi K8s izolate (prin Flink Operator) |
 | Raza de impact | 1 — toate cele 95 de conectori | 1 per echipă — limitată |
 | Rebalansare | un grup → cascadă pe 26 de echipe | niciuna — fără grup partajat |
 | Offset-uri / stare | topic partajat de offset | checkpoint-uri exactly-once per job (S3) |
