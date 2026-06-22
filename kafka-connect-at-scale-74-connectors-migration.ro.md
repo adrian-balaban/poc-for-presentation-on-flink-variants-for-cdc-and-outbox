@@ -48,21 +48,23 @@ Prezentarea a fost facuta pentru **Comunitatea Java Cognizant România**.
 
 ## Slide 1b — Agendă (45 de minute)
 
-1. **Unde suntem** (2 min) — Contextul clientului + sfera migrării: 95 de conectori pe un singur cluster, 74 ținte MySQL, 21 rămân pe KC
-2. **De ce doare și ce cerem** (4 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească
-3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink într-un cadru; pool partajat vs. izolare per-job
-4. **POC-ul + dovezi** (8 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC
-5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi
-6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare
-7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă
-8. **De ce aceasta față de alternative** (5 min) — Matrice de decizie: de ce Flink CDC vs KC vs altele
-8b. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi
-9. **Întrebări deschise** (3 min) — 8 spike-uri
-10. **Recomandare & pasul următor** (2 min) — decizia de adoptare, prima echipă, calendar
+*(Slide-urile 0–1c constituie cadrul de deschidere; blocul de 45 de minute începe aici.)*
+
+1. **Unde suntem** (2 min) — Contextul clientului + sfera migrării: 95 de conectori pe un singur cluster, 74 ținte MySQL, 21 rămân pe KC → *Slide-urile 2, 5*
+2. **De ce doare și ce cerem** (4 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească → *Slide 3*
+3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink într-un cadru; pool partajat vs. izolare per-job → *Slide 4*
+4. **POC-ul + dovezi** (8 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8, 12*
+5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi → *Slide-urile 9, 13*
+6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare → *Slide-urile 10, 11, 17*
+7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă → *Slide 14*
+8. **De ce aceasta față de alternative** (5 min) — Matrice de decizie: de ce Flink CDC vs KC vs altele → *Slide 15*
+8b. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi → *Slide 15b*
+9. **Întrebări deschise** (3 min) — 8 spike-uri → *Slide 16*
+10. **Recomandare & pasul următor** (2 min) — decizia de adoptare, prima echipă, calendar → *Slide 18*
 
 **Q&A: 15 minute**
 
-*(total agendă: 45 min + 15 min Q&A; Slide 1c este un primer Kafka opțional de ~75 s, iar capturile de ecran live Slide 12b se arată doar dacă timpul permite — niciuna nu e inclusă în cei 45 min.)*
+*(total agendă: 45 min + 15 min Q&A; Slide 1c este un primer Kafka opțional de ~75 s, iar capturile de ecran live Slide 12b se arată doar dacă timpul permite — niciuna nu e inclusă în cele 45 min.)*
 
 ---
 
