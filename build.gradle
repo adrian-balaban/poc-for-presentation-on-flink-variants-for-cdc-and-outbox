@@ -106,7 +106,7 @@ tasks.register('all') { // buildAndTest
         } catch (Exception ignored) { }
         if (!hasPodman) {
             throw new GradleException(
-                'podman-compose not found. Install it (e.g. pip install podman-compose) before running ./gradlew all.')
+                'podman-compose not found. Install it (e.g. sudo apt install podman-compose) before running ./gradlew all.')
         }
 
         String composeUp   = 'podman-compose -f podman-compose.yml up -d --build'
