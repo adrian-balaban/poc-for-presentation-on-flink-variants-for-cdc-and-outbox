@@ -3,6 +3,8 @@
 **Autor:** Adrian Balaban  
 **Data:** 2026-06-26
 
+În această sesiune vom explora Kafka Connect prin experiența reală a unui client, concentrându-ne pe un proof of concept și o migrare propusă a 74 de conectori din Confluent Kafka Cloud către Flink. Vom parcurge provocările actuale, îmbunătățirile pe care le urmărește noua abordare și compromisurile implicate. Prezentarea evidențiază, de asemenea, alternativele luate în considerare și raționamentul din spatele soluției propuse.
+
 ---
 
 ## Slide 0 — De ce este util acest talk (ce vei putea face după el)
@@ -25,8 +27,8 @@ Cinci lucruri pe care le iei de aici:
    stream processing cu stare, event-time și checkpoint-uri exactly-once, fiecare
    job ca deployment K8s izolat.
 5. **Informațiile + codul POC pentru a face CDC la un alt client** — 5 variante
-   rulând simultan, cod aproape de producție, infrastructură Podman reprodusibilă,
-   teste componente care validează output-ul Kafka.
+   rulând simultan, cod aproape de producție, infrastructură Podman reproductibilă,
+   component-tests care validează output-ul Kafka.
 
 > Ținta: la final poți alege între KC și Flink cu argumente — și ai codul de la
 > care pornești, nu de la zero.
@@ -40,9 +42,7 @@ Cinci lucruri pe care le iei de aici:
 
 Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Flink, cu un proof of concept acoperind toate 5 variantele.
 
-Prezentarea demo a fost livrată inițial **Comunității Java Cognizant România**.
-
-Al doilea obiectiv: producerea de cod aproape de calitatea producției.
+Prezentarea a fost facuta pentru **Comunitatea Java Cognizant România**.
 
 ---
 
