@@ -114,7 +114,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 
 ## Slide 3 — Ce Cerem și Ce Doare Azi
 
-**Ce cerem de la orice soluție** *(Kafka Guild, agnostic față de soluție — etalonul pentru opțiunile de pe slide-ul Alternative):*
+**Ce cerem de la orice soluție** *(agnostic față de soluție — etalonul pentru opțiunile de pe slide-ul Alternative):*
 
 1. Imaginea de bază + patch-urile de securitate rămân **centralizate** — echipele nu dețin runtime-ul.
 2. **Să ne îndepărtăm de Confluent Platform** — licențiere și lock-in.
@@ -124,12 +124,12 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 
 | Problemă | Cine | Cât de des | Impact business |
 |----------|------|-----------|-----------------|
-| Furtuni de rebalansare — un conector defect destabilizează toți | Toate cele 26 de echipe | De mai multe ori/trimestru | Incidente inter-echipe; downtime consumatori în timpul cascadei |
+| Furtuni de rebalansare — un conector defect destabilizează tot | Toate cele 26 de echipe | De mai multe ori/trimestru | Incidente inter-echipe; downtime consumatori în timpul cascadei |
 | Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident | Fără izolare între echipe |
 | Lag recurent — niciun reglaj per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
-| Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | La fereastră conector nou | Defecte ajung în prod nedetectate |
+| Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | Dupa deploy conector nou | Defecte ajung în prod nedetectate |
 | Licențiere Confluent Kafka Cloud | Organizația | Lunar | **Cost lunar de licențiere semnificativ** |
-| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release | Overhead de coordonare la nivel de flotă |
+| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release si la fiecare vulnerabilitate fixata | Overhead de coordonare la nivel de flotă |
 
 > Un singur restart de conector declanșează o **rebalansare în cascadă între echipe fără legătură** — și majoritatea rândurilor de mai sus corespund unei îmbunătățiri concrete (vezi slide-ul Îmbunătățiri).
 
