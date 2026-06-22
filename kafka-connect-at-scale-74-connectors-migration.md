@@ -6,6 +6,36 @@
 
 ---
 
+## Slide 0 — Why this talk is useful (what you'll be able to do after it)
+
+> Not just a retelling of one client's migration — a **reusable playbook**.
+> After this talk you can reproduce CDC with Kafka Connect or with Flink at
+> another client.
+
+Five things you take away:
+
+1. **The client's journey** — how a few years ago they moved from a
+   **DB-centric architecture** to an **event-driven** one by adding just Kafka
+   and a handful of Kafka Connect connectors. The context that makes the
+   outcome relevant.
+2. **The real production pain with KC** — cascading rebalances across unrelated
+   teams, lag with no per-team tuning, a shared blast radius on one cluster,
+   Confluent Cloud licensing.
+3. **Flink, Flink connectors, and Debezium in short** — what they are, where
+   they overlap, where they differ; Debezium as a binlog parser reused
+   internally by Flink CDC (not the same KC connector).
+4. **Flink is fully event-driven** — not just a CDC connector, but a stateful
+   stream-processing engine with event-time and exactly-once checkpoints,
+   each job as an isolated K8s deployment.
+5. **The info + POC code to do CDC at another client** — 5 variants running
+   simultaneously, near-production code, reproducible Podman infra, component
+   tests that validate the Kafka output.
+
+> Goal: at the end you can choose between KC and Flink with arguments — and you
+> have code to start from, not from zero.
+
+---
+
 ## Slide 1 — The Problem in One Sentence
 
 > Real client. Real scale. 95 connectors, 26 teams, one shared cluster — and the

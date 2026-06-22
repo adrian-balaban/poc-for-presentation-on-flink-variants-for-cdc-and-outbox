@@ -5,6 +5,34 @@
 
 ---
 
+## Slide 0 — De ce este util acest talk (ce vei putea face după el)
+
+> Nu doar o relatare a migrării unui client — un **playbook reutilizabil**. După
+> acest talk poți reproduce CDC-ul cu Kafka Connect sau cu Flink la alt client.
+
+Cinci lucruri pe care îi iei de aici:
+
+1. **Drumul clientului** — cum s-a plecat acum câțiva ani de la o arhitectură
+   **centrată pe DB** și s-a ajuns la una **event-driven** adăugând doar Kafka și
+   un număr de conectori Kafka Connect. Contextul care face rezultatul relevant.
+2. **Problemele reale de producție cu KC** — rebalansare în cascadă între echipe
+   fără legătură, lag fără reglaj per echipă, raza de impact partajată pe un
+   singur cluster, licențiere Confluent Cloud.
+3. **Flink, conectorii Flink și Debezium pe scurt** — ce sunt, unde se
+   suprapun, unde diferă; Debezium ca parser de binlog reutilizat intern de
+   Flink CDC (nu ca același conector KC).
+4. **Flink este full event-driven** — nu doar un conector CDC, ci un motor de
+   stream processing cu stare, event-time și checkpoint-uri exactly-once, fiecare
+   job ca deployment K8s izolat.
+5. **Informațiile + codul POC pentru a face CDC la un alt client** — 5 variante
+   rulând simultan, cod aproape de producție, infrastructură Podman reprodusibilă,
+   teste componente care validează output-ul Kafka.
+
+> Ținta: la final poți alege între KC și Flink cu argumente — și ai codul de la
+> care pornești, nu de la zero.
+
+---
+
 ## Slide 1 — Problema Într-o Propoziție
 
 > Client real. Scară reală. 95 de conectori, 26 de echipe, un cluster partajat — și
