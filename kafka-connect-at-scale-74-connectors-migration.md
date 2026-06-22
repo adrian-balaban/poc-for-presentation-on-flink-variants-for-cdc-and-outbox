@@ -1,7 +1,8 @@
 # Kafka Connect @ Scale: 74 Connectors Migration Case
 
 **Author:** Adrian Balaban  
-**Date:** 2026-06
+**Date:** 2026-06-26
+
 
 ---
 
@@ -11,6 +12,10 @@
 > question whether Flink is the right way out.
 
 Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flink, with a proof of concept covering all 5 variants.
+
+
+Presentation demo originally delivered to the **Cognizant Java Community Romania**.  
+Shows how to build a serverless, event-driven integration platform on Kubernetes using [Knative](https://knative.dev) and [Apache Camel-K](https://camel.apache.org/camel-k/next/).
 
 ---
 
