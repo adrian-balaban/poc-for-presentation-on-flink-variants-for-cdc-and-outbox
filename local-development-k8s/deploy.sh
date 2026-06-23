@@ -162,11 +162,15 @@ _kind_load localhost/kafka-connect-debezium:local
 # `podman exec` into the kind node container to run ctr commands directly.
 NODE="${CLUSTER}-control-plane"
 echo "▶ re-tagging images in kind node containerd (kind+podman localhost/ prefix quirk)"
+# ctr images tag won't overwrite an existing tag — delete stale docker.io/library/ and
+# bare aliases first so the re-tag always points at the freshly-loaded localhost/ image.
 for img in flink-with-mysql "${VARIANT_ARTIFACTS[@]}" flink-cdc-submitter; do
+  podman exec "$NODE" ctr -n k8s.io images rm "docker.io/library/${img}:latest" 2>/dev/null || true
+  podman exec "$NODE" ctr -n k8s.io images rm "${img}:latest" 2>/dev/null || true
   podman exec "$NODE" ctr -n k8s.io images tag "localhost/${img}:latest" "${img}:latest" >/dev/null \
-    || echo "⚠ re-tag localhost/${img}:latest → ${img}:latest failed (may already exist)"
+    || echo "⚠ re-tag localhost/${img}:latest → ${img}:latest failed"
   podman exec "$NODE" ctr -n k8s.io images tag "localhost/${img}:latest" "docker.io/library/${img}:latest" >/dev/null \
-    || echo "⚠ re-tag localhost/${img}:latest → docker.io/library/${img}:latest failed (may already exist)"
+    || echo "⚠ re-tag localhost/${img}:latest → docker.io/library/${img}:latest failed"
 done
 # kafka-connect-debezium uses tag :local (not :latest) so it's handled separately.
 podman exec "$NODE" ctr -n k8s.io images tag \
@@ -209,6 +213,16 @@ kubectl -n flink-system wait deploy/flink-kubernetes-operator \
   --for=condition=available --timeout=300s
 
 kubectl apply -f "$K8S/flink/flink-rbac.yaml"
+# Delete existing FlinkDeployments so the operator recreates pods from the freshly-loaded
+# artifact images. `kubectl apply` with the same image tag (:latest) is a no-op for the
+# operator — pods keep using the old baked-in fat-jar. Delete forces a full restart.
+for name in "${VARIANT_NAMES[@]}"; do
+  kubectl -n poc delete flinkdeployment "${name}" --ignore-not-found=true
+done
+# Wait until all 4 are gone before re-applying so the operator starts clean.
+for name in "${VARIANT_NAMES[@]}"; do
+  kubectl -n poc wait flinkdeployment "${name}" --for=delete --timeout=120s 2>/dev/null || true
+done
 for dep in "${VARIANT_DEPLOYMENTS[@]}"; do
   kubectl apply -f "$K8S/flink/${dep}"
 done
@@ -224,6 +238,11 @@ done
 # and the yaml-pipeline-cdc-rest ClusterIP Service (port 8081).
 echo "▶ deploying YAML Pipeline session cluster (variant-5)"
 kubectl apply -f "$K8S/flink/configmap-yaml-pipeline.yaml"
+# Delete the session cluster so the operator starts it fresh with the new pipeline image;
+# a running pipeline from a previous deploy would conflict on the MySQL server-ID range
+# and cause restart loops when the submitter re-submits.
+kubectl -n poc delete flinkdeployment yaml-pipeline-cdc --ignore-not-found=true
+kubectl -n poc wait flinkdeployment/yaml-pipeline-cdc --for=delete --timeout=120s 2>/dev/null || true
 kubectl apply -f "$K8S/flink/flinkdeployment-yaml.yaml"
 
 # Wait for the JM to become available before launching the submitter. The

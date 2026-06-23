@@ -8,6 +8,7 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -58,5 +59,48 @@ class DataStreamCdcTest extends FlinkTestBase {
     assertThat(messages).isNotEmpty();
     assertThat(messages).anyMatch(m -> m.contains("BINLOG-TEST"));
     log.info("DataStream CDC binlog test: {} Kafka message(s) received", messages.size());
+  }
+
+  /**
+   * Verifies the multi-table pass-through: {@code DataStreamCdcJob} reads {@code
+   * orders,customers,outbox_events} (the {@code MYSQL_TABLES} default) and {@code CdcEventRouter}
+   * is a pass-through that tags every event as {@code datastream-cdc} to the single {@code
+   * poc.flink.datastream.orders} topic. A {@code customers} insert must therefore appear on that
+   * topic with the customer row fields in the Debezium {@code after} object — previously untested,
+   * so a regression that dropped non-orders tables would be invisible.
+   */
+  @Test
+  @Timeout(90)
+  void cdcSource_capturesCustomersTable_andPublishesToOrdersTopic() throws Exception {
+    ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(120));
+
+    String name = "CustPass-" + System.currentTimeMillis() % 1_000_000;
+    try (Connection c = flinkConn();
+        Statement s = c.createStatement()) {
+      s.executeUpdate(
+          String.format(
+              "INSERT INTO poc_db.customers (name, email) VALUES ('%s', '%s@example.com')",
+              name, name.toLowerCase()));
+    }
+
+    String msg =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(60),
+            m -> {
+              try {
+                JSONObject a = new JSONObject(m).optJSONObject("after");
+                return a != null && name.equals(a.optString("name"));
+              } catch (Exception e) {
+                return false;
+              }
+            });
+    assertThat(msg)
+        .as("expected customers CDC event on the orders topic for name=" + name)
+        .isNotNull();
+    JSONObject after = new JSONObject(msg).getJSONObject("after");
+    assertThat(after.optString("name")).isEqualTo(name);
+    assertThat(new JSONObject(msg).optString("variant")).isEqualTo("datastream-cdc");
+    log.info("DataStream CDC customers pass-through: validated event for name={}", name);
   }
 }

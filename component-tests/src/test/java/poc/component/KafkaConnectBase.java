@@ -287,6 +287,49 @@ public abstract class KafkaConnectBase extends ContainerBase {
   }
 
   /**
+   * Build the Debezium outbox connector config with the {@code OutboxRoutingTransform} SMT.
+   * Parallel to {@link #buildDebeziumConnectorConfig} but for the outbox variant — uses {@code
+   * DB_HOST} and {@code SCHEMA_HISTORY_BOOTSTRAP} directly in the format string instead of post-hoc
+   * {@code String.replace} on a hardcoded {@code "localhost"} literal, which is fragile (breaks if
+   * the string appears elsewhere) and inconsistent with the other KC variant configs.
+   */
+  protected static String buildOutboxConnectorConfig(
+      String connectorName, String serverId, String serverName) {
+    return String.format(
+        """
+            {
+              "name": "%s",
+              "config": {
+                "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+                "database.hostname": "%s",
+                "database.port": 3306,
+                "database.user": "flink",
+                "database.password": "flink",
+                "database.server.id": "%s",
+                "database.server.name": "%s",
+                "database.include.list": "poc_db",
+                "table.include.list": "poc_db.outbox_events",
+                "snapshot.mode": "initial",
+                "transforms": "routing",
+                "transforms.routing.type": "poc.kafka.connect.OutboxRoutingTransform",
+                "transforms.routing.topic.prefix": "poc.kc.outbox",
+                "transforms.routing.destination.field": "destination",
+                "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+                "key.converter.schemas.enable": false,
+                "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+                "value.converter.schemas.enable": false,
+                "decimal.handling.mode": "string",
+                "include.schema.changes": false,
+                "schema.history.internal.kafka.bootstrap.servers": "%s",
+                "schema.history.internal.kafka.topic": "dbhistory.outbox",
+                "topic.prefix": "poc.kc.outbox"
+              }
+            }
+            """,
+        connectorName, DB_HOST, serverId, serverName, SCHEMA_HISTORY_BOOTSTRAP);
+  }
+
+  /**
    * Assert enrichment metadata on Kafka Connect output. Reduces duplicate assertions across test
    * classes.
    */

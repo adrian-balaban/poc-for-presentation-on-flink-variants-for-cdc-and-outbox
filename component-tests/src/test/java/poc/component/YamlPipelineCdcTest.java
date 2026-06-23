@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -73,6 +74,21 @@ class YamlPipelineCdcTest extends ContainerBase {
                 + "' on poc.flink.yaml-pipeline.orders — "
                 + "ensure flink-cdc-submitter started successfully")
         .isNotNull();
-    log.info("YAML Pipeline CDC: received event with marker {}", marker);
+
+    // Validate the message is well-formed CDC JSON with the inserted values. The YAML pipeline
+    // Kafka sink emits debezium-style JSON:
+    // {"before":...,"after":{id,customer_id,...},"op","source"}.
+    // Unlike the DataStream/Table/SQL variants it carries NO "variant" annotation at the root —
+    // this absence is the documented enrichment contract for variant 5, asserted below.
+    JSONObject envelope = new JSONObject(msg);
+    JSONObject after = envelope.getJSONObject("after");
+    assertThat(after.optLong("customer_id")).as("customer_id").isEqualTo(99);
+    assertThat(after.optString("status")).as("status marker").isEqualTo(marker);
+    assertThat(after.has("id")).as("id field present").isTrue();
+    assertThat(after.has("amount")).as("amount field present").isTrue();
+    assertThat(envelope.has("variant"))
+        .as("YAML pipeline emits no variant annotation (contract)")
+        .isFalse();
+    log.info("YAML Pipeline CDC: validated row JSON for marker {}", marker);
   }
 }

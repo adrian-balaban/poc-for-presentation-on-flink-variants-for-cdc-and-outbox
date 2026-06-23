@@ -190,4 +190,36 @@ class FlinkRestClient {
     }
     return new JSONObject(r.body()).getString("state");
   }
+
+  /**
+   * Fetch a single JobManager-scoped metric for a job (e.g. {@code numRestarts}, {@code
+   * numberOfCompletedCheckpoints}, {@code lastCheckpointDuration}). Returns {@code null} if the
+   * metric is unavailable (not yet registered / not exposed). Used by health assertions to verify a
+   * job is making checkpointing progress rather than just sitting in RUNNING while restart-looping.
+   */
+  String getJobMetric(String jobId, String metricName) throws Exception {
+    HttpResponse<String> r =
+        http.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/jobs/" + jobId + "/metrics?get=" + metricName))
+                .timeout(Duration.ofSeconds(5))
+                .GET()
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+    if (r.statusCode() != 200) {
+      return null;
+    }
+    // Flink metrics endpoint returns a JSON array directly: [{id, value}, ...]
+    JSONArray metrics = new JSONArray(r.body());
+    if (metrics == null || metrics.isEmpty()) {
+      return null;
+    }
+    for (int i = 0; i < metrics.length(); i++) {
+      JSONObject m = metrics.getJSONObject(i);
+      if (metricName.equals(m.optString("id"))) {
+        return m.optString("value", null);
+      }
+    }
+    return null;
+  }
 }

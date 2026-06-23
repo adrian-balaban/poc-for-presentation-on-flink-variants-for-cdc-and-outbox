@@ -71,39 +71,7 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
   }
 
   private void deployOutboxConnector() throws Exception {
-    String config =
-            """
-            {
-              "name": "kc-outbox-cdc",
-              "config": {
-                "connector.class": "io.debezium.connector.mysql.MySqlConnector",
-                "database.hostname": "localhost",
-                "database.port": 3306,
-                "database.user": "flink",
-                "database.password": "flink",
-                "database.server.id": "5550",
-                "database.server.name": "mysql-outbox",
-                "database.include.list": "poc_db",
-                "table.include.list": "poc_db.outbox_events",
-                "snapshot.mode": "initial",
-                "transforms": "routing",
-                "transforms.routing.type": "poc.kafka.connect.OutboxRoutingTransform",
-                "transforms.routing.topic.prefix": "poc.kc.outbox",
-                "transforms.routing.destination.field": "destination",
-                "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-                "key.converter.schemas.enable": false,
-                "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-                "value.converter.schemas.enable": false,
-                "decimal.handling.mode": "string",
-                "include.schema.changes": false,
-                "schema.history.internal.kafka.bootstrap.servers": "SCHEMA_HISTORY_PLACEHOLDER",
-                "schema.history.internal.kafka.topic": "dbhistory.outbox",
-                "topic.prefix": "poc.kc.outbox"
-              }
-            }
-            """
-            .replace("\"localhost\"", "\"" + DB_HOST + "\"")
-            .replace("SCHEMA_HISTORY_PLACEHOLDER", SCHEMA_HISTORY_BOOTSTRAP);
+    String config = buildOutboxConnectorConfig(CONNECTOR_NAME, "5550", "mysql-outbox");
     deployConnector(CONNECTOR_NAME, config);
   }
 }
