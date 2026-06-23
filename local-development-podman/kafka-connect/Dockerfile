@@ -8,7 +8,7 @@ RUN curl -sL -o /tmp/debezium.jar https://repo1.maven.org/maven2/io/debezium/deb
 
 # Copy the shadow (with-deps) SMT JAR only — the plain jar is compiled for Java 17
 # while cp-kafka-connect:7.6.1 runs Java 11, causing UnsupportedClassVersionError.
-COPY local-development/kafka-connect-smts/build/libs/*-with-deps.jar /usr/share/java/custom-smts/
+COPY kafka-connect-smts/build/libs/*-with-deps.jar /usr/share/java/custom-smts/
 
 ENTRYPOINT ["/etc/confluent/docker/run"]
 
