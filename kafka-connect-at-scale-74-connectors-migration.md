@@ -213,7 +213,7 @@ The application controls the event shape and destination. The business table sch
 
 **Apache Flink** is a stateful stream-processing engine: a continuous job that reads events, keeps state, and writes results — with **exactly-once checkpoints** (durable, recoverable) and **event-time** semantics. Each job runs as its **own isolated K8s deployment** (own JobManager + TaskManager) under the Flink Operator.
 
-**Flink CDC** is the connector that does the same job as Debezium-on-Kafka-Connect — reads the MySQL binlog and emits change events to Kafka — but with an **incremental snapshot** algorithm that needs **no shared offset topic and no signal topic**, running inside that isolated job.
+**Flink + MySql Connector** or **Flink CDC** does the same job as Debezium-on-Kafka-Connect — reads the MySQL outbox table and emits change events to Kafka.
 
 The structural argument in one frame — this is the bridge from "why it hurts" to "why Flink fixes it":
 
@@ -245,11 +245,11 @@ We built **5 variants** and ran them
 
 | # | Variant | Entry-Class Size | Output Format | Java Required |
 |---|---------|-----------|---------------|---------------|
-| 1 | DataStream CDC | 50 lines | Debezium envelope + enrichment | Yes |
-| 2 | Table API | 99 lines | Flattened projected row (upsert-kafka) | Yes |
-| 3 | SQL API | 156 lines | Flattened projected row (upsert-kafka) | Minimal |
-| 4 | Outbox | 56 lines | Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC) | Yes |
-| 5 | YAML Pipeline | 47 lines YAML | Native Debezium envelope | **No** |
+| 1 | CDC with Flink DataStream API | 50 lines | Debezium envelope + enrichment | Yes |
+| 2 | CDC with Flink Table API | 99 lines | Flattened projected row (upsert-kafka) | Yes |
+| 3 | CDC with Flink SQL API | 156 lines | Flattened projected row (upsert-kafka) | Minimal |
+| 4 | CDC with Flink CDC (YAML Pipeline) | 47 lines YAML | Native Debezium envelope | **No** |
+| 5 | Outbox with Flink DataStream API | 56 lines | Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC) | Yes |
 
 > All four Java variants additionally share ~391 lines of `common/` infrastructure
 > (`JobConfig`, `CheckpointConfigurer`, deserializer, routers, `KafkaSinkFactory`) —
@@ -318,7 +318,7 @@ pipeline:
 **One base image per variant. 74 MySQL connectors. No per-tribe Java fork.**
 
 Flink Platform Team owns and maintains parametrisable images for the 5 variants.
-Each tribe gets their connector by overriding Helm values only — no fork, no per-tribe release pipeline (YAML/SQL/Table variants need no Java; DataStream tribes customize the platform-owned image, not their own Java repo).
+Each tribe gets their connector by overriding Helm values only — no fork, no per-tribe release pipeline.
 
 ![K8s Deployment Topology: Shared Job Model](images/k8s-deployment-topology.svg)
 
@@ -353,6 +353,13 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 ### Collision Avoidance — Each Variant Gets Its Own Lane
 
+Each POC variant gets its own dedicated, non-overlapping range on four axes so they can all run simultaneously without collision:
+
+- **MySQL server-ID range — so Flink CDC's parallel readers don't steal each other's binlog lease
+- **MySQL schema** — so each variant has its own source database
+- **Kafka topic prefix** — so topics don't overlap
+- **S3 checkpoint paths** — so checkpointing don't overlap 
+
 | Axis | Allocation |
 |------|------------|
 | MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
@@ -363,20 +370,6 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 > **Why ranges, not single IDs?** Flink CDC 3.x incremental snapshot allocates IDs for
 > parallel readers + restart attempts. A single int collides on restart because the
 > previous MySQL binlog lease hasn't timed out.
-
----
-
-## Slide 11 — CDC Snapshotting: Before vs After
-
-**Post-Migration:** re-snapshotting is now native to Flink CDC.
-
-![CDC Snapshotting: Before vs After — re-snapshot workflow](images/cdc-resnapshot-sequence.svg)
-
-**What disappears:** `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, `SignalMessage` (3 Java classes) + signal Kafka topic
-— **3 Java classes and 1 Kafka topic eliminated**.
-
-> **Caution:** `stateless` is a one-shot re-snapshot lever — always revert to `last-state`.
-> Left on permanently, **every** restart re-snapshots the full table.
 
 ---
 
@@ -437,7 +430,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 |---------------------|-------------|
 | Rebalancing storms — one bad connector destabilises all | **Isolated blast radius** — each tribe's Flink job is isolated; failure stays per-tribe |
 | Shared blast radius — 95 connectors, one cluster | **Clear ownership** — tribe owns their connector repo and deploy cadence |
-| Recurring lag — no per-tribe lever | **Per-job state** — exactly-once checkpoints give each job its own recovery point |
+| Recurring lag — no per-tribe lever | **Lag is managed per-team and per-job** |
 | Production-only failures | **Native Kubernetes lifecycle** — Flink Operator; local component tests catch issues before deploy |
 | Confluent licensing | **Partial licensing savings** — 74 connectors removed from billable pool; 21 SFTP/SingleStore connectors retained on KC |
 | Fleet-wide coordinated upgrades | **Independent upgrades** — per-job versioning; no fleet-wide coordination |
@@ -451,16 +444,15 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 | Risk | Status / Mitigation | Where addressed |
 |------|---------------------|-----------------|
 | KC remains for 21 SFTP/SingleStore connectors — two systems to operate | Accepted; SFTP/SingleStore have no Flink equivalent | Slide 5 (scope), Slide 15b (TCO) |
-| Field-level encryption: SMT logic must be ported to Flink `MapFunction` | Open; assessed per tribe during wave planning | S6 (cutover automation) |
-| Learning curve — Flink Operator, checkpoints, savepoints | Mitigated for most tribes by shared-job model (no Java required for YAML/SQL/Table variants; DataStream still needs Java) | Slide 7 (decision tree), Slide 9 (shared-job) |
+| Learning curve — Flink Operator, checkpoints, savepoints | Mitigated for most tribes by shared-job model | Slide 7 (decision tree), Slide 9 (shared-job) |
 | Cutover sequencing — no wave plan, dual-run, parity gate, or rollback runbook yet | **Not yet mitigated** — S6 must deliver: wave plan, dual-run period, byte-for-byte parity gate, binlog server-ID overlap coordination, rollback runbook | Slide 16, Spike S6 |
 | New operational surface — Flink Operator, checkpoints, savepoints | Mitigated by Flink Platform Team ownership of base image and monitoring module | Slide 17, Spike S1 |
-| Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink CDC equivalent; Datadog monitors #4–#7 blocked | **Not yet mitigated** — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1 | Slide 17, Spike S1 |
+| Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink equivalent | **Not yet mitigated** — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1 | Slide 17, Spike S1 |
 | Schema evolution (ALTER TABLE) — behavior differs by variant; downstream Kafka schema compatibility not validated | **Not yet mitigated** — no dbhistory.* equivalent; validate per tribe + schema-registry compat policy | Slide 16, Spike S8 (new) |
 
 ---
 
-## Slide 15 — Alternatives Considered & Reasoning
+## Slide 15 — Alternatives Considered & Reasoning (TODO remove?)
 
 ![Alternatives Analysis: Why Flink Shared-Job Model?](images/alternatives-analysis.svg)
 
@@ -540,23 +532,6 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 - Datadog alert on Flink source `records.consumed.rate` dropping to 0
 
 **Target state:** One shared Terraform module per platform (KC module owned by Module Owner; Flink module by Flink Platform Team), consumed by each tribe's `config.tf` — ~600 monitors across 26 teams at end-state.
-
----
-
-## Slide 18 — Recommendation
-
-**Adopt the shared-job Flink CDC model.** It removes the shared blast radius and licensing cost (see the Improvements slide) while keeping per-tribe isolation — and the POC validates the mechanism at POC scale (see the POC Evidence slide: 5 variants running simultaneously, 3 tables, 2 outbox destinations, in-memory state); production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is pending S2/S3/S5.
-
-Per-tribe cost is Helm overrides only — no per-tribe Java fork or release pipeline (YAML/SQL/Table variants need no Java; DataStream tribes customize the platform-owned image).
-
-**Next step:** approve Phase 0 spikes (see the Open Spikes slide) — S2 and S3 are the Phase-1 go/no-go blockers.
-
-**Phased timeline (indicative):**
-- **Phase 0** (1 sprint, parallelisable): spikes S1–S4 + S8 (~11 engineering days) → metric-parity, memory, outbox-scale, snapshot-status, schema-evolution answers
-- **Phase 1** (first-tribe pilot): pick one pilot tribe (`<pilot-tribe>`, TBD with guild); ≥7-day staging soak (S5); go-live gated on S2 + S3 + S5
-- **Phase 2** (expansion): roll the shared-job model across tribes in waves (S6 cutover automation: dual-run, parity gate, rollback runbook)
-- **Phase 3** (outbox + transactron): migrate outbox/transactron connectors (S4 unblocks)
-
 
 ---
 
