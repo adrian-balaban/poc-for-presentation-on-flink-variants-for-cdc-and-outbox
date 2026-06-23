@@ -221,7 +221,11 @@ tasks.register('all') { // buildAndTest
         }
 
         String composeUp   = 'podman-compose -f podman-compose.yml up -d --build'
-        String composeDown = 'podman-compose -f podman-compose.yml down -v'
+        // --remove-orphans: without it, containers that lost their compose-project label
+        // (or were left from a partial run) survive `down -v`, so the subsequent `up --build`
+        // fails with "creating container storage: the container name 'mysql' is already in use"
+        // and the stack is not recreated fresh.
+        String composeDown = 'podman-compose -f podman-compose.yml down --remove-orphans -v'
         println '=== Using container engine: podman ==='
 
         // Build all modules, including the variant fat-jars the component tests submit
@@ -335,7 +339,7 @@ tasks.register('all') { // buildAndTest
             println "WARNING: Grafana not healthy — skipping Terraform apply."
         } else {
             exec {
-                commandLine 'bash', '-c', 'cd local-development-podman/terraform && rm -f terraform.tfstate terraform.tfstate.backup && terraform init -input=false && terraform apply -auto-approve -input=false'
+                commandLine 'bash', '-c', 'cd local-development-podman/terraform && terraform init -input=false && terraform apply -auto-approve -input=false'
             }
             println '✓ Terraform apply complete — Grafana datasource, dashboard and alert rules provisioned.'
         }

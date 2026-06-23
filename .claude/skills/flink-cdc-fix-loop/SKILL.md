@@ -24,10 +24,23 @@ Run synchronously so the exit code is immediately available:
 ```bash
 cd /home/adrianb/_/claude/github/public_poc-for-presentation-on-flink-variants-for-cdc-and-outbox
 
-# Stop any Gradle processes / daemons left over from a previous iteration so they
-# don't hold file locks, stale build state, or ports.
+# Stop any Gradle daemons left over from a previous iteration. Stale IDLE daemons
+# are the known root cause of `shadowJar` being falsely reported UP-TO-DATE after
+# `clean` (the daemon's in-memory task state survives `clean` deleting the output),
+# so the variant fat-jars are never (re)created and component tests fail with
+# NoSuchFileException for `<variant>-all.jar`.
+#
+# `./gradlew --stop` is the effective tool here — it gracefully stops all daemons
+# of this Gradle wrapper's version (verified: it stops 3+ IDLE daemons cleanly).
+#
+# Do NOT add any `pkill -f '...'` fallback. `pkill -f` matches the FULL command
+# line of every process, INCLUDING the very shell running this skill step: that
+# shell's argv contains the pkill pattern itself, so `pkill -f 'gradle'` and
+# `pkill -f 'org.gradle.launcher.daemon'` BOTH kill the running shell before the
+# build starts (exit 144). There is no pattern that targets daemon JVMs without
+# also matching this shell, because the pattern string itself is in the shell's
+# command line. `./gradlew --stop` alone is sufficient — no pkill, ever.
 ./gradlew --stop || true
-pkill -f 'gradle' 2>/dev/null || true
 
 set -o pipefail                       # so the captured exit reflects gradlew, not tee
 ./gradlew all allK8s 2>&1 | tee /tmp/flink-cdc-all.log
@@ -55,6 +68,7 @@ Triage and fix every error, test failure, and exception. Common causes:
 | `UnsupportedClassVersionError` in KC container | `kafka-connect-smts` compiled for Java 17 | Keep `sourceCompatibility = VERSION_11` |
 | `TimeoutException: InitProducerId` | Missing Kafka transaction log config | Add `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1` to podman-compose |
 | Spotless / formatting failure | Unformatted Java | Run `./gradlew fmt` first |
+| `NoSuchFileException: <variant>-all.jar` in component tests, and `:shadowJar` shows `UP-TO-DATE` right after `:clean` | Stale IDLE Gradle daemon — its in-memory task state survives `clean` deleting the fat-jar, so `shadowJar` is skipped and the jar is never rebuilt | Run `./gradlew --stop` (graceful) before the build; do NOT `pkill -f '...'` (any pattern self-matches the running shell → exit 144). Verify with `ls variant-*/build/libs/*-all.jar` after step 1 |
 | Terraform drift | Stale `terraform.tfstate` | `cd local-development-podman/terraform && terraform apply -auto-approve` |
 | `No route to host` between containers | Podman storage split (snap VS Code) | Verify `graphroot` pinned in `~/.config/containers/storage.conf` |
 | Flink job not RUNNING after build | Fat-jar not picked up | Confirm `shadowJar` ran before `podman-compose up` |
