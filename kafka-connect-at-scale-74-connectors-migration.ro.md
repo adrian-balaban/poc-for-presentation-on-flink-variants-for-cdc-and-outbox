@@ -184,7 +184,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 
 ## Slide 3 — Ce Cerem și Ce Doare Azi
 
-**Ce cerem de la orice soluție** *(agnostic față de soluție — etalonul pentru opțiunile de pe slide-ul Alternative):*
+**Ce cerem de la orice soluție** *(agnostic față de soluție — etalonul pentru opțiunile de pe matricea de decizie, Slide 7):*
 
 1. Imaginea de bază + patch-urile de securitate rămân **centralizate** — echipele nu dețin runtime-ul.
 2. **Să ne îndepărtăm de Confluent Platform** — licențiere și lock-in.
@@ -382,7 +382,8 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | StatementSet → 1 JobGraph | Verificat (doar SQL API; Table API folosește un singur INSERT, nu StatementSet) |
 | Toate cele 5 variante rulând simultan | Rulează la scară POC (localhost:8081; 3 tabele, 2 destinații outbox, stare in-memory) |
 
-> POC-ul validează mecanismul la scară POC — 5 variante, 57 de teste unitare, toate verzi; routing-ul outbox este doar logat într-un topic unic în POC (fan-out per destinație via side-output este producție, Spike S3). Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de eșec de producție) este munca de spike deschis (S2/S3/S5).
+> POC-ul validează mecanismul la scară POC — 5 variante, 57 de teste unitare, toate verzi; routing-ul outbox este doar logat într-un topic unic în POC (fan-out per destinație via side-output este producție, Spike S3).
+Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de eșec de producție) este munca de spike deschis (S2/S3/S5).
 
 ---
 
@@ -401,7 +402,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 
 ![Kafka UI — prezentare generală cluster poc](images/slides/kafka-ui.png)
 
-> Topics create automat de conectori CDC. 32 topics = topics per-tabel pentru toate cele 5 variante
+> Topicurile sunt create automat de conectorii CDC. 32 topics = topics per-tabel pentru toate cele 5 variante
 > plus topics de schema-history. Topic-urile de semnal (`private.debezium.signal.*`) sunt specifice KC;
 > Flink CDC nu le folosește.
 
@@ -480,7 +481,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | S7 | Instrumente Claude de migrare self-service pentru echipe | Echipele nu pot aștepta asistență de la Flink Platform Team | Faza 1 | 3 zile |
 | S8 | Evoluție schemă — comportamentul ALTER TABLE per variantă Flink; fără echivalent dbhistory.*; politică compat schema-registry | Raza de impact per echipă pentru schimbări de schemă; realitate zilnică în producție | Faza 0 | 2 zile |
 
-**Total Faza 0 (S1–S4, S8): ~11 zile inginerie — paralelizabil într-un singur sprint.**
+**Total Faza 0 (S1–S4, S8): ~11 zile de inginerie — paralelizabil într-un singur sprint.**
 
 **Legenda fazelor:** 0 = spike-uri (pre-pilot) · 1 = go-live pilot prima echipă · 2 = extindere · 3 = cutover outbox + transactron
 
@@ -738,15 +739,17 @@ Cinci conectori KC oglindesc variantele Flink, folosind server-ID-uri în interv
 
 ### Endpoint-uri de Monitorizare Locale
 
-| URL | Ce | Captură de Ecran |
-|-----|------|------------|
-| `http://localhost:8081` | Flink Dashboard (joburi rulante, sloturi task, checkpoint-uri) | ![](images/slides/flink-dashboard.png) |
-| `http://localhost:8080` | Kafka UI (topicuri, mesaje) | ![](images/slides/kafka-ui.png) |
-| `http://localhost:8083` | Kafka Connect REST API | ![](images/slides/kafka-connect.png) |
-| `http://localhost:3306` | MySQL (user: `flink`, parolă: `flink`, db: `poc_db`) | — |
-| `localhost:9092` | Kafka (extern; topicuri: `poc.cdc.*`) | — |
-| `http://localhost:9090` | Prometheus (scraping metrici Flink) | — |
-| `http://localhost:3001` | Grafana (dashboard + alerte; admin/admin) | — |
+Stack-ul Podman leagă direct porturile pe host; stack-ul k8s nu leagă niciun port pe host — accesul se face via `kubectl port-forward` către porturi mari non-conflictuale (vezi [`K8S.md`](./K8S.md)). Ambele stack-uri rulează aceleași 5 job-uri Flink și conectori Kafka Connect; diferența este unitatea de deployment (Podman: un JM partajat; k8s: câte un JM per variantă, Application Mode).
+
+| Serviciu | URL Podman | URL k8s (port-forward) | Captură de Ecran |
+|----------|------------|------------------------|------------------|
+| Flink Dashboard | `http://localhost:8081` (JM partajat; toate cele 5 job-uri) | `http://localhost:18081`–`18085` (JM per variantă: DataStream / Table API / SQL API / Outbox / YAML) | ![](images/slides/flink-dashboard.png) |
+| Kafka UI | `http://localhost:8080` | — (nu este deployed în slice-ul k8s) | ![](images/slides/kafka-ui.png) |
+| Kafka Connect REST | `http://localhost:8083` | `http://localhost:18086` | ![](images/slides/kafka-connect.png) |
+| MySQL | `localhost:3306` (user: `flink`, parolă: `flink`, db: `poc_db`) | `localhost:13306` | — |
+| Kafka (extern) | `localhost:9092` (topicuri: `poc.cdc.*`) | `localhost:19092` (listener Strimzi extern nodeport; advertisedHost=localhost) | — |
+| Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
+| Grafana | `http://localhost:3001` (dashboard + alerte; admin/admin) | `http://localhost:13001` (admin/admin) | — |
 
 ---
 

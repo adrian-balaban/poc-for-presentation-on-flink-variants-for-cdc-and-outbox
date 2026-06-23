@@ -18,12 +18,15 @@ FROM quay.io/strimzi/kafka:1.0.1-kafka-4.2.0
 
 USER root
 
-# Debezium MySQL connector 3.0.2.Final — supports Kafka 4.x (unlike 2.x).
+# Debezium MySQL connector 3.5.2.Final — first branch with true Kafka 4.x support.
+# 3.0.2.Final still calls KafkaConsumer.poll(long) which was removed in Kafka 4.0,
+# causing NoSuchMethodError in KafkaSchemaHistory.recoverRecords(). 3.1+ removed
+# that call; 3.5.2.Final is the latest stable release at the time of writing.
 # Connector JARs go in /opt/kafka/plugins/debezium-mysql/; the Strimzi operator
 # configures plugin.path=/opt/kafka/plugins so all subdirectories are scanned.
 RUN mkdir -p /opt/kafka/plugins/debezium-mysql && \
     curl -fL \
-      "https://repo1.maven.org/maven2/io/debezium/debezium-connector-mysql/3.0.2.Final/debezium-connector-mysql-3.0.2.Final-plugin.tar.gz" \
+      "https://repo1.maven.org/maven2/io/debezium/debezium-connector-mysql/3.5.2.Final/debezium-connector-mysql-3.5.2.Final-plugin.tar.gz" \
     | tar -xz -C /opt/kafka/plugins/debezium-mysql/
 
 # Custom SMT JAR (java-connect-smts, compiled Java 11 — runs fine on the Java 17

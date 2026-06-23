@@ -9,8 +9,9 @@
 #   the REST endpoint on our behalf — no deploy-connectors.sh needed in k8s.
 #
 # IMAGE — kafka-connect-debezium:local (built from k8s/kafka-connect/Dockerfile):
-#   Derived from quay.io/strimzi/kafka:1.0.1-kafka-4.2.0 with Debezium 3.0.2.Final
-#   (Kafka 4.x compatible) + our custom SMT JAR. Tag :local (not :latest) so
+#   Derived from quay.io/strimzi/kafka:1.0.1-kafka-4.2.0 with Debezium 3.5.2.Final
+#   (Kafka 4.x compatible — 3.0.x still used poll(long) removed in Kafka 4.0) +
+#   our custom SMT JAR. Tag :local (not :latest) so
 #   kubelet defaults to imagePullPolicy=IfNotPresent and uses the kind-loaded image
 #   without a registry — same approach as the :local tag pattern.
 #

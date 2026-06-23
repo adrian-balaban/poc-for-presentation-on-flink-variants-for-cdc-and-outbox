@@ -186,7 +186,7 @@ The application controls the event shape and destination. The business table sch
 
 ## Slide 3 — What We Require, and What Hurts Today
 
-**What we require of any solution** *(solution-agnostic — the yardstick for the options on the Alternatives slide):*
+**What we require of any solution** *(solution-agnostic — the yardstick for the options on the decision matrix, Slide 7):*
 
 1. Base image + security patching stay **centralised** — tribes don't own the runtime.
 2. **Move away from Confluent Platform** — licensing and lock-in.
@@ -741,15 +741,17 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 
 ### Local Monitoring Endpoints
 
-| URL | What | Screenshot |
-|-----|------|------------|
-| `http://localhost:8081` | Flink Dashboard (running jobs, task slots, checkpoints) | ![](images/slides/flink-dashboard.png) |
-| `http://localhost:8080` | Kafka UI (topics, messages) | ![](images/slides/kafka-ui.png) |
-| `http://localhost:8083` | Kafka Connect REST API | ![](images/slides/kafka-connect.png) |
-| `http://localhost:3306` | MySQL (user: `flink`, password: `flink`, db: `poc_db`) | — |
-| `localhost:9092` | Kafka (external; topics: `poc.cdc.*`) | — |
-| `http://localhost:9090` | Prometheus (Flink metrics scraper) | — |
-| `http://localhost:3001` | Grafana (dashboard + alerts; admin/admin) | — |
+The Podman stack binds host ports directly; the k8s stack binds none on the host — access is via `kubectl port-forward` to non-conflicting high ports (see [`K8S.md`](./K8S.md)). Both stacks run the same 5 Flink jobs and Kafka Connect connectors; the difference is the deployment unit (Podman: one shared JM; k8s: one JM per variant, Application Mode).
+
+| Service | Podman URL | k8s URL (port-forward) | Screenshot |
+|---------|------------|------------------------|------------|
+| Flink Dashboard | `http://localhost:8081` (shared JM; all 5 jobs) | `http://localhost:18081`–`18085` (per-variant JM: DataStream / Table API / SQL API / Outbox / YAML) | ![](images/slides/flink-dashboard.png) |
+| Kafka UI | `http://localhost:8080` | — (not deployed in the k8s slice) | ![](images/slides/kafka-ui.png) |
+| Kafka Connect REST | `http://localhost:8083` | `http://localhost:18086` | ![](images/slides/kafka-connect.png) |
+| MySQL | `localhost:3306` (user: `flink`, password: `flink`, db: `poc_db`) | `localhost:13306` | — |
+| Kafka (external) | `localhost:9092` (topics: `poc.cdc.*`) | `localhost:19092` (Strimzi external nodeport listener; advertisedHost=localhost) | — |
+| Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
+| Grafana | `http://localhost:3001` (dashboard + alerts; admin/admin) | `http://localhost:13001` (admin/admin) | — |
 
 ---
 

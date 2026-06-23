@@ -105,12 +105,16 @@ done
 echo "▶ building flink-cdc-submitter image (YAML pipeline submitter)"
 podman build -t flink-cdc-submitter:latest "$ROOT/local-development-podman/flink-cdc-submitter"
 
-# Kafka Connect image: Strimzi base (Kafka 4.2.0) + Debezium 3.0.2.Final + SMT.
+# Kafka Connect image: Strimzi base (Kafka 4.2.0) + Debezium 3.5.2.Final + SMT.
 # Build context is repo root so the COPY of the SMT jar resolves.
 # Tag :local (not :latest) → kubelet defaults imagePullPolicy=IfNotPresent →
 # uses the kind-loaded image without a registry.
-echo "▶ building kafka-connect-debezium:local image (Debezium 3.x + SMT)"
-podman build -t kafka-connect-debezium:local \
+# --no-cache: the Debezium download step (RUN curl) is expensive to re-run but
+# must not be cached across version bumps — a cached layer from 3.0.x would
+# silently survive a Dockerfile version upgrade and cause NoSuchMethodError at
+# runtime (poll(long) removed in Kafka 4.0).
+echo "▶ building kafka-connect-debezium:local image (Debezium 3.5.x + SMT)"
+podman build --no-cache -t kafka-connect-debezium:local \
   -f "$K8S/kafka-connect/Dockerfile" \
   "$ROOT"
 
@@ -119,12 +123,14 @@ podman build -t kafka-connect-debezium:local \
 # are all referenced with imagePullPolicy: Never, so all must be present in the
 # kind node.
 echo "▶ loading flink-with-mysql + 4 artifact images + flink-cdc-submitter + kafka-connect into kind"
-kind load docker-image flink-with-mysql:latest --name "$CLUSTER"
+# Podman tags locally-built images with a `localhost/` prefix; `kind load` must
+# use the same qualified name or it reports "not present locally".
+kind load docker-image localhost/flink-with-mysql:latest --name "$CLUSTER"
 for artifact in "${VARIANT_ARTIFACTS[@]}"; do
-  kind load docker-image "${artifact}:latest" --name "$CLUSTER"
+  kind load docker-image "localhost/${artifact}:latest" --name "$CLUSTER"
 done
-kind load docker-image flink-cdc-submitter:latest --name "$CLUSTER"
-kind load docker-image kafka-connect-debezium:local --name "$CLUSTER"
+kind load docker-image localhost/flink-cdc-submitter:latest --name "$CLUSTER"
+kind load docker-image localhost/kafka-connect-debezium:local --name "$CLUSTER"
 
 # kind + podman provider quirk: `kind load` stores images in the node under the
 # `localhost/<name>:latest` tag (podman's default registry prefix) and its re-tag
