@@ -2,11 +2,11 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 dependencies {
     implementation project(':common')
-    implementation "org.apache.flink:flink-sql-connector-mysql-cdc:${rootProject.ext.flinkCdcVersion}"
-    compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
-    compileOnly "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
-    compileOnly "org.apache.flink:flink-table-api-java-bridge:${rootProject.ext.flinkVersion}"
-    compileOnly "org.apache.flink:flink-table-planner-loader:${rootProject.ext.flinkVersion}"
+    implementation libs.flink.sql.connector.mysql.cdc
+    compileOnly libs.flink.streaming.java
+    compileOnly libs.flink.clients
+    compileOnly libs.flink.table.api.java.bridge
+    compileOnly libs.flink.table.planner.loader
 }
 
 shadowJar {

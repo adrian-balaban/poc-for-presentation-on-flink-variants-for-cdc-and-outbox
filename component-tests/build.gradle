@@ -20,28 +20,28 @@ dependencies {
     testImplementation project(':common')
 
     // MySQL driver for JDBC connectivity
-    testImplementation 'com.mysql:mysql-connector-j:8.3.0'
+    testImplementation libs.mysql.connector.j
 
     // Kafka client for polling test topics
-    testImplementation("org.apache.kafka:kafka-clients:${rootProject.ext.kafkaVersion}") {
+    testImplementation(libs.kafka.clients) {
         exclude group: 'at.yawk.lz4', module: 'lz4-java'
     }
-    testImplementation 'org.lz4:lz4-java:1.8.0'
+    testImplementation libs.lz4.java
 
     // Flink streaming API & testing (MiniCluster for in-process testing)
-    testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-test-utils:${rootProject.ext.flinkVersion}"
+    testImplementation libs.flink.streaming.java
+    testImplementation libs.flink.clients
+    testImplementation libs.flink.test.utils
 
     // JSON parsing (Kafka Connect REST API + Flink REST response parsing)
-    testImplementation 'org.json:json:20231013'
+    testImplementation libs.json
 
     // Test framework & logging
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    testImplementation 'org.assertj:assertj-core:3.25.3'
-    testImplementation 'org.slf4j:slf4j-simple:2.0.13'
-    testImplementation 'org.projectlombok:lombok:1.18.30'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
+    testImplementation libs.junit.jupiter
+    testImplementation libs.assertj.core
+    testImplementation libs.slf4j.simple
+    testImplementation libs.lombok
+    testAnnotationProcessor libs.lombok
 }
 
 test {

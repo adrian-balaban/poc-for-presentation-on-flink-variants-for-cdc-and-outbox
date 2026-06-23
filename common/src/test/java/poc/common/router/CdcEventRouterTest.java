@@ -37,7 +37,7 @@ class CdcEventRouterTest {
 
     assertThat(output).hasSize(1);
     assertThat(output.get(0)).contains("\"variant\":\"datastream-cdc\"");
-    assertThat(output.get(0)).contains("\"topic\":\"test.cdc.datastream\"");
+    assertThat(output.get(0)).contains("\"topic\":\"test.cdc.datastream.flink\"");
   }
 
   @Test
@@ -88,7 +88,7 @@ class CdcEventRouterTest {
     String input = "{\"id\":1}";
     List<String> output = processElement(customRouter, input);
 
-    assertThat(output.get(0)).contains("\"topic\":\"custom.prefix.datastream\"");
+    assertThat(output.get(0)).contains("\"topic\":\"custom.prefix.datastream.flink\"");
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

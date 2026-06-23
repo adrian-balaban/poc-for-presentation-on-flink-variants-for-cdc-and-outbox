@@ -1,0 +1,75 @@
+# Gradle Version Catalog — single source of truth for dependency & plugin versions.
+#
+# Extracted from the root `build.gradle` `ext { }` block and the per-subproject
+# `build.gradle` files. Not yet wired into the builds — the modules still read
+# `rootProject.ext.*` and hardcoded coordinates. To adopt the catalog, replace
+# those with `libs.<alias>` references (see the README / CLAUDE.md build notes).
+#
+# Keep this file the ONLY place versions are bumped once wiring is complete.
+
+[versions]
+# ── Core stack (mirror of root build.gradle ext.*) ───────────────────────────
+flink            = "2.2.0"        # ext.flinkVersion       — Flink runtime artifacts
+flinkCdc         = "3.6.0-2.2"    # ext.flinkCdcVersion    — flink-sql-connector-mysql-cdc
+flinkKafka       = "5.0.0-2.2"    # ext.flinkKafkaVersion  — flink-connector-kafka
+kafka            = "3.7.0"        # ext.kafkaVersion       — kafka-clients
+java             = "17"           # ext.javaVersion        — Flink modules (SMTs use 11)
+
+# ── Libraries ────────────────────────────────────────────────────────────────
+mysqlConnector   = "8.3.0"
+junitJupiter     = "5.10.2"
+junit4           = "4.13.2"       # kafka-connect-smts (Java 11 module)
+assertj          = "3.25.3"
+slf4jSimple      = "2.0.13"       # unified across all modules
+lombok           = "1.18.30"
+lz4              = "1.8.0"        # forced via resolutionStrategy (lz4-java conflict)
+json             = "20231013"     # org.json
+connectApi       = "3.6.1"       # kafka-connect-smts: org.apache.kafka:connect-api
+
+# ── Build tooling ────────────────────────────────────────────────────────────
+shadow           = "8.1.1"        # com.github.johnrengelman:shadow
+pitestPlugin     = "1.15.0"       # info.solidsoft.gradle.pitest:gradle-pitest-plugin
+pitestJunit5     = "1.2.1"        # pitest { junit5PluginVersion }
+spotless         = "6.25.0"       # com.diffplug.spotless
+checkstyle       = "9.3"          # checkstyle { toolVersion }
+googleJavaFormat = "1.21.0"       # spotless googleJavaFormat()
+
+[libraries]
+# ── Flink runtime (version: flink) ───────────────────────────────────────────
+flink-streaming-java         = { module = "org.apache.flink:flink-streaming-java",         version.ref = "flink" }
+flink-clients                = { module = "org.apache.flink:flink-clients",                version.ref = "flink" }
+flink-connector-base         = { module = "org.apache.flink:flink-connector-base",         version.ref = "flink" }
+flink-test-utils             = { module = "org.apache.flink:flink-test-utils",             version.ref = "flink" }
+flink-table-api-java-bridge  = { module = "org.apache.flink:flink-table-api-java-bridge",  version.ref = "flink" }
+flink-table-planner-loader   = { module = "org.apache.flink:flink-table-planner-loader",   version.ref = "flink" }
+
+# ── Flink connectors ─────────────────────────────────────────────────────────
+flink-connector-kafka        = { module = "org.apache.flink:flink-connector-kafka",        version.ref = "flinkKafka" }
+flink-sql-connector-mysql-cdc = { module = "org.apache.flink:flink-sql-connector-mysql-cdc", version.ref = "flinkCdc" }
+
+# ── Kafka / Connect ──────────────────────────────────────────────────────────
+kafka-clients                = { module = "org.apache.kafka:kafka-clients",                version.ref = "kafka" }
+kafka-connect-api            = { module = "org.apache.kafka:connect-api",                  version.ref = "connectApi" }
+
+# ── JDBC / serialization ─────────────────────────────────────────────────────
+mysql-connector-j            = { module = "com.mysql:mysql-connector-j",                   version.ref = "mysqlConnector" }
+json                         = { module = "org.json:json",                                 version.ref = "json" }
+lz4-java                     = { module = "org.lz4:lz4-java",                               version.ref = "lz4" }
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+slf4j-simple                 = { module = "org.slf4j:slf4j-simple",                        version.ref = "slf4jSimple" }
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+junit-jupiter                = { module = "org.junit.jupiter:junit-jupiter",               version.ref = "junitJupiter" }
+junit4                       = { module = "junit:junit",                                   version.ref = "junit4" }
+assertj-core                 = { module = "org.assertj:assertj-core",                      version.ref = "assertj" }
+lombok                       = { module = "org.projectlombok:lombok",                      version.ref = "lombok" }
+
+# ── Build-script classpath (applied via buildscript/apply plugin) ────────────
+shadow-gradle-plugin         = { module = "com.github.johnrengelman:shadow",               version.ref = "shadow" }
+pitest-gradle-plugin         = { module = "info.solidsoft.gradle.pitest:gradle-pitest-plugin", version.ref = "pitestPlugin" }
+
+[plugins]
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+shadow   = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
+pitest   = { id = "info.solidsoft.pitest", version.ref = "pitestPlugin" }

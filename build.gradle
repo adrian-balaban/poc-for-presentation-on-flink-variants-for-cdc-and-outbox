@@ -4,23 +4,26 @@ buildscript {
         maven { url = uri("https://plugins.gradle.org/m2") }
     }
     dependencies {
-        classpath 'com.github.johnrengelman:shadow:8.1.1'
-        classpath 'info.solidsoft.gradle.pitest:gradle-pitest-plugin:1.15.0'
+        classpath libs.shadow.gradle.plugin
+        classpath libs.pitest.gradle.plugin
     }
 }
 
 plugins {
-    id 'com.diffplug.spotless' version '6.25.0'
+    alias(libs.plugins.spotless)
 }
 
 // Shadow and pitest are applied per-subproject via apply plugin: '...'
 
+// Core stack versions are sourced from gradle/libs.versions.toml (single source of
+// truth). The ext.* aliases are kept so existing `rootProject.ext.*` references in
+// subprojects continue to resolve.
 ext {
-    flinkVersion       = '2.2.0'
-    flinkCdcVersion    = '3.6.0-2.2'
-    flinkKafkaVersion  = '5.0.0-2.2'
-    kafkaVersion       = '3.7.0'
-    javaVersion        = '17'
+    flinkVersion       = libs.versions.flink.get()
+    flinkCdcVersion    = libs.versions.flinkCdc.get()
+    flinkKafkaVersion  = libs.versions.flinkKafka.get()
+    kafkaVersion       = libs.versions.kafka.get()
+    javaVersion        = libs.versions.java.get()
 }
 
 subprojects {
@@ -38,9 +41,9 @@ subprojects {
     }
 
     dependencies {
-        compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
-        compileOnly "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
-        testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+        compileOnly libs.flink.streaming.java
+        compileOnly libs.flink.clients
+        testImplementation libs.junit.jupiter
     }
 
     test {
@@ -48,7 +51,7 @@ subprojects {
     }
 
     checkstyle {
-        toolVersion = '9.3'
+        toolVersion = libs.versions.checkstyle.get()
         ignoreFailures = false
         showViolations = true
     }
@@ -56,7 +59,7 @@ subprojects {
     spotless {
         java {
             target 'src/**/*.java', '**/test/**/*.java'
-            googleJavaFormat('1.21.0')
+            googleJavaFormat(libs.versions.googleJavaFormat.get())
             removeUnusedImports()
             trimTrailingWhitespace()
             endWithNewline()
@@ -70,7 +73,7 @@ subprojects {
     // Global resolution strategy for lz4-java conflict
     configurations.all {
         resolutionStrategy {
-            force 'org.lz4:lz4-java:1.8.0'
+            force "org.lz4:lz4-java:${libs.versions.lz4.get()}"
             exclude group: 'at.yawk.lz4', module: 'lz4-java'
         }
     }

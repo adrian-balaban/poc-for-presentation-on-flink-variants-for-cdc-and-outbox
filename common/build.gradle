@@ -6,19 +6,19 @@ test {
 }
 
 dependencies {
-    compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
-    implementation "org.apache.flink:flink-connector-kafka:${rootProject.ext.flinkKafkaVersion}"
-    implementation "org.apache.flink:flink-connector-base:${rootProject.ext.flinkVersion}"
-    implementation "org.apache.kafka:kafka-clients:${rootProject.ext.kafkaVersion}"
-    implementation "org.apache.flink:flink-sql-connector-mysql-cdc:${rootProject.ext.flinkCdcVersion}"
-    implementation "com.mysql:mysql-connector-j:8.3.0"
-    testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
-    testImplementation 'org.slf4j:slf4j-simple:1.7.36'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    testImplementation 'org.assertj:assertj-core:3.25.3'
-    testImplementation 'org.projectlombok:lombok:1.18.30'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
+    compileOnly libs.flink.streaming.java
+    implementation libs.flink.connector.kafka
+    implementation libs.flink.connector.base
+    implementation libs.kafka.clients
+    implementation libs.flink.sql.connector.mysql.cdc
+    implementation libs.mysql.connector.j
+    testImplementation libs.flink.streaming.java
+    testImplementation libs.flink.clients
+    testImplementation libs.slf4j.simple
+    testImplementation libs.junit.jupiter
+    testImplementation libs.assertj.core
+    testImplementation libs.lombok
+    testAnnotationProcessor libs.lombok
 }
 
 jacocoTestReport {
@@ -46,7 +46,7 @@ jacocoTestCoverageVerification {
 check.dependsOn jacocoTestCoverageVerification
 
 pitest {
-    junit5PluginVersion = '1.2.1'
+    junit5PluginVersion = libs.versions.pitestJunit5.get()
     targetClasses       = ['poc.common.config.*', 'poc.common.sink.KafkaSinkFactory']
     targetTests         = ['poc.common.*']
     excludedClasses     = ['poc.common.deserializer.*']

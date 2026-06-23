@@ -4,11 +4,11 @@ apply plugin: 'info.solidsoft.pitest'
 
 dependencies {
     implementation project(':common')
-    implementation "org.apache.flink:flink-sql-connector-mysql-cdc:${rootProject.ext.flinkCdcVersion}"
-    implementation "org.apache.flink:flink-connector-kafka:${rootProject.ext.flinkKafkaVersion}"
-    compileOnly "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
-    compileOnly "org.apache.flink:flink-clients:${rootProject.ext.flinkVersion}"
-    testImplementation "org.apache.flink:flink-streaming-java:${rootProject.ext.flinkVersion}"
+    implementation libs.flink.sql.connector.mysql.cdc
+    implementation libs.flink.connector.kafka
+    compileOnly libs.flink.streaming.java
+    compileOnly libs.flink.clients
+    testImplementation libs.flink.streaming.java
 }
 
 shadowJar {
@@ -35,7 +35,7 @@ jacocoTestCoverageVerification {
 check.dependsOn jacocoTestCoverageVerification
 
 pitest {
-    junit5PluginVersion = '1.2.1'
+    junit5PluginVersion = libs.versions.pitestJunit5.get()
     // CdcEventRouter lives in :common — point PIT at that module's main source set
     // so it can mutate the class while running this module's (more thorough) tests.
     mainSourceSets      = [project(':common').sourceSets.main]
