@@ -303,7 +303,7 @@ source:
 sink:
   type: kafka
   properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
-  topic: ${KAFKA_TOPIC_PREFIX}.yaml.orders
+  topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline.orders
 pipeline:
   name: Flink CDC YAML Pipeline CDC Job
 ```
@@ -527,9 +527,14 @@ flink-cdc-poc/
 ├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (156 linii, server-ID 5800–5899)
 ├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (56 linii, server-ID 5600–5699)
 ├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (52 linii, canonical: src/main/resources/pipeline.yaml, server-ID 5700–5709)
-├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
-│                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
-│                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest
+├── component-tests/                    # 16 clase de test + 5 clase helper de bază:
+│                                       #   variante Flink: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
+│                                       #     DataStreamOutboxTest, YamlPipelineCdcTest
+│                                       #   KC: KafkaConnectVariantTest, KafkaConnectOutboxTest
+│                                       #   invarianți/calitate: CdcOperationsTest, CdcParityTest, DataQualityTest,
+│                                       #     DataStreamCdcMiniClusterTest, OutboxRouterMiniClusterTest,
+│                                       #     ErrorScenarioTest, ExactlyOnceInvariantTest, JobHealthTest,
+│                                       #     SchemaEvolutionTest
 ├── local-development-podman/           # Stack Podman Compose
 │   ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
 │   ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
@@ -706,7 +711,7 @@ s3.secret-key: minioadmin
 
 | Modul | Rol |
 |--------|------|
-| `common` | `JobConfig`, `CheckpointConfigurer`, `PocJsonDeserializationSchema`, `CdcEventRouter`, `OutboxRouter`, `KafkaSinkFactory` |
+| `common` | `JobConfig`, `CheckpointConfigurer`, `PocJsonDeserializationSchema`, `CdcEventRouter`, `OutboxRouter`, `KafkaSinkFactory`, `DdlValidator` |
 | `variant-flink-datastream-api-v1-cdc-job` | DataStream CDC; server-ID 5900–5999 |
 | `variant-flink-table-api-cdc-job` | Table API CDC; server-ID 6000–6099 |
 | `variant-flink-sql-api-cdc-job` | SQL API CDC; server-ID 5800–5899 |
