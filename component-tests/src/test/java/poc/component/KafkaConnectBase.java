@@ -49,7 +49,7 @@ public abstract class KafkaConnectBase extends ContainerBase {
     Assumptions.assumeTrue(
         kafkaConnectAvailable,
         "Kafka Connect not available — skipping test. "
-            + "Run: cd local-development && podman-compose -f podman-compose.yml up -d");
+            + "Run: cd local-development-podman && podman-compose -f podman-compose.yml up -d");
   }
 
   private static boolean checkKafkaConnectAvailable() {

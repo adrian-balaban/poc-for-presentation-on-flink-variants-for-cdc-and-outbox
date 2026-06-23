@@ -1,6 +1,6 @@
 # Kafka Connect image for the k8s stack.
 #
-# Differs from local-development/kafka-connect/Dockerfile (Confluent base) because:
+# Differs from local-development-podman/kafka-connect/Dockerfile (Confluent base) because:
 #   - Strimzi 1.0.x deploys Kafka 4.2.0; Confluent cp-kafka-connect:7.6.1 bundles
 #     Kafka 3.7.0 client libs — the client/broker version gap is larger than ideal.
 #   - Debezium 2.7.3 predates Kafka 4.x; Debezium 3.0.x adds Kafka 4.x support.
@@ -13,7 +13,7 @@
 #
 # Usage (via deploy.sh):
 #   podman build -t kafka-connect-debezium:local \
-#     -f local-development/k8s/kafka-connect/Dockerfile .
+#     -f local-development-k8s/kafka-connect/Dockerfile .
 FROM quay.io/strimzi/kafka:1.0.1-kafka-4.2.0
 
 USER root
@@ -30,6 +30,6 @@ RUN mkdir -p /opt/kafka/plugins/debezium-mysql && \
 # JVM in this Strimzi image). Place in its own plugin dir for class-loader isolation.
 # Run `./gradlew :kafka-connect-smts:shadowJar` before building this image.
 RUN mkdir -p /opt/kafka/plugins/custom-smts
-COPY local-development/kafka-connect-smts/build/libs/*-with-deps.jar /opt/kafka/plugins/custom-smts/
+COPY local-development-podman/kafka-connect-smts/build/libs/*-with-deps.jar /opt/kafka/plugins/custom-smts/
 
 USER 1001

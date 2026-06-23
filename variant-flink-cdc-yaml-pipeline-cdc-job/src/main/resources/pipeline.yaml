@@ -46,7 +46,7 @@ pipeline:
   # pipeline: section — they do not propagate to the submitted job's execution
   # environment (verified: with them here the job's checkpointCfg is empty and
   # zero checkpoints complete). Checkpointing is enabled via flink-cdc.sh -D
-  # flags in local-development/flink-cdc-submitter/entrypoint.sh (the documented
+  # flags in local-development-podman/flink-cdc-submitter/entrypoint.sh (the documented
   # mechanism per `flink-cdc.sh --help`). The checkpoint dir is the shared
   # s3://flink-checkpoints/checkpoints, so this job writes checkpoints/<job-id>/
   # alongside the 4 Java variants (5 folders under checkpoints/ total).

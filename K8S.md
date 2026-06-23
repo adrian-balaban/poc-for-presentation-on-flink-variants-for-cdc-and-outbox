@@ -6,7 +6,7 @@ demos:
 | Path | Tooling | Entry point | Shape |
 |------|---------|------------|-------|
 | **Podman Compose** (default, fast loop) | `podman-compose` | `./gradlew all` | One shared Flink cluster; jobs submitted via REST / `flink-cdc.sh` |
-| **Kubernetes** (production-shaped) | `kind` + `kubectl` + `helm` | `./local-development/k8s/deploy.sh` | **Flink Kubernetes Operator**; each job = its own `FlinkDeployment` |
+| **Kubernetes** (production-shaped) | `kind` + `kubectl` + `helm` | `./local-development-k8s/deploy.sh` | **Flink Kubernetes Operator**; each job = its own `FlinkDeployment` |
 
 The k8s path deploys all **5 Flink variants** + **5 Kafka Connect variants** +
 **monitoring** (kube-prometheus-stack + Grafana dashboard + alert rules) as
@@ -31,7 +31,7 @@ non-overlapping MySQL server-ID ranges.
 ## Quick start
 
 ```bash
-./local-development/k8s/deploy.sh        # build + apply + wait (~10-15 min first run)
+./local-development-k8s/deploy.sh        # build + apply + wait (~10-15 min first run)
 ```
 
 Or use the Gradle wrapper (runs deploy.sh + all component tests):
@@ -169,7 +169,7 @@ no entry class, submitted via `flink-cdc.sh pipeline.yaml` — so it does NOT fi
 this pattern. It needs a session-cluster `FlinkDeployment` (no `spec.job`) + a
 one-shot `flink-cdc-submitter` Job running `flink-cdc.sh` against the session
 cluster's REST endpoint (expand phase; the `flink-cdc-submitter` image already
-exists in `local-development/`).
+exists in `local-development-podman/`).
 
 ## How the checkpoint config maps
 
@@ -205,8 +205,8 @@ state backend, and S3 credentials are set there.
 ## Teardown
 
 ```bash
-./local-development/k8s/teardown.sh          # remove resources + operators, keep kind cluster
-./local-development/k8s/teardown.sh --full    # also delete the kind cluster (frees PVCs + disk)
+./local-development-k8s/teardown.sh          # remove resources + operators, keep kind cluster
+./local-development-k8s/teardown.sh --full    # also delete the kind cluster (frees PVCs + disk)
 ```
 
 ## Status

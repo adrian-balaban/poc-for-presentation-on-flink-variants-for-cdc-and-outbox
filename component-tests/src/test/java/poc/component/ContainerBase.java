@@ -54,8 +54,8 @@ public abstract class ContainerBase {
     Assumptions.assumeTrue(
         podmanAvailable,
         "CDC stack (MySQL/Kafka) not available — skipping component tests. "
-            + "Run: cd local-development && podman-compose -f podman-compose.yml up -d "
-            + "(Podman), or ./local-development/k8s/deploy.sh + kubectl port-forward (k8s; see K8S.md)");
+            + "Run: cd local-development-podman && podman-compose -f podman-compose.yml up -d "
+            + "(Podman), or ./local-development-k8s/deploy.sh + kubectl port-forward (k8s; see K8S.md)");
   }
 
   private static boolean checkPodmanConnectivity() {

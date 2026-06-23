@@ -132,7 +132,7 @@ tasks.register('allK8s') {
         // ── deploy ───────────────────────────────────────────────────────────
         println '=== Running deploy.sh (kind cluster + 5 Flink + 5 KC + monitoring) ==='
         exec {
-            commandLine 'bash', 'local-development/k8s/deploy.sh'
+            commandLine 'bash', 'local-development-k8s/deploy.sh'
         }
 
         // ── port-forwards ────────────────────────────────────────────────────
@@ -225,7 +225,7 @@ tasks.register('all') { // buildAndTest
         // Restart the container stack with improved diagnostics
         println '=== Stopping and cleaning podman stack ==='
         exec {
-            commandLine 'bash', '-c', "cd local-development && ${composeDown}"
+            commandLine 'bash', '-c', "cd local-development-podman && ${composeDown}"
             ignoreExitValue = true  // "container not found" on first run is not an error
         }
 
@@ -234,7 +234,7 @@ tasks.register('all') { // buildAndTest
 
         println '=== Starting podman stack ==='
         exec {
-            commandLine 'bash', '-c', "cd local-development && ${composeUp}"
+            commandLine 'bash', '-c', "cd local-development-podman && ${composeUp}"
         }
 
         // Wait for MySQL, Kafka, Kafka Connect, Flink, Prometheus, and Grafana to be ready.
@@ -296,7 +296,7 @@ tasks.register('all') { // buildAndTest
             if (!flinkContainerExists) {
                 throw new GradleException(
                     "flink-jm container does not exist. Image build likely failed during 'podman-compose up'. " +
-                    "Run: cd local-development && podman-compose -f podman-compose.yml build flink-jobmanager && podman-compose -f podman-compose.yml up -d")
+                    "Run: cd local-development-podman && podman-compose -f podman-compose.yml build flink-jobmanager && podman-compose -f podman-compose.yml up -d")
             }
             println "WARNING: Flink JobManager REST not responding but container exists — component tests requiring Flink will be skipped."
         }
@@ -307,7 +307,7 @@ tasks.register('all') { // buildAndTest
             if (!containerExists) {
                 throw new GradleException(
                     "kafka-connect container does not exist. Image build likely failed during 'podman-compose up'. " +
-                    "Run: cd local-development && podman-compose -f podman-compose.yml up -d kafka-connect")
+                    "Run: cd local-development-podman && podman-compose -f podman-compose.yml up -d kafka-connect")
             }
             println "WARNING: Kafka Connect REST not responding but container exists — deploy-connectors.sh will retry."
         }
@@ -323,12 +323,12 @@ tasks.register('all') { // buildAndTest
         } catch (Exception ignored) { }
 
         if (!hasTerraform) {
-            println "WARNING: terraform not found on PATH — skipping Grafana alert provisioning. Run 'cd local-development/terraform && terraform init && terraform apply' manually."
+            println "WARNING: terraform not found on PATH — skipping Grafana alert provisioning. Run 'cd local-development-podman/terraform && terraform init && terraform apply' manually."
         } else if (!grafanaReady) {
             println "WARNING: Grafana not healthy — skipping Terraform apply."
         } else {
             exec {
-                commandLine 'bash', '-c', 'cd local-development/terraform && rm -f terraform.tfstate terraform.tfstate.backup && terraform init -input=false && terraform apply -auto-approve -input=false'
+                commandLine 'bash', '-c', 'cd local-development-podman/terraform && rm -f terraform.tfstate terraform.tfstate.backup && terraform init -input=false && terraform apply -auto-approve -input=false'
             }
             println '✓ Terraform apply complete — Grafana datasource, dashboard and alert rules provisioned.'
         }
@@ -343,7 +343,7 @@ tasks.register('all') { // buildAndTest
         // DB_HOST=mysql: on Podman bridge the Connect container reaches MySQL by service name.
         println '=== Deploying Kafka Connect connectors ==='
         exec {
-            commandLine 'bash', '-c', 'cd local-development/kafka-connect && DB_HOST=mysql ./deploy-connectors.sh'
+            commandLine 'bash', '-c', 'cd local-development-podman/kafka-connect && DB_HOST=mysql ./deploy-connectors.sh'
         }
 
         // Run component tests (both Flink and Kafka Connect)

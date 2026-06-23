@@ -50,10 +50,10 @@ Triage and fix every error, test failure, and exception. Common causes:
 | `UnsupportedClassVersionError` in KC container | `kafka-connect-smts` compiled for Java 17 | Keep `sourceCompatibility = VERSION_11` |
 | `TimeoutException: InitProducerId` | Missing Kafka transaction log config | Add `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1` to podman-compose |
 | Spotless / formatting failure | Unformatted Java | Run `./gradlew fmt` first |
-| Terraform drift | Stale `terraform.tfstate` | `cd local-development/terraform && terraform apply -auto-approve` |
+| Terraform drift | Stale `terraform.tfstate` | `cd local-development-podman/terraform && terraform apply -auto-approve` |
 | `No route to host` between containers | Podman storage split (snap VS Code) | Verify `graphroot` pinned in `~/.config/containers/storage.conf` |
 | Flink job not RUNNING after build | Fat-jar not picked up | Confirm `shadowJar` ran before `podman-compose up` |
-| Flink image build failure | Missing Dockerfile or bad tag | Check `local-development/Dockerfile.*` and image names in `podman-compose.yml` |
+| Flink image build failure | Missing Dockerfile or bad tag | Check `local-development-podman/Dockerfile.*` and image names in `podman-compose.yml` |
 
 After any Java change, always format first:
 

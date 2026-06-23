@@ -97,17 +97,17 @@ This orchestrates:
 ./gradlew :kafka-connect-smts:shadowJar
 ```
 
-This creates `local-development/kafka-connect-smts/build/libs/kafka-connect-smts-1.0.0-with-deps.jar` — a shadow JAR with `org.json` bundled, compiled targeting Java 11.
+This creates `local-development-podman/kafka-connect-smts/build/libs/kafka-connect-smts-1.0.0-with-deps.jar` — a shadow JAR with `org.json` bundled, compiled targeting Java 11.
 
 #### 2. Start Infrastructure
 
 ```bash
-cd local-development
+cd local-development-podman
 podman-compose -f podman-compose.yml up -d
 ```
 
 The `kafka-connect` service:
-1. Uses the pre-built `local-development_kafka-connect` image (Debezium + SMT JARs)
+1. Uses the pre-built `local-development-podman_kafka-connect` image (Debezium + SMT JARs)
 2. Starts Kafka Connect REST API on `http://localhost:8083`
 3. Waits for Kafka to be healthy
 
@@ -115,13 +115,13 @@ To rebuild the image after changing the SMT code:
 ```bash
 cd /path/to/flink-cdc-poc
 ./gradlew :kafka-connect-smts:shadowJar
-podman build -t local-development_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
+podman build -t local-development-podman_kafka-connect:latest -f local-development-podman/kafka-connect/Dockerfile .
 ```
 
 #### 3. Deploy Connectors
 
 ```bash
-cd local-development/kafka-connect
+cd local-development-podman/kafka-connect
 DB_HOST=mysql ./deploy-connectors.sh
 ```
 
@@ -304,7 +304,7 @@ podman logs kafka-connect | grep -iE 'EnrichmentTransform|NoClass|ClassNot|Unsup
 
 # Rebuild image with correct Java 11 SMT JAR:
 ./gradlew :kafka-connect-smts:shadowJar
-podman build -t local-development_kafka-connect:latest -f local-development/kafka-connect/Dockerfile .
+podman build -t local-development-podman_kafka-connect:latest -f local-development-podman/kafka-connect/Dockerfile .
 ```
 
 ### Server ID collision

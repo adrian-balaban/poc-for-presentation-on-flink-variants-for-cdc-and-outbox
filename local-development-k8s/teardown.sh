@@ -6,8 +6,8 @@
 # the kind cluster (frees the node image's disk and all PVCs).
 #
 # Usage:
-#   ./local-development/k8s/teardown.sh          # remove resources + operators
-#   ./local-development/k8s/teardown.sh --full    # also delete the kind cluster
+#   ./local-development-k8s/teardown.sh          # remove resources + operators
+#   ./local-development-k8s/teardown.sh --full    # also delete the kind cluster
 set -euo pipefail
 CLUSTER=flink-cdc-poc
 

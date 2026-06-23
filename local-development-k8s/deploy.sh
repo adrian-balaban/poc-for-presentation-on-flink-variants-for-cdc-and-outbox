@@ -20,11 +20,11 @@
 # Idempotent: safe to re-run. Coexists with the running Podman Compose stack
 # (no host ports are bound — host access is via kubectl port-forward).
 #
-# Usage: ./local-development/k8s/deploy.sh
+# Usage: ./local-development-k8s/deploy.sh
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"   # repo root
-K8S="$ROOT/local-development/k8s"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"   # repo root
+K8S="$ROOT/local-development-k8s"
 CLUSTER=flink-cdc-poc
 cd "$ROOT"
 
@@ -65,7 +65,7 @@ echo "▶ building Kafka Connect SMT jar"
 # holding only the fat-jar; each FlinkDeployment's init-container copies its jar
 # into an emptyDir at /opt/flink/usrlib (no jar baked into the Flink image).
 echo "▶ building flink-with-mysql base image"
-podman build -t flink-with-mysql:latest "$ROOT/local-development/flink-with-mysql"
+podman build -t flink-with-mysql:latest "$ROOT/local-development-podman/flink-with-mysql"
 
 for i in "${!VARIANT_MODULES[@]}"; do
   mod="${VARIANT_MODULES[$i]}"
@@ -84,7 +84,7 @@ done
 # Dockerfile (local-development/flink-cdc-submitter/). Downloads Flink CDC 3.6.0
 # at build time; subsequent builds are cheap (layer cache).
 echo "▶ building flink-cdc-submitter image (YAML pipeline submitter)"
-podman build -t flink-cdc-submitter:latest "$ROOT/local-development/flink-cdc-submitter"
+podman build -t flink-cdc-submitter:latest "$ROOT/local-development-podman/flink-cdc-submitter"
 
 # Kafka Connect image: Strimzi base (Kafka 4.2.0) + Debezium 3.0.2.Final + SMT.
 # Build context is repo root so the COPY of the SMT jar resolves.

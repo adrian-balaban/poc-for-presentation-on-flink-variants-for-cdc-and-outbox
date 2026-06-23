@@ -26,14 +26,14 @@ All Java code must be formatted with Google Java Format via [Spotless](https://g
 
 Formatting is enforced in the `check` task — `./gradlew build` will fail if code is unformatted. IDE integration: most IDEs (VS Code, IntelliJ) have formatter plugins; the easiest flow is to run `./gradlew fmt` before committing.
 
-**Note:** Component tests require Podman to be running (`cd local-development && podman-compose -f podman-compose.yml up -d`). If the stack is unavailable, component tests are skipped gracefully (shown as yellow ⭕ in test explorer).
+**Note:** Component tests require Podman to be running (`cd local-development-podman && podman-compose -f podman-compose.yml up -d`). If the stack is unavailable, component tests are skipped gracefully (shown as yellow ⭕ in test explorer).
 
 ### Full Integration Test (all)
 
 The `all` task orchestrates a complete build-and-test cycle:
 
 1. **Builds all modules** — `./gradlew clean build -x test shadowJar` (includes the variant fat-jars the component tests submit)
-2. **Restarts Podman Compose** — `cd local-development && podman-compose -f podman-compose.yml down -v && ... up -d --build` (`down` exit is ignored — "container not found" on first run is normal; `--build` ensures images like `flink-cdc-submitter` are always rebuilt from the current `Dockerfile`/`entrypoint.sh` so stale baked-in scripts never survive a stack restart). Layer cache keeps this cheap for unchanged build contexts (e.g. `flink-with-mysql`), so only services whose baked-in code actually changed are rebuilt — the tradeoff (rebuild attempt every run vs. silently stale scripts) is intentionally weighted toward correctness.
+2. **Restarts Podman Compose** — `cd local-development-podman && podman-compose -f podman-compose.yml down -v && ... up -d --build` (`down` exit is ignored — "container not found" on first run is normal; `--build` ensures images like `flink-cdc-submitter` are always rebuilt from the current `Dockerfile`/`entrypoint.sh` so stale baked-in scripts never survive a stack restart). Layer cache keeps this cheap for unchanged build contexts (e.g. `flink-with-mysql`), so only services whose baked-in code actually changed are rebuilt — the tradeoff (rebuild attempt every run vs. silently stale scripts) is intentionally weighted toward correctness.
 3. **Waits for services** — polls MySQL + Kafka + Kafka Connect + Flink (up to 180 s); if Flink container doesn't exist (image build failure) the task throws with a diagnostic message rather than silently skipping
 4. **Builds Kafka Connect SMTs** — `./gradlew :kafka-connect-smts:shadowJar`
 5. **Deploys Kafka Connect connectors** — REST API (with `DB_HOST=mysql` for bridge networking)
@@ -73,8 +73,8 @@ All subproject `build.gradle` files reference these via `rootProject.ext.*` — 
 ## Local infra
 
 ```bash
-cd local-development && podman-compose -f podman-compose.yml up -d --build    # MySQL + Kafka + Flink JM+TM + Kafka Connect + Kafka UI + Prometheus + Grafana
-cd local-development && podman-compose -f podman-compose.yml down -v         # tear down (data lost)
+cd local-development-podman && podman-compose -f podman-compose.yml up -d --build    # MySQL + Kafka + Flink JM+TM + Kafka Connect + Kafka UI + Prometheus + Grafana
+cd local-development-podman && podman-compose -f podman-compose.yml down -v         # tear down (data lost)
 ```
 
 Services:
@@ -131,7 +131,7 @@ Each rule has `__dashboardUid__ = "flink-cdc-poc-monitoring"` and `__panelId__` 
 `./gradlew all` runs `terraform apply -auto-approve` automatically after Grafana is healthy. To apply manually:
 
 ```bash
-cd local-development/terraform
+cd local-development-podman/terraform
 terraform init   # first time only; downloads grafana/grafana provider ~3.4
 terraform apply
 ```
@@ -140,7 +140,7 @@ terraform apply
 
 Resources managed: dashboard · folder "Flink CDC POC" · 3 alert rules · contact point · notification policy.
 
-**Datasource ownership:** The Prometheus datasource (uid `prometheus`) is auto-provisioned by Grafana from `local-development/grafana/provisioning/datasources/prometheus.yml`. Terraform reads it as a `data` source (`data.grafana_data_source.prometheus`) — it does **not** create it. Adding it as a Terraform `resource` would cause a 409 conflict on every `all` run.
+**Datasource ownership:** The Prometheus datasource (uid `prometheus`) is auto-provisioned by Grafana from `local-development-podman/grafana/provisioning/datasources/prometheus.yml`. Terraform reads it as a `data` source (`data.grafana_data_source.prometheus`) — it does **not** create it. Adding it as a Terraform `resource` would cause a 409 conflict on every `all` run.
 
 ## Adding a new variant
 
@@ -190,7 +190,7 @@ Each Flink variant and Kafka Connect variant has corresponding component tests i
 
 **Podman Compose prerequisites:**
 ```bash
-cd local-development && podman-compose -f podman-compose.yml up -d
+cd local-development-podman && podman-compose -f podman-compose.yml up -d
 ```
 
 **Run tests (Podman stack):**
@@ -290,7 +290,7 @@ In addition to Flink variants, this POC includes **Kafka Connect** versions of a
 - Same Debezium source and Kafka sink
 - Useful for benchmarking and understanding CDC trade-offs
 
-See [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) and [local-development/KAFKA_CONNECT_QUICKSTART.md](./local-development/KAFKA_CONNECT_QUICKSTART.md).
+See [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) and [local-development-podman/KAFKA_CONNECT_QUICKSTART.md](./local-development-podman/KAFKA_CONNECT_QUICKSTART.md).
 
 ## Code Quality Analysis
 

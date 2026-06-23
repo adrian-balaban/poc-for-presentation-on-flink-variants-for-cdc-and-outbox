@@ -510,12 +510,15 @@ flink-cdc-poc/
 ├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
 │                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
 │                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest
-└── local-development/
-    ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
-    ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
-    ├── flink-cdc-submitter/            # runs flink-cdc.sh for YAML Pipeline variant
-    ├── kafka-connect/                  # Debezium + custom SMTs; 5 connector JSON configs
-    └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
+├── local-development-podman/           # Podman Compose stack
+│   ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
+│   ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
+│   ├── flink-cdc-submitter/            # runs flink-cdc.sh for YAML Pipeline variant
+│   ├── kafka-connect/                  # Debezium + custom SMTs; 5 connector JSON configs
+│   └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
+└── local-development-k8s/              # Kubernetes stack (kind + Flink Operator + Strimzi)
+    ├── deploy.sh / teardown.sh
+    └── flink/  kafka/  kafka-connect/  mysql/  minio/  monitoring/
 ```
 
 ## Backup — Checkpoint Configuration (production-ready)

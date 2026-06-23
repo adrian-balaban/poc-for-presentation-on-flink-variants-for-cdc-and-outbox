@@ -54,7 +54,7 @@ See also [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-
 ### 1. Start infrastructure
 
 ```bash
-cd local-development
+cd local-development-podman
 podman-compose -f podman-compose.yml up -d
 ```
 
@@ -146,7 +146,7 @@ Both are included in `podman-compose.yml` and start automatically with `podman-c
 
 ### Dashboard panels
 
-Dashboard is Terraform-managed (`local-development/terraform/dashboard.tf` reads `flink-cdc-monitoring.json`):
+Dashboard is Terraform-managed (`local-development-podman/terraform/dashboard.tf` reads `flink-cdc-monitoring.json`):
 
 - **3 shipped monitors** (stat panels) — mirrors `rtdp-datadog-tf`:
   1. Restart Loop — `flink.job.numRestarts` change > 3 per job
@@ -163,7 +163,7 @@ Dashboard is Terraform-managed (`local-development/terraform/dashboard.tf` reads
 
 ### Alert rules
 
-Three Grafana alert rules provisioned by Terraform (`local-development/terraform/alerts.tf`), mirroring the monitors already shipped in `rtdp-datadog-tf`:
+Three Grafana alert rules provisioned by Terraform (`local-development-podman/terraform/alerts.tf`), mirroring the monitors already shipped in `rtdp-datadog-tf`:
 
 | Alert | PromQL | Threshold | Severity | For |
 |-------|--------|-----------|----------|-----|
@@ -190,7 +190,7 @@ Dashboard and alert rules are fully managed by Terraform — `./gradlew all` run
 To apply manually:
 
 ```bash
-cd local-development/terraform
+cd local-development-podman/terraform
 terraform init
 terraform apply
 ```
@@ -217,7 +217,7 @@ Orchestrates: build all fat-jars → restart Podman Compose → wait for service
 ./gradlew allK8s
 ```
 
-Orchestrates: `./local-development/k8s/deploy.sh` (kind cluster + 5 Flink + 5 KC + monitoring) → kubectl port-forwards → run each Flink variant test with `FLINK_REST_URL` targeting its own JM → run KC tests → tear down tunnels.
+Orchestrates: `./local-development-k8s/deploy.sh` (kind cluster + 5 Flink + 5 KC + monitoring) → kubectl port-forwards → run each Flink variant test with `FLINK_REST_URL` targeting its own JM → run KC tests → tear down tunnels.
 
 Each Flink variant test class runs against its own JM REST endpoint (one port-forward per variant, ports 18081–18085). KC tests target the Strimzi KC cluster at port 18086. See [K8S.md](./K8S.md) for details.
 
@@ -286,20 +286,28 @@ flink-cdc-poc/
 │       ├── KafkaConnectVariantTest.java
 │       ├── KafkaConnectOutboxTest.java
 │       └── KafkaConnectBase.java
-└── local-development/
-    ├── podman-compose.yml
-    ├── mysql-init/init.sql             # schema + seed data
-    ├── flink-with-mysql/               # Flink JM + TM image (MySQL JDBC driver added)
-    │   └── Dockerfile
-    ├── flink-cdc-submitter/            # runs flink-cdc.sh for variant 5 (YAML pipeline)
-    │   ├── Dockerfile
-    │   └── entrypoint.sh
-    ├── kafka-connect/                  # Kafka Connect image + connector configs
-    │   ├── Dockerfile
-    │   ├── deploy-connectors.sh
-    │   └── connectors/                 # 5 × connector JSON configs
-    └── kafka-connect-smts/             # custom SMT Gradle subproject (Java 11)
-        └── src/main/java/poc/kafka/connect/
+├── local-development-podman/           # Podman Compose stack
+│   ├── podman-compose.yml
+│   ├── mysql-init/init.sql             # schema + seed data
+│   ├── flink-with-mysql/               # Flink JM + TM image (MySQL JDBC driver added)
+│   │   └── Dockerfile
+│   ├── flink-cdc-submitter/            # runs flink-cdc.sh for variant 5 (YAML pipeline)
+│   │   ├── Dockerfile
+│   │   └── entrypoint.sh
+│   ├── kafka-connect/                  # Kafka Connect image + connector configs
+│   │   ├── Dockerfile
+│   │   ├── deploy-connectors.sh
+│   │   └── connectors/                 # 5 × connector JSON configs
+│   └── kafka-connect-smts/             # custom SMT Gradle subproject (Java 11)
+│       └── src/main/java/poc/kafka/connect/
+└── local-development-k8s/              # Kubernetes stack (kind + Flink Operator + Strimzi)
+    ├── deploy.sh                        # full build + apply + wait orchestrator
+    ├── teardown.sh
+    ├── flink/                           # FlinkDeployment CRs + artifact Dockerfiles
+    ├── kafka-connect/                   # KafkaConnect CR + KafkaConnector CRs
+    ├── kafka/                           # Strimzi Kafka CR
+    ├── mysql/ minio/                    # MySQL + MinIO manifests
+    └── monitoring/                      # kube-prometheus-stack values + PodMonitor + alerts
             ├── EnrichmentTransform.java
             └── OutboxRoutingTransform.java
 ```

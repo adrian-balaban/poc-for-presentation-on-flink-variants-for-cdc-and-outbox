@@ -46,7 +46,7 @@ abstract class FlinkTestBase extends ContainerBase {
     Assumptions.assumeTrue(
         flinkAvailable,
         "Flink JobManager not available — skipping test. "
-            + "Set FLINK_REST_URL or run: cd local-development && podman-compose -f podman-compose.yml up -d");
+            + "Set FLINK_REST_URL or run: cd local-development-podman && podman-compose -f podman-compose.yml up -d");
   }
 
   /**
