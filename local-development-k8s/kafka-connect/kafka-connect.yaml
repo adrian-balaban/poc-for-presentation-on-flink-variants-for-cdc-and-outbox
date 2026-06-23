@@ -44,7 +44,7 @@
 #
 # ── 1. KafkaConnect cluster ──────────────────────────────────────────────────
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnect
 metadata:
   name: poc-connect
@@ -58,11 +58,16 @@ spec:
   # Custom image (Strimzi base + Debezium 3.x + SMT). Tag :local → IfNotPresent
   # pull policy → uses kind-loaded image. Must be loaded via `kind load docker-image`.
   image: kafka-connect-debezium:local
+  # Strimzi 1.0.x graduated KafkaConnect to v1: groupId and the three storage
+  # topics are now REQUIRED top-level spec fields (in v1beta2 they lived under
+  # spec.config.* and the v1 schema rejects them there). Moved up so `kubectl
+  # apply` validates. The remaining worker config (converters, replication
+  # factors) stays under spec.config.
+  groupId: poc-connect
+  offsetStorageTopic: connect-offsets
+  configStorageTopic: connect-configs
+  statusStorageTopic: connect-status
   config:
-    group.id: poc-connect
-    offset.storage.topic: connect-offsets
-    config.storage.topic: connect-configs
-    status.storage.topic: connect-status
     # Single-broker Strimzi Kafka cluster — all replication factors must be 1.
     config.storage.replication.factor: "1"
     offset.storage.replication.factor: "1"
@@ -75,7 +80,7 @@ spec:
 
 # ── 2. KafkaConnector — DataStream CDC (mirrors kc-datastream-cdc.json) ─────
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnector
 metadata:
   name: kc-datastream-cdc
@@ -109,7 +114,7 @@ spec:
 
 # ── 3. KafkaConnector — Table API CDC (mirrors kc-table-api-cdc.json) ───────
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnector
 metadata:
   name: kc-table-api-cdc
@@ -140,7 +145,7 @@ spec:
 
 # ── 4. KafkaConnector — SQL API CDC (mirrors kc-sql-api-cdc.json) ───────────
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnector
 metadata:
   name: kc-sql-api-cdc
@@ -171,7 +176,7 @@ spec:
 
 # ── 5. KafkaConnector — YAML Pipeline CDC (mirrors kc-yaml-pipeline-cdc.json) ─
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnector
 metadata:
   name: kc-yaml-pipeline-cdc
@@ -206,7 +211,7 @@ spec:
 
 # ── 6. KafkaConnector — Outbox CDC (mirrors kc-outbox-cdc.json) ─────────────
 ---
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnector
 metadata:
   name: kc-outbox-cdc

@@ -48,6 +48,25 @@ if ! kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; then
 fi
 kubectl config use-context "kind-$CLUSTER"
 
+# ── 1b. raise the kind node container's PID cgroup limit ───────────────────
+# The single kind node is a rootless-podman container that defaults to
+# pids_limit=2048. The full slice (5 Flink JM+TM pairs + Kafka + Kafka Connect
+# + MySQL + MinIO + kube-prometheus-stack) sits at ~1950 PIDs at steady state,
+# and the simultaneous cold-start burst during deploy pushes past 2048. When
+# that happens a FlinkDeployment TaskManager's containerd shim cannot fork an
+# OS thread ("failed to create new OS thread (have 6 already; errno=11)" =
+# EAGAIN from clone()) → the TM pod goes Error → the job logs
+# "NoResourceAvailableException: Slot request bulk is not fulfillable!" and
+# stays CREATED → `kubectl wait flinkdeployment/<v> --for=Running` times out
+# at 600s and deploy.sh aborts. Raising the node's PID cgroup limit to 8192
+# gives ~6k headroom so all pods can start concurrently. `podman update` is
+# live (takes effect on the running container's cgroup immediately) and
+# idempotent, so re-running deploy.sh is cheap.
+NODE_CONTAINER="${CLUSTER}-control-plane"
+echo "▶ ensuring kind node pids_limit ≥ 8192 (avoid containerd-shim thread EAGAIN under cold-start burst)"
+podman update --pids-limit 8192 "$NODE_CONTAINER" >/dev/null || \
+  echo "⚠ could not raise pids_limit on $NODE_CONTAINER (continuing — may hit thread EAGAIN under burst)"
+
 # ── 2. build the 4 Java fat-jars + Kafka Connect SMT ───────────────────────
 # Variant-5 (YAML pipeline) is zero-code (no fat-jar) — handled separately.
 echo "▶ building 4 Java variant fat-jars (datastream, table-api, sql-api, outbox)"
@@ -175,18 +194,23 @@ for name in "${VARIANT_NAMES[@]}"; do
 done
 
 # ── 9. YAML Pipeline variant (session cluster + submitter) ──────────────────
-# Session cluster: no spec.job — operator creates JM+TM pods and the
-# yaml-pipeline-cdc-rest ClusterIP Service (port 8081).
+# Session cluster: no spec.job; spec.mode: standalone so the operator pre-deploys
+# the JM + the taskManager.replicas TM pod (native mode would ignore replicas and
+# deploy no TM, deadlocking the submitter which waits for a TM before submitting)
+# and the yaml-pipeline-cdc-rest ClusterIP Service (port 8081).
 echo "▶ deploying YAML Pipeline session cluster (variant-5)"
 kubectl apply -f "$K8S/flink/configmap-yaml-pipeline.yaml"
 kubectl apply -f "$K8S/flink/flinkdeployment-yaml.yaml"
 
-# Wait for the JM Deployment to become available before launching the submitter.
-# The operator creates a Deployment named after the FlinkDeployment; `rollout
-# status` is more universally supported than `wait --for=jsonpath` (requires
-# kubectl ≥ 1.23).
+# Wait for the JM to become available before launching the submitter. The
+# Flink operator creates the JM Deployment a few seconds after the
+# FlinkDeployment CR is applied; `rollout status deployment/...` races with
+# that creation and returns NotFound if it runs first. Waiting on the CR's
+# Running condition instead is race-free — the CR exists immediately after
+# `apply`, and the operator sets Running once JobManagerReady (same pattern
+# used for the 4 Java variants above).
 echo "▶ waiting for yaml-pipeline-cdc JobManager to become available..."
-kubectl -n poc rollout status deployment/yaml-pipeline-cdc --timeout=300s
+kubectl -n poc wait flinkdeployment/yaml-pipeline-cdc --for=condition=Running --timeout=300s
 
 # Delete any previous submitter Job so the apply is idempotent (Job names are
 # unique; re-applying an existing completed Job is a no-op for kubectl but the
@@ -240,7 +264,7 @@ cat <<EOF
 ✅ flink-cdc-poc k8s stack is up (5 Flink + 5 Kafka Connect variants + monitoring). In separate terminals:
 
   kubectl -n poc port-forward svc/mysql                        13306:3306   # MySQL
-  kubectl -n poc port-forward svc/poc-kafka-kafka-bootstrap    19092:9092   # Kafka
+  kubectl -n poc port-forward svc/poc-kafka-kafka-external-bootstrap 19092:9094 # Kafka (host-access listener; advertisedHost=localhost)
   kubectl -n poc port-forward svc/datastream-cdc-rest          18081:8081   # Flink UI (DataStream)
   kubectl -n poc port-forward svc/table-api-cdc-rest           18082:8081   # Flink UI (Table API)
   kubectl -n poc port-forward svc/sql-api-cdc-rest             18083:8081   # Flink UI (SQL API)

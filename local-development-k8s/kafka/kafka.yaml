@@ -24,8 +24,11 @@
 # path is unaffected. The Kafka Connect variants (expand phase) will need
 # Debezium versions matched to Kafka 4.x — flagged as follow-up.
 #
-# Bootstrap: poc-kafka-kafka-bootstrap:9092 (internal). Host access for tests
-# via `kubectl port-forward svc/poc-kafka-kafka-bootstrap 19092:9092`.
+# Bootstrap: poc-kafka-kafka-bootstrap:9092 (internal, for in-cluster Flink/KC
+# clients). Host access for test consumers via the `external` nodeport listener:
+# `kubectl port-forward svc/poc-kafka-kafka-external-bootstrap 19092:9094` with
+# KAFKA_BOOTSTRAP=localhost:19092 (see the listeners block for why the internal
+# listener can't serve host consumers).
 ---
 # 1/2 — the broker nodes (replicas / roles / storage live here in 1.0.x)
 apiVersion: kafka.strimzi.io/v1
@@ -60,10 +63,34 @@ spec:
     version: 4.2.0
     metadataVersion: 4.2-IV1
     listeners:
+      # in-cluster listener — Flink jobs + Kafka Connect connect here via the
+      # poc-kafka-kafka-bootstrap:9092 Service (advertised as the broker pod FQDN,
+      # resolvable only inside the cluster).
       - name: plain
         port: 9092
         type: internal
         tls: false
+      # host-access listener — the component tests run on the host and reach
+      # Kafka via `kubectl port-forward svc/poc-kafka-external-bootstrap 19092:9094`.
+      # The `plain` internal listener advertises the in-cluster broker pod FQDN
+      # (poc-kafka-dual-role-0.poc-kafka-kafka-brokers.poc.svc), which a host-side
+      # KafkaConsumer cannot resolve → UnknownHostException on the metadata
+      # handshake (bootstrap via localhost:19092 succeeds, but the broker hands
+      # back its in-cluster FQDN and the client can't reconnect). This nodeport
+      # listener overrides the advertised host/port to localhost:19092 so the
+      # host consumer bootstraps AND reconnects through the same port-forward.
+      # (Single broker → the bootstrap port-forward is the only endpoint needed;
+      # the per-broker nodeport service Strimzi also creates is unused.) Strimzi
+      # `internal` listeners cannot override advertised host/port — only the
+      # external types (nodeport/loadbalancer/ingress/route) honor
+      # advertisedHostTemplate / advertisedPortTemplate — hence a second listener.
+      - name: external
+        port: 9094
+        type: nodeport
+        tls: false
+        configuration:
+          advertisedHostTemplate: localhost
+          advertisedPortTemplate: "19092"
     config:
       offsets.topic.replication.factor: 1
       transaction.state.log.replication.factor: 1

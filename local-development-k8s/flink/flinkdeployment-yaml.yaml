@@ -10,8 +10,10 @@
 #
 # In session mode the operator:
 #   - Creates a JM Deployment + `yaml-pipeline-cdc-rest` ClusterIP Service (port 8081)
-#   - Pre-deploys taskManager.replicas TM pods so slots are available before the
-#     submitter runs (avoids slot-allocation timeout at submission time)
+#   - With `mode: standalone`, pre-deploys taskManager.replicas TM pods so slots are
+#     available before the submitter runs (avoids the no-TM/no-job deadlock — see
+#     the `mode:` comment in spec below). Native mode (the default) would NOT
+#     pre-deploy a TM; it scales TMs only after a job is submitted.
 #   - Does NOT manage job lifecycle (cancel/upgrade) — that is the submitter's job
 #
 # Checkpoint config in flinkConfiguration is propagated to job execution by the
@@ -41,6 +43,15 @@ spec:
   imagePullPolicy: Never
   flinkVersion: v2_2
   serviceAccount: flink
+  # mode: standalone — the operator's default (native) mode dynamically scales
+  # TaskManagers based on submitted-job parallelism and IGNORES taskManager.replicas,
+  # so no TM pod is created until a job is submitted. But the submitter Job waits for
+  # a TM to register with the JM BEFORE submitting the pipeline (entrypoint.sh polls
+  # /taskmanagers) — a deadlock: no TM until a job, no job until a TM. Standalone mode
+  # makes the operator respect taskManager.replicas and pre-deploy the TM pod, so
+  # slots exist before the submitter runs. (Operator ≥1.3.1 avoids FLINK-30361's
+  # full-cluster-recreate-on-replica-change bug; we're on 1.15.0.) See FLIP-225.
+  mode: standalone
   flinkConfiguration:
     state.backend: rocksdb
     execution.checkpointing.dir: s3://flink-checkpoints/checkpoints

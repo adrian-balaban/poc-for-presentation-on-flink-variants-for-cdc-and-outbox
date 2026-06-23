@@ -27,6 +27,13 @@ non-overlapping MySQL server-ID ranges.
   CPU, leaving headroom for variant 5 + Kafka Connect + monitoring. The earlier
   2-CPU-per-JM/TM sizing starved the 4th TaskManager (Pending) — see
   `flinkdeployment-*.yaml` resource comments.
+- **kind node PID cgroup limit.** The single kind node is a rootless-podman
+  container that defaults to `pids_limit=2048`; the full slice sits at ~1950 PIDs
+  at steady state, and the cold-start burst exceeds 2048 — which kills a
+  TaskManager's containerd shim (`failed to create new OS thread … errno=11`)
+  and leaves the job stuck `CREATED`. `deploy.sh` section 1b raises the limit to
+  8192 via `podman update --pids-limit 8192 <kind-node>` on every run (live,
+  idempotent), so no manual step is needed.
 
 ## Quick start
 
@@ -44,7 +51,7 @@ For manual host access, run each port-forward in a separate terminal:
 
 ```bash
 kubectl -n poc port-forward svc/mysql                        13306:3306   # MySQL
-kubectl -n poc port-forward svc/poc-kafka-kafka-bootstrap    19092:9092   # Kafka
+kubectl -n poc port-forward svc/poc-kafka-kafka-external-bootstrap 19092:9094   # Kafka (external listener; advertisedHost=localhost so host consumers resolve the broker)
 kubectl -n poc port-forward svc/datastream-cdc-rest          18081:8081   # Flink UI (DataStream)
 kubectl -n poc port-forward svc/table-api-cdc-rest           18082:8081   # Flink UI (Table API)
 kubectl -n poc port-forward svc/sql-api-cdc-rest             18083:8081   # Flink UI (SQL API)
@@ -125,7 +132,7 @@ KAFKA_CONNECT_URL=http://localhost:18086 \
 | Component | k8s artifact | Notes |
 |-----------|--------------|-------|
 | Namespace | `k8s/namespace.yaml` → `poc` | Isolates the slice; `kubectl delete ns poc` cleans up |
-| Kafka | `k8s/kafka/kafka.yaml` (Strimzi `Kafka` CR) | Single-broker KRaft 4.2.0, txn RF=1 / minISR=1 (preserves exactly-once) |
+| Kafka | `k8s/kafka/kafka.yaml` (Strimzi `Kafka` CR) | Single-broker KRaft 4.2.0, txn RF=1 / minISR=1 (preserves exactly-once). Two listeners: `plain` (internal, 9092, in-cluster FQDN) for Flink/KC jobs, and `external` (nodeport, 9094, `advertisedHostTemplate: localhost` / `advertisedPortTemplate: 19092`) so host-side test consumers can resolve the broker the metadata handshake returns |
 | MySQL | `k8s/mysql/mysql.yaml` | `mysql:8.0`, binlog ROW/FULL, same `init.sql` schema as Podman |
 | MinIO | `k8s/minio/minio.yaml` | S3 API `minio:9000`, bucket `flink-checkpoints` created by a one-shot Job |
 | Flink Operator | Helm `flink-kubernetes-operator` (ns `flink-system`) | 1.15.0, webhook disabled |
@@ -137,8 +144,8 @@ KAFKA_CONNECT_URL=http://localhost:18086 \
 | Table API job | `k8s/flink/flinkdeployment-table-api.yaml` | server-id 6000-6099 (`MYSQL_TABLE_API_SERVER_ID`); topic `poc.cdc.table-api.flink` |
 | SQL API job | `k8s/flink/flinkdeployment-sql-api.yaml` | Two sources → 5800-5849 + 5850-5899; topics `poc.cdc.sql-api.flink.orders` + `.customers` |
 | Outbox job | `k8s/flink/flinkdeployment-outbox.yaml` | server-id 5600-5699 (`MYSQL_OUTBOX_SERVER_ID`); topic `poc.cdc.outbox.flink` |
-| YAML Pipeline (v5) | `k8s/flink/flinkdeployment-yaml.yaml` (session-cluster) + `job-yaml-submitter.yaml` (Job) | Session-cluster has no `spec.job`; one-shot Job runs `flink-cdc.sh pipeline.yaml` via the `flink-cdc-submitter` image; topic `poc.cdc.yaml.flink.orders`; server-id 5700-5709 |
-| Kafka Connect | `k8s/kafka-connect/kafka-connect.yaml` (`KafkaConnect` CR + 5 `KafkaConnector` CRs) | Strimzi v1beta2; Debezium 3.0.2.Final (Kafka 4.x compatible); custom SMTs baked into `kafka-connect-debezium:local` image |
+| YAML Pipeline (v5) | `k8s/flink/flinkdeployment-yaml.yaml` (session-cluster, `mode: standalone`) + `job-yaml-submitter.yaml` (Job) | Session-cluster has no `spec.job`; `mode: standalone` makes the operator pre-deploy the `taskManager.replicas` TM (native mode ignores it → no TM until a job is submitted → submitter deadlock); one-shot Job runs `flink-cdc.sh pipeline.yaml` via the `flink-cdc-submitter` image; topic `poc.cdc.yaml.flink.orders`; server-id 5700-5709 |
+| Kafka Connect | `k8s/kafka-connect/kafka-connect.yaml` (`KafkaConnect` CR + 5 `KafkaConnector` CRs) | Strimzi v1 (`kafka.strimzi.io/v1`); `groupId`/`offsetStorageTopic`/`configStorageTopic`/`statusStorageTopic` are required top-level spec fields; Debezium 3.0.2.Final (Kafka 4.x compatible); custom SMTs baked into `kafka-connect-debezium:local` image |
 | Monitoring | Helm `kube-prometheus-stack` (ns `monitoring`) + `pod-monitor.yaml` + `prometheus-rules.yaml` + `grafana-dashboard-cm.yaml` | Grafana at localhost:13001 (admin/admin); Prometheus at localhost:19090; 3 alert rules mirroring Terraform `alerts.tf` |
 
 ## How the fat-jar is mounted (init-container + volume)

@@ -103,7 +103,11 @@ tasks.register('fmtCheck') {
 //
 // Port-forward mapping used during tests (all on high ports — no Podman conflicts):
 //   MySQL:                 localhost:13306  → svc/mysql
-//   Kafka:                 localhost:19092  → svc/poc-kafka-kafka-bootstrap
+//   Kafka:                 localhost:19092  → svc/poc-kafka-kafka-external-bootstrap:9094
+//     (the external nodeport listener — advertisedHostTemplate: localhost /
+//     advertisedPortTemplate: 19092 — so a host-side KafkaConsumer can resolve
+//     the broker the metadata handshake returns; the `plain` internal listener
+//     advertises the in-cluster pod FQDN, unresolvable from the host)
 //   DataStream JM REST:    localhost:18081  → svc/datastream-cdc-rest
 //   Table API JM REST:     localhost:18082  → svc/table-api-cdc-rest
 //   SQL API JM REST:       localhost:18083  → svc/sql-api-cdc-rest
@@ -141,7 +145,7 @@ tasks.register('allK8s') {
         println '=== Starting kubectl port-forwards ==='
         def portForwards = [
             ['kubectl', '-n', 'poc', 'port-forward', 'svc/mysql',                     '13306:3306'],
-            ['kubectl', '-n', 'poc', 'port-forward', 'svc/poc-kafka-kafka-bootstrap',  '19092:9092'],
+            ['kubectl', '-n', 'poc', 'port-forward', 'svc/poc-kafka-kafka-external-bootstrap', '19092:9094'],
             ['kubectl', '-n', 'poc', 'port-forward', 'svc/datastream-cdc-rest',        '18081:8081'],
             ['kubectl', '-n', 'poc', 'port-forward', 'svc/table-api-cdc-rest',         '18082:8081'],
             ['kubectl', '-n', 'poc', 'port-forward', 'svc/sql-api-cdc-rest',           '18083:8081'],
