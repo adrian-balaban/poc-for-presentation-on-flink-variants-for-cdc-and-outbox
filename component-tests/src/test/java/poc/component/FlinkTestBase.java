@@ -11,8 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
  * Base class for Flink component tests that submit jobs to the Flink JobManager REST API.
  *
  * <p>The target URL is read from the {@code FLINK_REST_URL} environment variable (default {@code
- * http://localhost:8081}). Set this variable to target a different JM — e.g. when running against
- * a k8s variant via {@code kubectl port-forward}.
+ * http://localhost:8081}). Set this variable to target a different JM — e.g. when running against a
+ * k8s variant via {@code kubectl port-forward}.
  *
  * <p>Tests are skipped gracefully if the Flink JM is not reachable. Submitted jobs remain running
  * after each test; resubmitting would collide on the MySQL server-id of the already-running job.
