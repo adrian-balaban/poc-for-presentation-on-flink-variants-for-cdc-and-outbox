@@ -22,7 +22,7 @@ Repeat the steps below until **both** exit conditions are satisfied:
 Run synchronously so the exit code is immediately available:
 
 ```bash
-cd /home/adrianb/_/claude/github/public_poc-for-presentation-on-flink-variants-for-cdc-and-outbox
+cd "$(git rev-parse --show-toplevel)"
 
 # Stop any Gradle daemons left over from a previous iteration. Stale IDLE daemons
 # are the known root cause of `shadowJar` being falsely reported UP-TO-DATE after

@@ -1,6 +1,14 @@
 {
     "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
+      "Bash(./gradlew:*)",
+      "Bash(podman:*)",
+      "Bash(podman-compose:*)",
+      "Bash(git:*)",
+      "Bash(kubectl:*)",
+      "Bash(kind:*)",
+      "Bash(helm:*)",
       "Bash(curl -s http://localhost:8081/jobs)",
       "Bash(curl -s \"http://localhost:8081/jobs/d2c63f5b01a904168c1bd280387e22ba/exceptions\")",
       "Bash(curl -fL \"https://repo1.maven.org/maven2/org/apache/flink/flink-cdc-pipeline-connector-mysql/3.6.0-2.2/flink-cdc-pipeline-connector-mysql-3.6.0-2.2.jar\" -o /tmp/flink-cdc-pipeline-connector-mysql-3.6.0-2.2.jar)",
