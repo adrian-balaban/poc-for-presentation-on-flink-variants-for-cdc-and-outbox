@@ -251,9 +251,68 @@ done
 # and the yaml-pipeline-cdc-rest ClusterIP Service (port 8081).
 echo "▶ deploying YAML Pipeline session cluster (variant-5)"
 kubectl apply -f "$K8S/flink/configmap-yaml-pipeline.yaml"
+# Cancel any running pipeline job on the existing session cluster BEFORE deleting it.
+# In session mode the Flink operator does NOT own job lifecycle, so a delete issued
+# while a pipeline job is still RUNNING fails its cleanup with:
+#   Warning CleanupFailed: "non terminated jobs […] that should be cancelled first"
+# The finalizer then never clears; delete_flinkdeployment force-patches it off, and the
+# operator's stale DELETING reconcile later destroys the freshly-recreated JM
+# Deployment — which the operator will NOT recover without HA enabled (permanent
+# RECONCILING/DELETING; the submitter then waits forever for a TM that never registers,
+# and the YamlPipeline component test fails ~6 min later with an opaque Kafka-message
+# timeout). Cancelling the job first lets cleanup succeed, the finalizer clears
+# normally, no force-patch, no stale reconcile, and the re-apply starts a clean JM.
+# The JM REST lives on the ClusterIP Service <name>-rest:8081 the operator auto-creates;
+# we reach it via a throwaway port-forward. Requires host curl + python3 (else skipped —
+# the fatal submitter wait below still catches a broken deploy).
+if command -v curl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1 \
+   && kubectl -n poc get svc yaml-pipeline-cdc-rest >/dev/null 2>&1; then
+  PFPORT=18095
+  kubectl -n poc port-forward svc/yaml-pipeline-cdc-rest "${PFPORT}:8081" >/dev/null 2>&1 &
+  PF_PID=$!
+  sleep 2
+  if curl -sf "http://localhost:${PFPORT}/jobs/overview" >/dev/null 2>&1; then
+    JIDS=$(curl -sf "http://localhost:${PFPORT}/jobs/overview" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    jobs = json.load(sys.stdin).get('jobs', [])
+except Exception:
+    sys.exit(0)
+for j in jobs:
+    if j.get('state') not in ('FINISHED', 'FAILED', 'CANCELED'):
+        print(j['jid'])
+" 2>/dev/null || true)
+    for jid in ${JIDS}; do
+      [ -n "${jid}" ] || continue
+      echo "▶ cancelling running pipeline job ${jid} on yaml-pipeline-cdc"
+      curl -sf -X PATCH "http://localhost:${PFPORT}/jobs/${jid}?mode=cancel" >/dev/null 2>&1 || true
+    done
+    # Wait for the cancelled job(s) to actually terminate before the delete, so the
+    # operator's cleanup sees no non-terminated jobs and the finalizer clears normally.
+    for _ in $(seq 1 30); do
+      RUNNING=$(curl -sf "http://localhost:${PFPORT}/jobs/overview" 2>/dev/null | python3 -c "
+import sys, json
+n = 0
+try:
+    jobs = json.load(sys.stdin).get('jobs', [])
+    n = sum(1 for j in jobs if j.get('state') in ('RUNNING','RESTARTING','RECONCILING','CREATED','INITIALIZING'))
+except Exception:
+    n = 0
+print(n)
+" 2>/dev/null || echo 0)
+      RUNNING=${RUNNING:-0}
+      [ "${RUNNING}" -eq 0 ] && break
+      sleep 2
+    done
+  fi
+  kill "${PF_PID}" 2>/dev/null || true
+  wait "${PF_PID}" 2>/dev/null || true
+fi
+
 # Delete the session cluster so the operator starts it fresh with the new pipeline image;
 # a running pipeline from a previous deploy would conflict on the MySQL server-ID range
-# and cause restart loops when the submitter re-submits.
+# and cause restart loops when the submitter re-submits. (Clean now — the job was
+# cancelled above, so the operator's finalizer clears normally; no force-patch path.)
 delete_flinkdeployment yaml-pipeline-cdc
 kubectl apply -f "$K8S/flink/flinkdeployment-yaml.yaml"
 
@@ -274,8 +333,15 @@ kubectl -n poc delete job yaml-pipeline-submitter --ignore-not-found=true
 kubectl apply -f "$K8S/flink/job-yaml-submitter.yaml"
 
 echo "▶ waiting for yaml-pipeline-submitter to complete (submits pipeline to session cluster)..."
-kubectl -n poc wait job/yaml-pipeline-submitter --for=condition=complete --timeout=180s || \
-  echo "⚠ submitter not yet complete — check: kubectl -n poc logs job/yaml-pipeline-submitter"
+# Fatal: a non-completing submitter means the pipeline was never submitted, so the
+# YamlPipeline component test would otherwise fail with an opaque Kafka-message
+# timeout. Fail the deploy here with the submitter logs instead of proceeding.
+if ! kubectl -n poc wait job/yaml-pipeline-submitter --for=condition=complete --timeout=240s; then
+  echo "✗ yaml-pipeline-submitter did not complete in 240s — pipeline not submitted." >&2
+  echo "  submitter logs (tail):" >&2
+  kubectl -n poc logs job/yaml-pipeline-submitter --tail=40 >&2 2>/dev/null || true
+  exit 1
+fi
 
 # ── 10. Kafka Connect (KafkaConnect CR + 5 KafkaConnector CRs) ──────────────
 # The KafkaConnect CR starts a Connect worker pod; the Strimzi operator then
