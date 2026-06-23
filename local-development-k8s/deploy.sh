@@ -123,24 +123,31 @@ podman build --no-cache -t kafka-connect-debezium:local \
 # are all referenced with imagePullPolicy: Never, so all must be present in the
 # kind node.
 echo "▶ loading flink-with-mysql + 4 artifact images + flink-cdc-submitter + kafka-connect into kind"
-# Podman tags locally-built images with a `localhost/` prefix; `kind load` must
-# use the same qualified name or it reports "not present locally".
-kind load docker-image localhost/flink-with-mysql:latest --name "$CLUSTER"
+# `kind load docker-image` uses kind's experimental podman provider which resolves
+# images via podman's runtime socket. That socket may point at a different storage
+# root than where `podman build` wrote the image (e.g. snap VS Code splits storage
+# between ~/snap/code/.../containers and ~/.local/share/containers).  Bypassing the
+# provider entirely with `podman save | kind load image-archive` avoids the lookup:
+# podman serialises the image to a tar stream from wherever it was built and kind
+# loads the archive directly into the node's containerd, independent of which
+# storage root kind would otherwise search.
+_kind_load() {
+  local img="$1"
+  echo "  loading ${img} …"
+  podman save "$img" | kind load image-archive /dev/stdin --name "$CLUSTER"
+}
+_kind_load localhost/flink-with-mysql:latest
 for artifact in "${VARIANT_ARTIFACTS[@]}"; do
-  kind load docker-image "localhost/${artifact}:latest" --name "$CLUSTER"
+  _kind_load "localhost/${artifact}:latest"
 done
-kind load docker-image localhost/flink-cdc-submitter:latest --name "$CLUSTER"
-kind load docker-image localhost/kafka-connect-debezium:local --name "$CLUSTER"
+_kind_load localhost/flink-cdc-submitter:latest
+_kind_load localhost/kafka-connect-debezium:local
 
-# kind + podman provider quirk: `kind load` stores images in the node under the
-# `localhost/<name>:latest` tag (podman's default registry prefix) and its re-tag
-# to the unqualified name fails with "failed to re-tag image on the node ... Will
-# load it instead". The FlinkDeployments reference the unqualified names
-# (flink-with-mysql:latest / flink-cdc-artifact-<variant>:latest), and with
-# imagePullPolicy: Never kubelet resolves by exact ref — so a pod's init-container
-# fails with ErrImageNeverPull. Re-tag inside the node's containerd (k8s.io
-# namespace) to both the unqualified and the docker.io/library normalized form
-# (the latter is what kubelet's CRI image service resolves to).
+# After image-archive load, containerd stores images under the tag that was in the
+# archive (e.g. localhost/flink-with-mysql:latest).  FlinkDeployments reference the
+# unqualified name (flink-with-mysql:latest) and imagePullPolicy: Never requires an
+# exact tag match in containerd's k8s.io namespace.  Re-tag to both the unqualified
+# form and the docker.io/library normalised form (what kubelet's CRI resolves to).
 # `podman exec` into the kind node container to run ctr commands directly.
 NODE="${CLUSTER}-control-plane"
 echo "▶ re-tagging images in kind node containerd (kind+podman localhost/ prefix quirk)"
