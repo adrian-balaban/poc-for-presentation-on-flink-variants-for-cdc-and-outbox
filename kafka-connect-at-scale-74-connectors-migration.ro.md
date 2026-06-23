@@ -96,6 +96,78 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 
 ---
 
+## Slide 1d — Două Tipare de Conectori: CDC vs Outbox
+
+Două moduri fundamental diferite prin care un conector citește din MySQL și scrie în Kafka.
+
+### Tiparul 1 — CDC: un topic per tabelă de business
+
+```
+┌──────────────────────── MySQL ────────────────────────────┐
+│                                                           │
+│  ┌────────────────┐       ┌──────────────────────────┐   │
+│  │    orders      │       │       customers          │   │
+│  ├────────────────┤       ├──────────────────────────┤   │
+│  │ id │ amount│...│       │ id │ name │ email │  ... │   │
+│  └────────────────┘       └──────────────────────────┘   │
+│                                                           │
+│         binlog — fiecare INSERT / UPDATE / DELETE         │
+└──────────────────────┬────────────────────────────────────┘
+                       │ conectorul urmărește binlog-ul
+                       ▼
+              ┌─────────────────┐
+              │ Conector CDC    │
+              │  (Flink / KC)   │
+              └────────┬────────┘
+                       │ un topic per tabelă capturată
+          ┌────────────┴────────────┐
+          ▼                         ▼
+   ┌──────────────┐         ┌────────────────┐
+   │ poc.cdc      │         │ poc.cdc        │
+   │   .orders    │         │   .customers   │
+   └──────────────┘         └────────────────┘
+```
+
+Conectorul capturează modificările din fiecare tabelă din scop. Consumatorii primesc schema brută a fiecărei tabele de business — orice ALTER TABLE se propagă downstream.
+
+### Tiparul 2 — Outbox: aplicația scrie intenția; conectorul rutează după destinație
+
+```
+┌────────────────────────────── MySQL ──────────────────────────────────────┐
+│                                                                           │
+│  ┌────────────────┐  aceeași TX  ┌───────────────────────────────────┐   │
+│  │    orders      │  ──COMMIT──▶ │         outbox_events             │   │
+│  ├────────────────┤              ├───────────────────────────────────┤   │
+│  │ id │ amount│...│              │ id │ destination │ payload │  ... │   │
+│  └────────────────┘              │    │ "payments"  │ { ... } │       │   │
+│                                  │    │ "fraud"     │ { ... } │       │   │
+│                                  └───────────────────────────────────┘   │
+│                                                                           │
+│           binlog — conectorul urmărește doar outbox_events                │
+└───────────────────────────────────┬───────────────────────────────────────┘
+                                    │ rutează după câmpul destination
+                                    ▼
+                          ┌──────────────────────┐
+                          │ Conector Outbox       │
+                          │  (Flink / KC)         │
+                          └────────┬──────────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              ▼                    ▼                    ▼
+       ┌────────────┐      ┌─────────────┐      ┌─────────────┐
+       │  payments  │      │    fraud    │      │  analytics  │
+       │   .events  │      │   .alerts   │      │    .feed    │
+       └────────────┘      └─────────────┘      └─────────────┘
+```
+
+Aplicația controlează forma evenimentului și destinația. Schema tabelei de business nu ajunge niciodată la consumatori — doar payload-ul curatizat din rândul outbox ajunge în Kafka.
+
+> **Diferența cheie:** CDC expune modificările fiecărei tabele ca atare (un topic per tabelă; deriva schemei se propagă).
+> Outbox oferă aplicației control complet asupra formei evenimentului și topicului destinatar —
+> o singură tabelă outbox → mai multe topicuri, rutate după câmpul `destination` scris la INSERT.
+
+---
+
 ## Slide 2 — Contextul Clientului (Unde Suntem Azi)
 
 **Experiență reală cu un client: Confluent Kafka Cloud la scară**

@@ -6,7 +6,6 @@
 .vscode
 .idea/
 .gradle
-.claude/scheduled_tasks.lock
 # orphan directory superseded by variant-flink-cdc-yaml-pipeline-cdc-job
 variant-yaml-pipeline/
 **/*.org

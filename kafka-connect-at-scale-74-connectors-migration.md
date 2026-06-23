@@ -98,6 +98,78 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 
 ---
 
+## Slide 1d — Two Connector Patterns: CDC vs Outbox
+
+Two fundamentally different ways a connector reads MySQL and writes to Kafka.
+
+### Pattern 1 — CDC: one topic per business table
+
+```
+┌──────────────────────── MySQL ────────────────────────────┐
+│                                                           │
+│  ┌────────────────┐       ┌──────────────────────────┐   │
+│  │    orders      │       │       customers          │   │
+│  ├────────────────┤       ├──────────────────────────┤   │
+│  │ id │ amount│...│       │ id │ name │ email │  ... │   │
+│  └────────────────┘       └──────────────────────────┘   │
+│                                                           │
+│         binlog — every INSERT / UPDATE / DELETE           │
+└──────────────────────┬────────────────────────────────────┘
+                       │ connector tails binlog
+                       ▼
+              ┌─────────────────┐
+              │  CDC Connector  │
+              │  (Flink / KC)   │
+              └────────┬────────┘
+                       │ one topic per captured table
+          ┌────────────┴────────────┐
+          ▼                         ▼
+   ┌──────────────┐         ┌────────────────┐
+   │ poc.cdc      │         │ poc.cdc        │
+   │   .orders    │         │   .customers   │
+   └──────────────┘         └────────────────┘
+```
+
+The connector captures changes from every table in scope. Consumers receive the raw schema of each business table — any ALTER TABLE propagates downstream.
+
+### Pattern 2 — Outbox: app writes intent; connector routes by destination
+
+```
+┌────────────────────────────── MySQL ──────────────────────────────────────┐
+│                                                                           │
+│  ┌────────────────┐  same TX     ┌───────────────────────────────────┐   │
+│  │    orders      │  ──COMMIT──▶ │         outbox_events             │   │
+│  ├────────────────┤              ├───────────────────────────────────┤   │
+│  │ id │ amount│...│              │ id │ destination │ payload │  ... │   │
+│  └────────────────┘              │    │ "payments"  │ { ... } │       │   │
+│                                  │    │ "fraud"     │ { ... } │       │   │
+│                                  └───────────────────────────────────┘   │
+│                                                                           │
+│              binlog — connector watches outbox_events only                │
+└───────────────────────────────────┬───────────────────────────────────────┘
+                                    │ routes by destination field
+                                    ▼
+                          ┌──────────────────┐
+                          │ Outbox Connector │
+                          │  (Flink / KC)    │
+                          └────────┬─────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              ▼                    ▼                    ▼
+       ┌────────────┐      ┌─────────────┐      ┌─────────────┐
+       │  payments  │      │    fraud    │      │  analytics  │
+       │   .events  │      │   .alerts   │      │    .feed    │
+       └────────────┘      └─────────────┘      └─────────────┘
+```
+
+The application controls the event shape and destination. The business table schema never leaks to consumers — only the curated payload in the outbox row reaches Kafka.
+
+> **Key difference:** CDC exposes every table change as-is (one topic per table; schema drift propagates).
+> Outbox gives the application full control over which event shape reaches which topic —
+> one outbox table → many topics, routed by a `destination` field written at insert time.
+
+---
+
 ## Slide 2 — The Client Context (Where We Are Today)
 
 **Real client experience: Confluent Kafka Cloud at scale**
