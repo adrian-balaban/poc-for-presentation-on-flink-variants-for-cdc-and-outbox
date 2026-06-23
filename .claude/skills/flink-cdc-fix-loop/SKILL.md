@@ -1,9 +1,9 @@
 ---
 name: flink-cdc-fix-loop
 description: >
-  Fix loop for this project. Use whenever the user wants to drive the project to a clean passing state. Loops until BOTH are true: (1) `./gradlew all allk8s` exits with code 0
+  Fix loop for this project. Use whenever the user wants to drive the project to a clean passing state. Loops until BOTH are true: (1) `./gradlew all allK8s` exits with code 0
   (BUILD SUCCESSFUL, no test failures), AND (2) http://localhost:8081/jobs/overview shows 5 RUNNING jobs. 
-  Per iteration: A. run `./gradlew all allk8s`  B. fix errors  C. update README.md and CLAUDE.md  D. commit  E. push.
+  Per iteration: A. run `./gradlew all allK8s`  B. fix errors  C. update README.md and CLAUDE.md  D. commit  E. push (only once both exit conditions pass).
 ---
 
 # Flink CDC Fix Loop
@@ -23,8 +23,9 @@ Run synchronously so the exit code is immediately available:
 
 ```bash
 cd /home/adrianb/_/claude/github/public_poc-for-presentation-on-flink-variants-for-cdc-and-outbox
+set -o pipefail                       # so the captured exit reflects gradlew, not tee
 ./gradlew all allK8s 2>&1 | tee /tmp/flink-cdc-all.log
-GRADLEW_EXIT=$?
+GRADLEW_EXIT=${PIPESTATUS[0]}         # tee's exit ($?) is always 0 — read gradlew's instead
 echo "EXIT: $GRADLEW_EXIT"
 ```
 
@@ -82,7 +83,7 @@ git commit -m "$(cat <<'EOF'
 
 <1–3 sentences on root cause and why the fix is correct>
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -90,6 +91,11 @@ EOF
 Types: `fix`, `feat`, `style` (formatting only), `docs`, `chore`.
 
 ### E. Push
+
+Push **only after both exit conditions pass** — iterations exist because the build is
+failing, so pushing every pass publishes known-broken commits to `master`. Commit each
+iteration (step D), but defer the push until both exit conditions (see "Check exit
+conditions" below) are met:
 
 ```bash
 git push
@@ -102,15 +108,24 @@ git push
 After each full iteration (A–E):
 
 ```bash
-# Exit condition 2 — 5 RUNNING jobs (Podman Flink JM)
-curl -sf http://localhost:8081/jobs/overview | python3 -c "
+# Exit condition 2 — 5 RUNNING jobs on each Flink JM the loop drives.
+# Podman JM is on :8081; the k8s JMs are reached via the allK8s port-forwards
+# (each variant has its own — see CLAUDE.md "Test targeting env vars" / FLINK_REST_URL).
+check_running() {  # $1 = label, $2 = JM base URL
+  curl -sf "$2/jobs/overview" | python3 -c "
 import sys, json
 jobs = json.load(sys.stdin)['jobs']
 running = [j for j in jobs if j['state'] == 'RUNNING']
-print(f'RUNNING: {len(running)}/5')
+print(f'$1 RUNNING: {len(running)}/5')
 for j in running:
     print(f'  {j[\"name\"]}')
-"
+" || echo "$1: JM unreachable"
+}
+
+check_running "Podman" http://localhost:8081
+# k8s: only meaningful while allK8s port-forwards are still active.
+# Override the port to whichever variant's JM is forwarded (e.g. 18081).
+check_running "k8s"    http://localhost:18081
 ```
 
 | Exit condition 1 (`gradlew` exit code) | Exit condition 2 (RUNNING jobs) | Action |
