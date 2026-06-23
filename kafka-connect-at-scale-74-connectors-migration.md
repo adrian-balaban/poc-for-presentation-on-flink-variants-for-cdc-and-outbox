@@ -61,7 +61,6 @@ Presentation was made for the **Cognizant Java Community Romania**.
 7. **The trade-offs** (4 min) — What changes, what remains, new operational surface → *Slide 14*
 8. **Cost of the change** (2 min) — TCO: what you stop paying, what you add → *Slide 15b*
 9. **Open questions** (3 min) — 8 spikes → *Slide 16*
-10. **Recommendation & next step** (2 min) — commit decision, first tribe, timeline → *Slide 18*
 
 **Q&A: 15 minutes**
 
@@ -212,7 +211,7 @@ The application controls the event shape and destination. The business table sch
 
 **Apache Flink** is a stateful stream-processing engine: a continuous job that reads events, keeps state, and writes results — with **exactly-once checkpoints** (durable, recoverable) and **event-time** semantics. Each job runs as its **own isolated K8s deployment** (own JobManager + TaskManager) under the Flink Operator.
 
-**Flink + MySQL Connector** or **Flink CDC** does the same job as Debezium-on-Kafka-Connect — reads the MySQL outbox table and emits change events to Kafka.
+**Flink + MySQL Connector** or **Flink CDC** does the same job as Debezium-on-Kafka-Connect — reads the MySQL binlog and emits change events to Kafka.
 
 The structural argument in one frame — this is the bridge from "why it hurts" to "why Flink fixes it":
 
@@ -455,7 +454,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 **Current state (Confluent KC):** one shared cluster bill covers all 95 connectors.
 
-**Proposed state (Flink):** Confluent bill reduced to 21 connectors; Flink runs on existing K8s compute.
+**Proposed state (Flink):** Confluent bill reduced to 21 connectors; Flink runs on existing K8s compute with no additional licensing.
 
 | Cost axis | KC today (95 connectors) | Flink proposal (74 CDC → Flink; 21 KC retained) |
 |-----------|--------------------------|--------------------------------------------------|

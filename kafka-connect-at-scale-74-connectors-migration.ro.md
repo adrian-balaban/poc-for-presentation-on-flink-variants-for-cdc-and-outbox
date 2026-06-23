@@ -59,7 +59,6 @@ Prezentarea a fost făcută pentru **Comunitatea Java Cognizant România**.
 7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă → *Slide 14*
 8. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi → *Slide 15b*
 9. **Întrebări deschise** (3 min) — 8 spike-uri → *Slide 16*
-10. **Recomandare & pasul următor** (2 min) — decizia de adoptare, prima echipă, calendar → *Slide 18*
 
 **Q&A: 15 minute**
 
@@ -210,7 +209,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 
 **Apache Flink** este un motor de procesare a stream-urilor cu stare (stateful): un job continuu care citește evenimente, menține stare și scrie rezultate — cu **checkpoint-uri exactly-once** (durabile, recuperabile) și semantici **event-time**. Fiecare job rulează ca **propriul deployment K8s izolat** (JobManager + TaskManager proprii) sub Flink Operator.
 
-**Flink + MySQL Connector** sau **Flink CDC** face același lucru ca Debezium-on-Kafka-Connect — citește tabela outbox din MySQL și emite evenimente de modificare către Kafka.
+**Flink + MySQL Connector** sau **Flink CDC** face același lucru ca Debezium-on-Kafka-Connect — citește binlog-ul MySQL și emite evenimente de modificare către Kafka.
 
 Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce doare" la "de ce Flink remediază":
 
@@ -457,7 +456,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | Axă de cost | KC azi (95 conectori) | Propunere Flink (74 CDC → Flink; 21 KC rămân) |
 |-------------|----------------------|------------------------------------------------|
 | Licențiere Confluent | Factură completă pentru 95 conectori | ~22% conectori reținuți (21/95); prețul este pe task/throughput, nu strict per-conector — vezi atenționarea |
-| Compute (CPU/RAM K8s) | KC gestionat de Confluent (inclus în licență) | O pereche JM + TM per echipă; dimensionează per echipă față de rata de schimbare la vârf (estimare POC: ~0,5 vCPU + 1 GB RAM la throughput binlog scăzut) |
+| Compute (CPU/RAM K8s) | KC gestionat de Confluent (inclus în licență) | O pereche JM + TM per echipă; dimensionează per echipă față de rata de schimbare la vârf (estimare POC: ~0,5 vCPU + 1 GB RAM la throughput binlog scăzut; dimensionarea pentru producție în așteptarea Spike S2) |
 | Overhead operațional | Ops cluster partajat centralizat | Izolare per echipă; Flink Platform Team deține imaginea de bază |
 | Cost migrare per echipă | Zero (status quo) | Livrabilele spike-urilor S5/S6 (automatizare cutover) |
 
