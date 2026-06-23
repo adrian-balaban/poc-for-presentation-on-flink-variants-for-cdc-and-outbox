@@ -64,9 +64,9 @@
 # 6000-6099, SQL API 5800-5899, Outbox 5600-5699, YAML 5700-5709) and with
 # Kafka Connect (5500–5599).
 #
-# Kafka topic: poc.cdc.datastream.flink (= KAFKA_TOPIC_PREFIX + ".datastream.flink"
-# — the .flink suffix, added by the 0427a45 rename, disambiguates from the
-# Kafka Connect variant's poc.cdc.datastream.kc topic).
+# Kafka topic: poc.flink.datastream.orders (= KAFKA_TOPIC_PREFIX + ".datastream.orders"
+# — the engine prefix disambiguates from the
+# Kafka Connect variant's poc.kc.datastream topic).
 #
 # JM/TM resources: cpu 1 + memory 2Gi each. The original slice used cpu 2 each,
 # but 4 coexisting variants × 4 CPU = 16 CPU exhausted the kind node and starved
@@ -173,7 +173,7 @@ spec:
             - name: KAFKA_BOOTSTRAP
               value: poc-kafka-kafka-bootstrap:9092
             - name: KAFKA_TOPIC_PREFIX
-              value: poc.cdc
+              value: poc.flink
       volumes:
         - name: flink-usrlib
           emptyDir: {}

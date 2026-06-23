@@ -15,9 +15,9 @@ import org.slf4j.LoggerFactory;
  * Routes outbox events to topic based on the 'destination' field.
  *
  * <p>For outbox pattern: reads from outbox_events table, extracts the 'destination' field from the
- * payload, and routes each event to a topic like "poc.cdc.outbox.<destination>".
+ * payload, and routes each event to a topic like "poc.kc.outbox.<destination>".
  *
- * <p>Configuration: - topic.prefix: Base topic prefix (e.g., "poc.cdc.outbox") - destination.field:
+ * <p>Configuration: - topic.prefix: Base topic prefix (e.g., "poc.kc.outbox") - destination.field:
  * Field name containing the destination (default: "destination")
  */
 public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Transformation<R> {
@@ -34,7 +34,7 @@ public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Trans
   @Override
   public void configure(Map<String, ?> configs) {
     Object prefix = configs.get(TOPIC_PREFIX);
-    topicPrefix = prefix != null ? prefix.toString() : "poc.cdc.outbox";
+    topicPrefix = prefix != null ? prefix.toString() : "poc.kc.outbox";
     Object field = configs.get(DESTINATION_FIELD);
     destinationField = field != null ? field.toString() : "destination";
   }
@@ -147,7 +147,7 @@ public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Trans
         .define(
             TOPIC_PREFIX,
             ConfigDef.Type.STRING,
-            "poc.cdc.outbox",
+            "poc.kc.outbox",
             ConfigDef.Importance.HIGH,
             "Topic prefix for routed outbox events")
         .define(

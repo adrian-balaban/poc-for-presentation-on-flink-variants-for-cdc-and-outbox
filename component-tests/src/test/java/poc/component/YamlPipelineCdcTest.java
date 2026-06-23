@@ -65,12 +65,12 @@ class YamlPipelineCdcTest extends ContainerBase {
     // Poll up to 90 s to absorb checkpoint latency (30 s interval + processing time).
     String msg =
         waitForKafkaMessage(
-            "poc.cdc.yaml.flink.orders", Duration.ofSeconds(90), m -> m.contains(marker));
+            "poc.flink.yaml-pipeline.orders", Duration.ofSeconds(90), m -> m.contains(marker));
     assertThat(msg)
         .as(
             "Expected CDC event containing '"
                 + marker
-                + "' on poc.cdc.yaml.flink.orders — "
+                + "' on poc.flink.yaml-pipeline.orders — "
                 + "ensure flink-cdc-submitter started successfully")
         .isNotNull();
     log.info("YAML Pipeline CDC: received event with marker {}", marker);

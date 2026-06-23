@@ -38,7 +38,7 @@ class OutboxRouterTest {
         .mysqlDatabase("db")
         .mysqlTables("db.t")
         .kafkaBootstrap("k:9092")
-        .kafkaTopicPrefix("poc.cdc")
+        .kafkaTopicPrefix("poc.flink")
         .serverId("1-9")
         .build();
   }
@@ -118,7 +118,7 @@ class OutboxRouterTest {
 
     String log = stderr.toString();
     assertTrue(
-        log.contains("poc.cdc.outbox.flink.payments"),
+        log.contains("poc.flink.outbox.payments"),
         "topic should contain prefix + outbox + destination");
     assertTrue(log.contains(event), "log should contain the raw event");
   }
@@ -129,7 +129,7 @@ class OutboxRouterTest {
 
     router.processElement("{\"no-dest\":true}", null, NOOP);
 
-    assertTrue(stderr.toString().contains("poc.cdc.outbox.flink.unknown"));
+    assertTrue(stderr.toString().contains("poc.flink.outbox.unknown"));
   }
 
   @Test
@@ -150,7 +150,7 @@ class OutboxRouterTest {
 
     router.processElement("{\"destination\":\"audit\"}", null, NOOP);
 
-    assertTrue(stderr.toString().contains("custom.outbox.flink.audit"));
+    assertTrue(stderr.toString().contains("custom.outbox.audit"));
   }
 
   @Test

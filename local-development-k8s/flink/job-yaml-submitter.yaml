@@ -57,7 +57,7 @@ spec:
             - name: KAFKA_BOOTSTRAP
               value: poc-kafka-kafka-bootstrap:9092
             - name: KAFKA_TOPIC_PREFIX
-              value: poc.cdc
+              value: poc.flink
             - name: JOBMANAGER_HOST
               value: yaml-pipeline-cdc-rest
             # S3 vars for mc bucket-ensure step in entrypoint.sh.

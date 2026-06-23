@@ -80,7 +80,7 @@ public class TableApiCdcJob {
                 PRIMARY KEY (id) NOT ENFORCED
             ) WITH (
                 'connector'                   = 'upsert-kafka',
-                'topic'                       = '%s.table-api.flink',
+                'topic'                       = '%s.table-api.orders',
                 'properties.bootstrap.servers'= '%s',
                 'key.format'                  = 'json',
                 'value.format'                = 'json'

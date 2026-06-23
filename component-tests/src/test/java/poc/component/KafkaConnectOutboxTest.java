@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Timeout;
  * Component test for Kafka Connect Outbox variant.
  *
  * <p>Verifies: MySQL outbox_events → Debezium connector → OutboxRoutingTransform SMT → dynamic
- * topic routing (poc.cdc.outbox.kc.<destination>).
+ * topic routing (poc.kc.outbox.<destination>).
  *
  * <p>Server-ID 5550 is reserved for kc-outbox-cdc connector.
  */
@@ -47,26 +47,25 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
     }
 
     // Poll orders-svc topic
-    List<String> ordersMessages =
-        pollKafka("poc.cdc.outbox.kc.orders-svc", 1, Duration.ofSeconds(60));
+    List<String> ordersMessages = pollKafka("poc.kc.outbox.orders-svc", 1, Duration.ofSeconds(60));
     assertThat(ordersMessages).isNotEmpty();
 
     // Verify routing metadata
     String ordersMsg = ordersMessages.get(0);
     JSONObject ordersObj = new JSONObject(ordersMsg);
     assertThat(ordersObj.optString("_route_destination")).isEqualTo("orders-svc");
-    assertThat(ordersObj.optString("_route_topic")).isEqualTo("poc.cdc.outbox.kc.orders-svc");
+    assertThat(ordersObj.optString("_route_topic")).isEqualTo("poc.kc.outbox.orders-svc");
     assertThat(ordersObj.has("_routed_at")).isTrue();
 
     // Poll payment-svc topic
     List<String> paymentMessages =
-        pollKafka("poc.cdc.outbox.kc.payment-svc", 1, Duration.ofSeconds(60));
+        pollKafka("poc.kc.outbox.payment-svc", 1, Duration.ofSeconds(60));
     assertThat(paymentMessages).isNotEmpty();
 
     String paymentMsg = paymentMessages.get(0);
     JSONObject paymentObj = new JSONObject(paymentMsg);
     assertThat(paymentObj.optString("_route_destination")).isEqualTo("payment-svc");
-    assertThat(paymentObj.optString("_route_topic")).isEqualTo("poc.cdc.outbox.kc.payment-svc");
+    assertThat(paymentObj.optString("_route_topic")).isEqualTo("poc.kc.outbox.payment-svc");
 
     log.info("Outbox variant: Events routed to correct topics by destination");
   }
@@ -89,7 +88,7 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
                 "snapshot.mode": "initial",
                 "transforms": "routing",
                 "transforms.routing.type": "poc.kafka.connect.OutboxRoutingTransform",
-                "transforms.routing.topic.prefix": "poc.cdc.outbox.kc",
+                "transforms.routing.topic.prefix": "poc.kc.outbox",
                 "transforms.routing.destination.field": "destination",
                 "key.converter": "org.apache.kafka.connect.json.JsonConverter",
                 "key.converter.schemas.enable": false,
@@ -99,7 +98,7 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
                 "include.schema.changes": false,
                 "schema.history.internal.kafka.bootstrap.servers": "SCHEMA_HISTORY_PLACEHOLDER",
                 "schema.history.internal.kafka.topic": "dbhistory.outbox",
-                "topic.prefix": "poc.cdc.outbox.kc"
+                "topic.prefix": "poc.kc.outbox"
               }
             }
             """

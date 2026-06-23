@@ -11,7 +11,7 @@
 #   - jarURI:          local:///opt/flink/usrlib/table-api-job.jar
 #   - entryClass:      poc.tableapi.TableApiCdcJob
 #   - server-id env:   MYSQL_TABLE_API_SERVER_ID = 6000-6099
-#   - Kafka topic:     poc.cdc.table-api.flink (KAFKA_TOPIC_PREFIX + ".table-api.flink")
+#   - Kafka topic:     poc.flink.table-api.orders (KAFKA_TOPIC_PREFIX + ".table-api.orders")
 #
 # The Table API job declares its source table in SQL DDL with a hardcoded
 # `table-name = 'orders'` and reads server-id from MYSQL_TABLE_API_SERVER_ID
@@ -92,7 +92,7 @@ spec:
             - name: KAFKA_BOOTSTRAP
               value: poc-kafka-kafka-bootstrap:9092
             - name: KAFKA_TOPIC_PREFIX
-              value: poc.cdc
+              value: poc.flink
       volumes:
         - name: flink-usrlib
           emptyDir: {}

@@ -134,6 +134,17 @@ echo "▶ loading flink-with-mysql + 4 artifact images + flink-cdc-submitter + k
 _kind_load() {
   local img="$1"
   echo "  loading ${img} …"
+  # Guard: podman save exits 0 but writes empty output when the image lives in a
+  # different storage root (e.g. snap VS Code splits XDG_DATA_HOME).  Detect early
+  # so the error points at the real cause rather than a confusing kind error.
+  if ! podman image exists "$img" 2>/dev/null; then
+    echo "ERROR: podman cannot find '${img}' in its current storage root."
+    echo "  Diagnose: podman info | grep -A2 graphRoot"
+    echo "  Fix: pin graphRoot in ~/.config/containers/storage.conf"
+    echo "  e.g.  [storage]"
+    echo "        graphRoot = \"/home/\$USER/.local/share/containers/storage\""
+    exit 1
+  fi
   podman save "$img" | kind load image-archive /dev/stdin --name "$CLUSTER"
 }
 _kind_load localhost/flink-with-mysql:latest

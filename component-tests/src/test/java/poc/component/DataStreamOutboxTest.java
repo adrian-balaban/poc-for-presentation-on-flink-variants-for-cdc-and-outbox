@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Timeout;
 class DataStreamOutboxTest extends FlinkTestBase {
 
   private static final Path JAR = jarPath("variant-flink-datastream-api-v1-outbox-job");
-  private static final String TOPIC = "poc.cdc.outbox.flink";
+  private static final String TOPIC = "poc.flink.outbox.outbox-events";
 
   @Test
   @Timeout(90)

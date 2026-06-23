@@ -32,7 +32,7 @@ sink:
   type: kafka
   name: Kafka Sink
   properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
-  topic: ${KAFKA_TOPIC_PREFIX}.yaml.flink.orders
+  topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline.orders
 
 ################################################################################
 # Pipeline metadata

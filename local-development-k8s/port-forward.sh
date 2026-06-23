@@ -96,12 +96,12 @@ stop() {
 status() {
   echo "k8s port-forwards listening (context: $KUBE_CONTEXT):"
   for entry in "${FORWARDS[@]}"; do
-    parts=( $entry ); local_port="${parts[1]%%:*}"
-    target="${parts[0]#*:}"; label="$parts[2] $parts[3] $parts[4]"
+    IFS='|' read -r ns target ports label <<< "$entry"
+    local_port="${ports%%:*}"
     if port_in_use "$local_port"; then
-      printf "  ✓ :%s up   %s  %s\n" "$local_port" "$target" "$label"
+      printf "  ✓ :%-6s up   %-38s %s\n" "$local_port" "$target" "$label"
     else
-      printf "  ✗ :%s down %s\n" "$local_port" "$target"
+      printf "  ✗ :%-6s down %s\n" "$local_port" "$target"
     fi
   done
 }

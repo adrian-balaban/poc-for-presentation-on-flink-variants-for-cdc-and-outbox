@@ -48,7 +48,7 @@ class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
             .mysqlDatabase("test")
             .mysqlTables("test.t")
             .kafkaBootstrap("localhost:9092")
-            .kafkaTopicPrefix("poc.cdc")
+            .kafkaTopicPrefix("poc.flink")
             .serverId("1-100")
             .build();
 
@@ -61,7 +61,7 @@ class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
     assertThat(collector.out).hasSize(2);
     assertThat(collector.out).allMatch(msg -> msg.contains("\"variant\":\"datastream-cdc\""));
     assertThat(collector.out)
-        .allMatch(msg -> msg.contains("\"topic\":\"poc.cdc.datastream.flink\""));
+        .allMatch(msg -> msg.contains("\"topic\":\"poc.flink.datastream.orders\""));
     log.info("Enriched {} events successfully", collector.out.size());
   }
 
@@ -122,7 +122,7 @@ class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
     router.processElement("{\"data\":\"test\"}", null, collector);
 
     assertThat(collector.out).hasSize(1);
-    assertThat(collector.out.get(0)).contains("custom.prefix.datastream.flink");
+    assertThat(collector.out.get(0)).contains("custom.prefix.datastream.orders");
     log.info("Topic routing verified");
   }
 }

@@ -30,7 +30,7 @@ public class CdcEventRouter extends ProcessFunction<String, String> {
                     lastBrace + 1,
                     ",\"variant\":\"datastream-cdc\",\"topic\":\""
                         + topicPrefix
-                        + ".datastream.flink\"}")
+                        + ".datastream.orders\"}")
                 .toString();
     out.collect(enriched);
   }

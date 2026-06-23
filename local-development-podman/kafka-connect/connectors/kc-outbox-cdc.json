@@ -13,7 +13,7 @@
     "snapshot.mode": "initial",
     "transforms": "routing",
     "transforms.routing.type": "poc.kafka.connect.OutboxRoutingTransform",
-    "transforms.routing.topic.prefix": "poc.cdc.outbox.kc",
+    "transforms.routing.topic.prefix": "poc.kc.outbox",
     "transforms.routing.destination.field": "destination",
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
     "key.converter.schemas.enable": false,
@@ -23,6 +23,6 @@
     "include.schema.changes": false,
     "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
     "schema.history.internal.kafka.topic": "dbhistory.outbox",
-    "topic.prefix": "poc.cdc.outbox.kc"
+    "topic.prefix": "poc.kc.outbox"
   }
 }

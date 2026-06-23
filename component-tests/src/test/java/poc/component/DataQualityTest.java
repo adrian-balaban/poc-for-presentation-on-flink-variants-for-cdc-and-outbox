@@ -30,7 +30,7 @@ class DataQualityTest extends FlinkTestBase {
 
   private static final Path JAR = jarPath("variant-flink-datastream-api-v1-cdc-job");
   private static final String JOB_NAME = "Flink DataStream API v.1 CDC Job";
-  private static final String TOPIC = "poc.cdc.datastream.flink";
+  private static final String TOPIC = "poc.flink.datastream.orders";
 
   private static JSONObject afterOf(String msg) {
     return new JSONObject(msg).optJSONObject("after");
@@ -92,7 +92,7 @@ class DataQualityTest extends FlinkTestBase {
 
     assertThat(json.has("variant")).as("variant annotation should be present").isTrue();
     assertThat(json.getString("variant")).isEqualTo("datastream-cdc");
-    assertThat(json.getString("topic")).isEqualTo("poc.cdc.datastream.flink");
+    assertThat(json.getString("topic")).isEqualTo("poc.flink.datastream.orders");
 
     log.info("Variant annotation verified");
   }

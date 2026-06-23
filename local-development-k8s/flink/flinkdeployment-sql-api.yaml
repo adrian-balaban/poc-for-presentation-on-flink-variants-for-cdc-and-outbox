@@ -9,8 +9,8 @@
 #   - entryClass:      poc.sqlapi.SqlApiCdcJob
 #   - server-id envs:  MYSQL_SQL_API_ORDERS_SERVER_ID    = 5800-5849
 #                      MYSQL_SQL_API_CUSTOMERS_SERVER_ID = 5850-5899
-#   - Kafka topics:    poc.cdc.sql-api.flink.orders  (KAFKA_TOPIC_PREFIX + ".sql-api.flink.orders")
-#                      poc.cdc.sql-api.flink.customers
+#   - Kafka topics:    poc.flink.sql-api.orders  (KAFKA_TOPIC_PREFIX + ".sql-api.orders")
+#                      poc.flink.sql-api.customers
 #
 # The SQL API job declares two mysql-cdc sources (orders, customers) in SQL DDL
 # with hardcoded table-names and a StatementSet that compiles both INSERTs into
@@ -93,7 +93,7 @@ spec:
             - name: KAFKA_BOOTSTRAP
               value: poc-kafka-kafka-bootstrap:9092
             - name: KAFKA_TOPIC_PREFIX
-              value: poc.cdc
+              value: poc.flink
       volumes:
         - name: flink-usrlib
           emptyDir: {}

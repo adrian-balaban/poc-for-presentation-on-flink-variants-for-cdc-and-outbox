@@ -21,7 +21,7 @@ class JobConfigTest {
     assertEquals("poc_db", cfg.mysqlDatabase);
     assertEquals("poc_db.orders,poc_db.customers,poc_db.outbox_events", cfg.mysqlTables);
     assertEquals("localhost:9092", cfg.kafkaBootstrap);
-    assertEquals("poc.cdc", cfg.kafkaTopicPrefix);
+    assertEquals("poc.flink", cfg.kafkaTopicPrefix);
     assertEquals("5900-5999", cfg.serverId);
     assertEquals("5600-5699", cfg.outboxServerId);
     assertEquals("6000-6099", cfg.tableApiServerId);
@@ -37,7 +37,7 @@ class JobConfigTest {
 
     assertEquals("localhost", cfg.mysqlHost);
     assertEquals(3306, cfg.mysqlPort);
-    assertEquals("poc.cdc", cfg.kafkaTopicPrefix);
+    assertEquals("poc.flink", cfg.kafkaTopicPrefix);
   }
 
   @Test

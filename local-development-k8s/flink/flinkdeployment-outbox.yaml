@@ -8,14 +8,14 @@
 #   - jarURI:          local:///opt/flink/usrlib/outbox-job.jar
 #   - entryClass:      poc.outbox.OutboxJob
 #   - server-id env:   MYSQL_OUTBOX_SERVER_ID = 5600-5699
-#   - Kafka topic:     poc.cdc.outbox.flink (KAFKA_TOPIC_PREFIX + ".outbox.flink")
+#   - Kafka topic:     poc.flink.outbox.outbox-events (KAFKA_TOPIC_PREFIX + ".outbox.outbox-events")
 #
 # The Outbox job reads ONLY the outbox_events table (tableList is hardcoded to
 # <db>.outbox_events) and server-id from MYSQL_OUTBOX_SERVER_ID (NOT
 # MYSQL_SERVER_ID — it has its own range so it can coexist with the DataStream
 # job). The OutboxRouter logs a per-destination topic
-# (poc.cdc.outbox.flink.<destination>) for routing visibility, but the actual
-# Kafka sink is the single topic poc.cdc.outbox.flink (per-row dynamic topic
+# (poc.flink.outbox.<destination>) for routing visibility, but the actual
+# Kafka sink is the single topic poc.flink.outbox.outbox-events (per-row dynamic topic
 # routing would need side outputs — a production enhancement, not in the POC).
 # MYSQL_TABLES is set for uniformity but is NOT read by this variant.
 ---
@@ -92,7 +92,7 @@ spec:
             - name: KAFKA_BOOTSTRAP
               value: poc-kafka-kafka-bootstrap:9092
             - name: KAFKA_TOPIC_PREFIX
-              value: poc.cdc
+              value: poc.flink
       volumes:
         - name: flink-usrlib
           emptyDir: {}

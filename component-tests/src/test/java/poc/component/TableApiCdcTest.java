@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Timeout;
 class TableApiCdcTest extends FlinkTestBase {
 
   private static final Path JAR = jarPath("variant-flink-table-api-cdc-job");
-  private static final String TOPIC = "poc.cdc.table-api.flink";
+  private static final String TOPIC = "poc.flink.table-api.orders";
 
   @Test
   @Timeout(90)

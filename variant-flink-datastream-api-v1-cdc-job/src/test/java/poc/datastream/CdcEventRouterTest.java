@@ -39,7 +39,7 @@ class CdcEventRouterTest {
 
   @Test
   void processElement_enrichesEventWithVariantAndTopic() throws Exception {
-    CdcEventRouter router = new CdcEventRouter(config("poc.cdc"));
+    CdcEventRouter router = new CdcEventRouter(config("poc.flink"));
     ListCollector<String> collector = new ListCollector<>();
 
     router.processElement("{\"id\":1}", null, collector);
@@ -47,7 +47,7 @@ class CdcEventRouterTest {
     assertEquals(1, collector.out.size());
     String enriched = collector.out.get(0);
     assertTrue(enriched.contains("\"variant\":\"datastream-cdc\""), "missing variant tag");
-    assertTrue(enriched.contains("\"topic\":\"poc.cdc.datastream.flink\""), "missing topic tag");
+    assertTrue(enriched.contains("\"topic\":\"poc.flink.datastream.orders\""), "missing topic tag");
   }
 
   @Test
@@ -70,7 +70,7 @@ class CdcEventRouterTest {
 
     router.processElement("{}", null, collector);
 
-    assertTrue(collector.out.get(0).contains("custom.prefix.datastream.flink"));
+    assertTrue(collector.out.get(0).contains("custom.prefix.datastream.orders"));
   }
 
   @Test

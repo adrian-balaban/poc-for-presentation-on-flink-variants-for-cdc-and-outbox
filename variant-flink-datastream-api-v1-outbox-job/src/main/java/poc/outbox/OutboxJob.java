@@ -48,7 +48,7 @@ public class OutboxJob {
     outboxStream
         .process(new OutboxRouter(config))
         .name("outbox-router")
-        .sinkTo(KafkaSinkFactory.create(config, "outbox.flink"))
+        .sinkTo(KafkaSinkFactory.create(config, "outbox.outbox-events"))
         .name("kafka-outbox-sink");
 
     env.execute("Flink DataStream API v.1 Outbox Job");

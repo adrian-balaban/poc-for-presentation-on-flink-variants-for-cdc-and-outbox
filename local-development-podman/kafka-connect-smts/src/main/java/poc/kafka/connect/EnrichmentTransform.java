@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * default: {prefix}.{db}.{table} → {prefix}.{table}).
  *
  * <p>Configuration: - variant.name: Name of the variant (e.g., "datastream-cdc", "outbox-cdc") -
- * topic.prefix: Kafka topic prefix (e.g., "poc.cdc.datastream.kc")
+ * topic.prefix: Kafka topic prefix (e.g., "poc.kc.datastream")
  */
 public class EnrichmentTransform<R extends ConnectRecord<R>> implements Transformation<R> {
 

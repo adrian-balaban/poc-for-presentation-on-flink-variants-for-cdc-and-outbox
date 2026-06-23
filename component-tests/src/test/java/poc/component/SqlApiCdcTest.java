@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Timeout;
 class SqlApiCdcTest extends FlinkTestBase {
 
   private static final Path JAR = jarPath("variant-flink-sql-api-cdc-job");
-  private static final String ORDERS_TOPIC = "poc.cdc.sql-api.flink.orders";
+  private static final String ORDERS_TOPIC = "poc.flink.sql-api.orders";
 
   @Test
   @Timeout(90)

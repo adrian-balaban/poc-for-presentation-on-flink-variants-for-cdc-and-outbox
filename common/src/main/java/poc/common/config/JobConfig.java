@@ -70,7 +70,7 @@ public class JobConfig implements java.io.Serializable {
         .mysqlTables(
             env("MYSQL_TABLES", "poc_db.orders,poc_db.customers,poc_db.outbox_events", lookup))
         .kafkaBootstrap(env("KAFKA_BOOTSTRAP", "localhost:9092", lookup))
-        .kafkaTopicPrefix(env("KAFKA_TOPIC_PREFIX", "poc.cdc", lookup))
+        .kafkaTopicPrefix(env("KAFKA_TOPIC_PREFIX", "poc.flink", lookup))
         .serverId(env("MYSQL_SERVER_ID", DEFAULT_SERVER_ID, lookup))
         .outboxServerId(env("MYSQL_OUTBOX_SERVER_ID", DEFAULT_OUTBOX_SERVER_ID, lookup))
         .tableApiServerId(env("MYSQL_TABLE_API_SERVER_ID", DEFAULT_TABLE_API_SERVER_ID, lookup))

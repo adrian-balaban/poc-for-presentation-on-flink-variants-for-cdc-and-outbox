@@ -7,7 +7,7 @@ export MYSQL_USER="${MYSQL_USER:-flink}"
 export MYSQL_PASSWORD="${MYSQL_PASSWORD:-flink}"
 export MYSQL_DATABASE="${MYSQL_DATABASE:-poc_db}"
 export KAFKA_BOOTSTRAP="${KAFKA_BOOTSTRAP:-localhost:9092}"
-export KAFKA_TOPIC_PREFIX="${KAFKA_TOPIC_PREFIX:-poc.cdc}"
+export KAFKA_TOPIC_PREFIX="${KAFKA_TOPIC_PREFIX:-poc.flink}"
 
 # flink-cdc.sh submits to the JobManager REST endpoint read from rest.address in
 # $FLINK_HOME/conf/config.yaml (default 0.0.0.0, unreachable from this container).

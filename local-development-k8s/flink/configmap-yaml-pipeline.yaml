@@ -10,10 +10,10 @@
 # envsubst resolves them from the submitter pod's env vars (MYSQL_HOST=mysql,
 # KAFKA_BOOTSTRAP=poc-kafka-kafka-bootstrap:9092, etc. — see job-yaml-submitter.yaml).
 #
-# Kafka topic: poc.cdc.yaml.flink.orders
-#   = KAFKA_TOPIC_PREFIX(poc.cdc) + ".yaml.flink.orders"
-#   The .flink suffix disambiguates from the Kafka Connect variant's
-#   poc.cdc.yaml.kc.orders topic (same as the Podman naming convention).
+# Kafka topic: poc.flink.yaml-pipeline.orders
+#   = KAFKA_TOPIC_PREFIX(poc.flink) + ".yaml-pipeline.orders"
+#   The engine prefix (poc.flink vs poc.kc) disambiguates from the Kafka Connect variant's
+#   poc.kc.yaml-pipeline.orders topic (same as the Podman naming convention).
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -42,7 +42,7 @@ data:
       type: kafka
       name: Kafka Sink
       properties.bootstrap.servers: ${KAFKA_BOOTSTRAP}
-      topic: ${KAFKA_TOPIC_PREFIX}.yaml.flink.orders
+      topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline.orders
 
     pipeline:
       name: Flink CDC YAML Pipeline CDC Job
