@@ -43,6 +43,14 @@ cd "$(git rev-parse --show-toplevel)"
 # command line. `./gradlew --stop` alone is sufficient — no pkill, ever.
 ./gradlew --stop || true
 
+# Tear down the kind k8s cluster so each iteration starts from a clean slate.
+# `allK8s` (via local-development-k8s/deploy.sh) recreates it if absent, so a stale
+# cluster carrying half-deployed FlinkDeployments, wedged operators, stuck
+# finalizers, or exhausted PIDs can't poison the next run. Cluster name is
+# `flink-cdc-poc` (CLUSTER var in deploy.sh). Idempotent: deleting a non-existent
+# cluster is a no-op.
+kind delete cluster --name flink-cdc-poc || true
+
 set -o pipefail                       # so the captured exit reflects gradlew, not tee
 ./gradlew all allK8s 2>&1 | tee /tmp/flink-cdc-all.log
 GRADLEW_EXIT=${PIPESTATUS[0]}         # tee's exit ($?) is always 0 — read gradlew's instead
