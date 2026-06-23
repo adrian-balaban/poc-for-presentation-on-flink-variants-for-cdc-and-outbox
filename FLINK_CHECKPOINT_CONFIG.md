@@ -8,7 +8,16 @@ Flink 2.2 streamlined the checkpoint configuration. Here's the production-ready 
 
 ## For Java Variants (DataStream, Table API, SQL API, Outbox)
 
-Add this to each `main()` method after `StreamExecutionEnvironment.getExecutionEnvironment()`:
+> **In this POC the four Java variants do not hand-write the calls below.** They
+> call the shared helper `CheckpointConfigurer.applyExactlyOnce(env)` (in `common`),
+> which applies exactly the settings shown here — 30 s interval, EXACTLY_ONCE mode,
+> 60 s timeout, 5 s min-pause, max-concurrent 1, and externalized checkpoint
+> retention (`RETAIN_ON_CANCELLATION`) — in one place so the config can't drift
+> between variants. The **state backend is not set by this helper**; it comes from
+> the cluster config (RocksDB — see below). The snippet below is the equivalent
+> expanded form, for reference.
+
+Equivalent to adding this to each `main()` method after `StreamExecutionEnvironment.getExecutionEnvironment()`:
 
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -123,7 +132,7 @@ On restart **with overlapping server-IDs but no savepoint**:
 
 - [ ] **Checkpointing enabled**: `env.enableCheckpointing()`
 - [ ] **Checkpoint mode**: Set to `EXACTLY_ONCE` for CDC
-- [x] **State backend configured**: `EmbeddedRocksDBStateBackend(true)` — incremental checkpoints enabled; configured in `CheckpointConfigurer.applyExactlyOnce()` and mirrored in `FLINK_PROPERTIES` (`state.backend: rocksdb`, `state.backend.incremental: true`, `state.backend.rocksdb.memory.managed: true`)
+- [x] **State backend configured**: RocksDB with incremental checkpoints — set in the **cluster config**, not in code: `FLINK_PROPERTIES` in `podman-compose.yml` and `spec.flinkConfiguration` in each k8s FlinkDeployment (`state.backend: rocksdb`, `state.backend.incremental: true`, `state.backend.rocksdb.memory.managed: true`). `CheckpointConfigurer.applyExactlyOnce()` sets only the checkpoint interval/mode/timeout/pause/retention, not the backend.
 - [ ] **Max concurrent checkpoints**: Set to 1
 - [ ] **Savepoint strategy**: Test savepoint/resume workflow
 - [ ] **Server-ID ranges**: Non-overlapping and documented

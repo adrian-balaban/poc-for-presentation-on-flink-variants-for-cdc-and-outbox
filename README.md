@@ -72,7 +72,7 @@ Services started:
 ./gradlew shadowJar
 ```
 
-Each variant produces a fat-jar at `<module>/build/libs/<module>.jar`.
+Each Java variant produces a fat-jar at `<module>/build/libs/<module>-all.jar` (the Shadow plugin's `-all` classifier; the plain `<module>.jar` next to it is the thin jar and will not run). Variant 5 (YAML pipeline) produces no jar.
 
 ### 3. Submit a variant
 
@@ -81,26 +81,26 @@ Use `podman exec -e KEY=VALUE` to override `JobConfig.fromEnv()` defaults.
 
 **DataStream CDC:**
 ```bash
-podman cp variant-flink-datastream-api-v1-cdc-job/build/libs/variant-flink-datastream-api-v1-cdc-job.jar flink-jm:/tmp/
-podman exec flink-jm flink run /tmp/variant-flink-datastream-api-v1-cdc-job.jar
+podman cp variant-flink-datastream-api-v1-cdc-job/build/libs/variant-flink-datastream-api-v1-cdc-job-all.jar flink-jm:/tmp/
+podman exec flink-jm flink run /tmp/variant-flink-datastream-api-v1-cdc-job-all.jar
 ```
 
 **Table API:**
 ```bash
-podman cp variant-flink-table-api-cdc-job/build/libs/variant-flink-table-api-cdc-job.jar flink-jm:/tmp/
-podman exec flink-jm flink run /tmp/variant-flink-table-api-cdc-job.jar
+podman cp variant-flink-table-api-cdc-job/build/libs/variant-flink-table-api-cdc-job-all.jar flink-jm:/tmp/
+podman exec flink-jm flink run /tmp/variant-flink-table-api-cdc-job-all.jar
 ```
 
 **SQL API (multi-table StatementSet):**
 ```bash
-podman cp variant-flink-sql-api-cdc-job/build/libs/variant-flink-sql-api-cdc-job.jar flink-jm:/tmp/
-podman exec flink-jm flink run /tmp/variant-flink-sql-api-cdc-job.jar
+podman cp variant-flink-sql-api-cdc-job/build/libs/variant-flink-sql-api-cdc-job-all.jar flink-jm:/tmp/
+podman exec flink-jm flink run /tmp/variant-flink-sql-api-cdc-job-all.jar
 ```
 
 **Outbox:**
 ```bash
-podman cp variant-flink-datastream-api-v1-outbox-job/build/libs/variant-flink-datastream-api-v1-outbox-job.jar flink-jm:/tmp/
-podman exec flink-jm flink run /tmp/variant-flink-datastream-api-v1-outbox-job.jar
+podman cp variant-flink-datastream-api-v1-outbox-job/build/libs/variant-flink-datastream-api-v1-outbox-job-all.jar flink-jm:/tmp/
+podman exec flink-jm flink run /tmp/variant-flink-datastream-api-v1-outbox-job-all.jar
 ```
 
 **YAML Pipeline (no Java, submit via flink-cdc.sh):**
@@ -124,7 +124,7 @@ DELETE FROM orders WHERE id = 1;
 ### 5. Watch the output
 
 - **Flink Dashboard** → http://localhost:8081 — running jobs, task slots
-- **Kafka UI** → http://localhost:8080 — topics `poc.cdc.*`
+- **Kafka UI** → http://localhost:8080 — topics `poc.flink.*` (Flink jobs) and `poc.kc.*` (Kafka Connect); see [TOPICS.md](./TOPICS.md)
 - **Grafana** → http://localhost:3001 — Flink metrics dashboards (admin/admin)
 - **Prometheus** → http://localhost:9090 — raw metrics scrapes
 - **MinIO** → http://localhost:9001 — checkpoint state browser (`flink-checkpoints` bucket)
@@ -239,7 +239,7 @@ All variants read configuration from environment variables with sensible default
 | `MYSQL_TABLES` | `poc_db.orders,poc_db.customers,poc_db.outbox_events` | Fully-qualified table list |
 | `MYSQL_SERVER_ID` | `5900-5999` | Binlog replica server-ID range |
 | `KAFKA_BOOTSTRAP` | `localhost:9092` | Kafka bootstrap servers |
-| `KAFKA_TOPIC_PREFIX` | `poc.cdc` | Topic prefix; variant name appended |
+| `KAFKA_TOPIC_PREFIX` | `poc.flink` | Topic prefix; `.<variant>.<table>` appended (KC connectors use their own `poc.kc` prefix) |
 
 **Component test targeting** (override defaults for k8s port-forwards):
 
@@ -278,14 +278,17 @@ flink-cdc-poc/
 ├── component-tests/                    # end-to-end tests (Flink + Kafka Connect)
 │   └── src/test/java/poc/component/
 │       ├── ContainerBase.java          # shared: MySQL/Kafka connectivity, poll helpers
-│       ├── DataStreamCdcTest.java
-│       ├── DataStreamOutboxTest.java
-│       ├── TableApiCdcTest.java
+│       ├── FlinkTestBase.java          # submit fat-jar to JM, wait RUNNING, reuse job
+│       ├── FlinkRestClient.java        # Flink JM REST client
+│       ├── KafkaConnectBase.java       # deploy connector, poll, shared config
+│       ├── DataStreamCdcTest.java      # one per Flink variant: DataStream / Table API
+│       ├── TableApiCdcTest.java        #   / SQL API / Outbox / YAML Pipeline
 │       ├── SqlApiCdcTest.java
+│       ├── DataStreamOutboxTest.java
 │       ├── YamlPipelineCdcTest.java
-│       ├── KafkaConnectVariantTest.java
-│       ├── KafkaConnectOutboxTest.java
-│       └── KafkaConnectBase.java
+│       ├── KafkaConnectVariantTest.java  # 4 enrichment KC variants (parameterized)
+│       ├── KafkaConnectOutboxTest.java   # outbox routing KC variant
+│       └── …                           # plus parity / data-quality / mini-cluster suites
 ├── local-development-podman/           # Podman Compose stack
 │   ├── podman-compose.yml
 │   ├── mysql-init/init.sql             # schema + seed data
@@ -300,16 +303,17 @@ flink-cdc-poc/
 │   │   └── connectors/                 # 5 × connector JSON configs
 │   └── kafka-connect-smts/             # custom SMT Gradle subproject (Java 11)
 │       └── src/main/java/poc/kafka/connect/
+│           ├── EnrichmentTransform.java
+│           └── OutboxRoutingTransform.java
 └── local-development-k8s/              # Kubernetes stack (kind + Flink Operator + Strimzi)
     ├── deploy.sh                        # full build + apply + wait orchestrator
     ├── teardown.sh
+    ├── port-forward.sh                  # open/close host port-forwards (18081-18086, 13306, 19092, …)
     ├── flink/                           # FlinkDeployment CRs + artifact Dockerfiles
     ├── kafka-connect/                   # KafkaConnect CR + KafkaConnector CRs
     ├── kafka/                           # Strimzi Kafka CR
     ├── mysql/ minio/                    # MySQL + MinIO manifests
     └── monitoring/                      # kube-prometheus-stack values + PodMonitor + alerts
-            ├── EnrichmentTransform.java
-            └── OutboxRoutingTransform.java
 ```
 
 ---

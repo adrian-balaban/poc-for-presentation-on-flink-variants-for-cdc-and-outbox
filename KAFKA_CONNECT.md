@@ -32,7 +32,7 @@ MySQL binlog
 │  - Adds routing information             │
 └─────────────────────────────────────────┘
     ↓
-Kafka Topics (poc.cdc.*)
+Kafka Topics (poc.kc.*)
 ```
 
 ## Component Tests
@@ -44,7 +44,7 @@ Five component tests verify each Kafka Connect variant — testing the full pipe
 # Prerequisite: start Kafka Connect (included in podman-compose.yml)
 
 # Run only Kafka Connect tests
-./gradlew :component-tests:test -k "KafkaConnect"
+./gradlew :component-tests:test --tests "*KafkaConnect*"
 
 # Run all component tests (Flink + Kafka Connect)
 ./gradlew :component-tests:test
@@ -65,7 +65,7 @@ Five component tests verify each Kafka Connect variant — testing the full pipe
 
 **Example: KafkaConnectOutboxTest**
 - Inserts events to `outbox_events` with different `destination` fields
-- Verifies events are routed to `poc.cdc.outbox.{destination}` topics
+- Verifies events are routed to `poc.kc.outbox.{destination}` topics
 - Checks enrichment metadata: `_route_destination`, `_route_topic`, `_routed_at`
 
 ### Availability
@@ -155,7 +155,7 @@ Adds variant metadata to each CDC event.
   "transforms": "enrichment",
   "transforms.enrichment.type": "poc.kafka.connect.EnrichmentTransform",
   "transforms.enrichment.variant.name": "datastream-cdc",
-  "transforms.enrichment.topic.prefix": "poc.cdc.datastream"
+  "transforms.enrichment.topic.prefix": "poc.kc.datastream"
 }
 ```
 
@@ -171,7 +171,7 @@ Adds variant metadata to each CDC event.
   "after": {"id": 1, "customer_id": 42, "amount": "99.99", "status": "PENDING"},
   "source": {"db": "poc_db", "table": "orders", ...},
   "variant": "datastream-cdc",
-  "topic": "poc.cdc.datastream.orders",
+  "topic": "poc.kc.datastream.orders",
   "transformed_at": 1718003400000
 }
 ```
@@ -185,7 +185,7 @@ Routes outbox events based on the `destination` field in the payload.
 {
   "transforms": "routing",
   "transforms.routing.type": "poc.kafka.connect.OutboxRoutingTransform",
-  "transforms.routing.topic.prefix": "poc.cdc.outbox",
+  "transforms.routing.topic.prefix": "poc.kc.outbox",
   "transforms.routing.destination.field": "destination"
 }
 ```
@@ -200,7 +200,7 @@ Routes outbox events based on the `destination` field in the payload.
 {
   "after": { "id": 123, "destination": "orders-svc" },
   "_route_destination": "orders-svc",
-  "_route_topic": "poc.cdc.outbox.orders-svc",
+  "_route_topic": "poc.kc.outbox.orders-svc",
   "_routed_at": 1718003400000
 }
 ```
@@ -330,7 +330,7 @@ curl http://localhost:8083/connectors/kc-datastream-cdc/status
 # Watch events in real-time
 podman exec kafka kafka-console-consumer \
   --bootstrap-server localhost:9092 \
-  --topic poc.cdc.datastream.orders \
+  --topic poc.kc.datastream.orders \
   --from-beginning \
   --property print.key=true \
   --property print.timestamp=true
@@ -339,6 +339,6 @@ podman exec kafka kafka-console-consumer \
 ## See Also
 
 - [CLAUDE.md](./CLAUDE.md) — Flink variants and server-ID ranges
-- [CHECKPOINT_CONFIG.md](./CHECKPOINT_CONFIG.md) — Checkpoint semantics (also applies to Kafka Connect offsets)
+- [FLINK_CHECKPOINT_CONFIG.md](./FLINK_CHECKPOINT_CONFIG.md) — Checkpoint semantics (also applies to Kafka Connect offsets)
 - [Debezium MySQL Connector docs](https://debezium.io/documentation/reference/stable/connectors/mysql.html)
 - [Kafka Connect SMT docs](https://kafka.apache.org/documentation/#connect_transforms)

@@ -179,7 +179,7 @@ Per-variant server-ID ranges are also env-overridable (defaults match the [serve
 - Do not compile `kafka-connect-smts` for Java 17 — `cp-kafka-connect:7.6.1` runs Java 11 and refuses class files with major version 61 (`UnsupportedClassVersionError`); keep `sourceCompatibility = VERSION_11` in that subproject
 - When deploying Kafka Connect connectors on Podman bridge, pass `DB_HOST=mysql` to `deploy-connectors.sh` — the Connect container cannot reach MySQL via `localhost`; `./gradlew all` does this automatically
 - Do not remove `KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1` and `KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1` from the Kafka service in `podman-compose.yml` — without them, a single-broker KRaft cluster cannot serve `InitProducerId` requests, causing Flink's exactly-once Kafka sinks to restart-loop indefinitely with `TimeoutException: Timeout expired after 60000ms while awaiting InitProducerId`
-- Do not use topic prefix `poc.cdc.yaml` for the Kafka Connect yaml-pipeline connector — the Flink YAML pipeline job writes to `${KAFKA_TOPIC_PREFIX}.yaml.orders` (= `poc.cdc.yaml.orders`), so the KC connector uses `poc.kc.yaml` to avoid collision; both variants would otherwise write to the same topic and the test would find Flink-produced messages (no `variant` field) instead of KC-produced ones
+- Keep the Flink and Kafka Connect engines in separate topic namespaces — Flink jobs use prefix `poc.flink` (→ `poc.flink.yaml-pipeline.orders` for the YAML variant) and the KC connectors use `poc.kc` (→ `poc.kc.yaml-pipeline`). Do not put a KC connector under `poc.flink.*` (or vice versa): both engines run simultaneously, and if a variant's Flink job and KC connector shared a topic, the test would find Flink-produced messages (which carry a `variant` field) instead of KC-produced ones (which don't). See [TOPICS.md](./TOPICS.md) for the full map.
 - Do not add `DEFAULT 'PENDING'` (or any non-null default) to the `orders.status` column — Debezium 1.9.x applies column DEFAULT values when serialising null, so `DEFAULT 'PENDING'` causes CDC events to carry `"status":"PENDING"` instead of `"status":null` for explicitly-null inserts. The column is intentionally defined without a default (`status VARCHAR(1024)`) so that null values are faithfully preserved in CDC output
 - Do not manually append `FLINK_PROPERTIES` to `$FLINK_HOME/conf/config.yaml` inside `flink-cdc-submitter/entrypoint.sh` — the container restarts on failure (`restart: on-failure`), so a second startup appends the same keys again, producing a duplicate-key YAML that SnakeYAML rejects with `YamlEngineException: found duplicate key execution.checkpointing.dir`. The Flink CDC CLI reads `FLINK_PROPERTIES` directly from the environment; no shell-level append is needed.
 - When using Podman from a snap-installed VS Code: the snap overrides `XDG_DATA_HOME`, which splits podman storage between VS Code terminals (`~/snap/code/<rev>/.local/share/containers`) and the rest of the system (`~/.local/share/containers`). Symptoms: healthchecks stuck in `(starting)` forever, compose app invisible outside VS Code, stale aardvark-dns entries causing "No route to host" between containers. Fix: pin `graphroot` in `~/.config/containers/storage.conf` (already done on this machine)
@@ -250,11 +250,11 @@ Tests submit the variant fat-jar to the JM at `FLINK_REST_URL`, wait for RUNNING
 
 | Test class | Variant | Server-ID range | Kafka topic | Status |
 |---|---|---|---|---|
-| `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 5900–5999 (`MYSQL_SERVER_ID` default) | `poc.cdc.datastream` | ✅ PASS |
-| `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (`MYSQL_TABLE_API_SERVER_ID` default) | `poc.cdc.table-api` | ✅ PASS |
-| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (`MYSQL_SQL_API_*_SERVER_ID` defaults) | `poc.cdc.sql-api.orders` | ✅ PASS |
-| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5600–5699 (`MYSQL_OUTBOX_SERVER_ID` default) | `poc.cdc.outbox` | ✅ PASS |
-| `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.cdc.yaml.flink.orders` | ✅ PASS |
+| `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 5900–5999 (`MYSQL_SERVER_ID` default) | `poc.flink.datastream.orders` | ✅ PASS |
+| `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (`MYSQL_TABLE_API_SERVER_ID` default) | `poc.flink.table-api.orders` | ✅ PASS |
+| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (`MYSQL_SQL_API_*_SERVER_ID` defaults) | `poc.flink.sql-api.orders` | ✅ PASS |
+| `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5600–5699 (`MYSQL_OUTBOX_SERVER_ID` default) | `poc.flink.outbox.outbox-events` | ✅ PASS |
+| `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.flink.yaml-pipeline.orders` | ✅ PASS |
 
 ### Kafka Connect Variants
 

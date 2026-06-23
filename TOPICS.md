@@ -3,42 +3,41 @@
 ## Topic naming convention
 
 ```
-poc.cdc.<variant>.<flink|kc>[.<table>]
+poc.<engine>.<variant>[.<table|destination>]
 ```
 
-Each variant has distinct topics for the Flink job and the Kafka Connect connector.
+- `<engine>` — `flink` for the Flink jobs, `kc` for the Kafka Connect connectors.
+  The two engines use **separate top-level namespaces** (`poc.flink.*` vs `poc.kc.*`)
+  so the same variant's Flink job and KC connector never collide when both run
+  simultaneously.
+- The Flink prefix comes from `KAFKA_TOPIC_PREFIX` (default `poc.flink`, set in
+  `JobConfig.fromEnv()` and in each k8s FlinkDeployment env). The KC prefix comes
+  from each connector's `topic.prefix` in `local-development-podman/kafka-connect/connectors/*.json`.
 
 ## Topic map
 
 | Variant | Flink topic(s) | KC topic(s) |
 |---------|---------------|------------|
-| **DataStream** | `poc.cdc.datastream.flink` | `poc.cdc.datastream.kc.orders` (prefix `poc.cdc.datastream.kc`) |
-| **Table API** | `poc.cdc.table-api.flink` | `poc.cdc.table-api.kc.orders` (prefix `poc.cdc.table-api.kc`) |
-| **SQL API** | `poc.cdc.sql-api.flink.orders`, `poc.cdc.sql-api.flink.customers` | prefix `poc.cdc.sql-api.kc` → Debezium appends `.<db>.<table>` |
-| **Outbox** | `poc.cdc.outbox.flink` (all events) | `poc.cdc.outbox.kc.orders-svc`, `poc.cdc.outbox.kc.payment-svc` (routed by `destination` field) |
-| **YAML Pipeline** | `poc.cdc.yaml.flink.orders` | prefix `poc.cdc.yaml.kc` |
+| **DataStream** | `poc.flink.datastream.orders` | `poc.kc.datastream.orders` (prefix `poc.kc.datastream`) |
+| **Table API** | `poc.flink.table-api.orders` | `poc.kc.table-api.orders` (prefix `poc.kc.table-api`) |
+| **SQL API** | `poc.flink.sql-api.orders`, `poc.flink.sql-api.customers` | `poc.kc.sql-api.orders` (prefix `poc.kc.sql-api`) |
+| **Outbox** | `poc.flink.outbox.outbox-events` (all events) | `poc.kc.outbox.orders-svc`, `poc.kc.outbox.payment-svc` (routed by `destination` field) |
+| **YAML Pipeline** | `poc.flink.yaml-pipeline.orders` | `poc.kc.yaml-pipeline.orders` (prefix `poc.kc.yaml-pipeline`) |
 
-## Migration from previous naming
+## Why two namespaces
 
-The table below shows what each topic was called before the rename (2026-06-22) and what it is now.
-
-| Variant | Old Flink | Old KC | New Flink | New KC |
-|---------|-----------|--------|-----------|--------|
-| DataStream | `poc.cdc.datastream` | `poc.cdc.datastream` ⚠️ same | `poc.cdc.datastream.flink` | `poc.cdc.datastream.kc` |
-| Table API | `poc.cdc.table-api` | `poc.cdc.tableapi` | `poc.cdc.table-api.flink` | `poc.cdc.table-api.kc` |
-| SQL API | `poc.cdc.sql-api.orders` | `poc.cdc.sqlapi` | `poc.cdc.sql-api.flink.orders` | `poc.cdc.sql-api.kc` |
-| Outbox | prefix `poc.cdc.outbox` ⚠️ same prefix as KC | prefix `poc.cdc.outbox` ⚠️ | prefix `poc.cdc.outbox.flink` → `.orders-svc`, `.payment-svc` | prefix `poc.cdc.outbox.kc` → `.orders-svc`, `.payment-svc` |
-| YAML Pipeline | `poc.cdc.yaml.orders` | `poc.kc.yaml` (prefix) | `poc.cdc.yaml.flink.orders` | `poc.cdc.yaml.kc` |
-
-**Why the rename was needed:**
-- DataStream and Outbox previously shared identical topic names between Flink and KC — actual collision risk when both run simultaneously
-- Table API and SQL API had inconsistent naming (no hyphen vs hyphen; no table suffix)
-- YAML KC prefix `poc.kc.yaml` deviated from the `poc.cdc.*` namespace
+All 5 Flink jobs and all 5 Kafka Connect connectors run **at the same time** against
+the same MySQL + Kafka. If a Flink job and its KC counterpart wrote to the same
+topic, a variant's component test could read messages produced by the *other* engine
+(e.g. a Flink message has a `variant` field; a Debezium/SMT message does not), making
+the assertion pass or fail for the wrong reason. Splitting at the top level
+(`poc.flink.*` vs `poc.kc.*`) keeps every producer's output in its own topic tree.
 
 ## Notes
 
-- **DataStream Flink**: all CDC events go to a single topic `poc.cdc.datastream.flink`; the `topic` field embedded in each JSON message records the same value
-- **SQL API Flink**: two separate topics, one per table; `orders` and `customers` are independent Flink sinks
-- **Outbox Flink**: all events go to `poc.cdc.outbox.flink`; the `OutboxRouter` logs where each event *should* route (`poc.cdc.outbox.flink.<destination>`) but the POC sends everything to one topic for simplicity
-- **Outbox KC**: `OutboxRoutingTransform` SMT actually routes each event to a separate topic (`poc.cdc.outbox.kc.<destination>`) using the `destination` field in the payload
-- **YAML Flink**: the `pipeline.yaml` sink sets `topic: ${KAFKA_TOPIC_PREFIX}.yaml.flink.orders`; the `.orders` suffix is a literal part of the topic name (not appended by Flink CDC in this single-table pipeline)
+- **DataStream Flink**: all CDC events go to a single topic `poc.flink.datastream.orders`; the `topic` field embedded in each JSON message records the same value.
+- **SQL API Flink**: two separate topics, one per table; `orders` and `customers` are independent Flink sinks.
+- **Outbox Flink**: all events go to `poc.flink.outbox.outbox-events`; the `OutboxRouter` logs where each event *should* route but the POC sends everything to one topic for simplicity.
+- **Outbox KC**: the `OutboxRoutingTransform` SMT actually routes each event to a separate topic (`poc.kc.outbox.<destination>`) using the `destination` field in the payload.
+- **KC enrichment variants** (DataStream / Table API / SQL API / YAML): the `EnrichmentTransform` SMT renames the Debezium default topic `<prefix>.<db>.<table>` to `<prefix>.<table>`, so e.g. `poc.kc.datastream.poc_db.orders` becomes `poc.kc.datastream.orders`.
+- **YAML Flink**: the `pipeline.yaml` sink sets `topic: ${KAFKA_TOPIC_PREFIX}.yaml-pipeline.orders`; the `.orders` suffix is a literal part of the topic name (not appended by Flink CDC in this single-table pipeline).

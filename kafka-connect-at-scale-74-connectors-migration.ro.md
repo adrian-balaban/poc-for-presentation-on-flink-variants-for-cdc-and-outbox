@@ -121,7 +121,7 @@ Două moduri fundamental diferite prin care un conector citește din MySQL și s
           ┌────────────┴────────────┐
           ▼                         ▼
    ┌──────────────┐         ┌────────────────┐
-   │ poc.cdc      │         │ poc.cdc        │
+   │ poc.flink    │         │ poc.flink      │
    │   .orders    │         │   .customers   │
    └──────────────┘         └────────────────┘
 ```
@@ -380,7 +380,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | Flink CDC 3.6.0 pe Flink 2.2 | Verificat |
 | Teste de componente per variantă | Trecute (5 variante Flink + 5 KC) |
 | StatementSet → 1 JobGraph | Verificat (doar SQL API; Table API folosește un singur INSERT, nu StatementSet) |
-| Toate cele 5 variante rulând simultan | Rulează la scară POC (localhost:8081; 3 tabele, 2 destinații outbox, stare in-memory) |
+| Toate cele 5 variante rulând simultan | Rulează la scară POC (localhost:8081; 3 tabele, 2 destinații outbox, stare RocksDB incremental) |
 
 > POC-ul validează mecanismul la scară POC — 5 variante, 57 de teste unitare, toate verzi; routing-ul outbox este doar logat într-un topic unic în POC (fan-out per destinație via side-output este producție, Spike S3).
 Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de eșec de producție) este obiectul spike-urilor rămase deschise (S2/S3/S5).
@@ -567,8 +567,8 @@ Starea checkpoint-urilor este persistată în stocare compatibilă S3 (MinIO loc
 configurată în `flink-conf.yaml`:
 
 ```yaml
-# POC local: folosește HashMapStateBackend implicit (fără override state.backend necesar)
-# Producție: setați state.backend: rocksdb via cluster config sau FLINK_PROPERTIES
+# POC local: state.backend: rocksdb (+ incremental) setat via FLINK_PROPERTIES — la fel ca producția
+# Producție: state.backend: rocksdb via cluster config / FLINK_PROPERTIES
 state.checkpoints.dir: s3://flink-checkpoints/checkpoints
 state.savepoints.dir:  s3://flink-checkpoints/savepoints
 s3.endpoint: http://minio:9000
@@ -747,7 +747,7 @@ Stack-ul Podman leagă direct porturile pe host; stack-ul k8s nu leagă niciun p
 | Kafka UI | `http://localhost:8080` | — (nu este deployed în slice-ul k8s) | ![](images/slides/kafka-ui.png) |
 | Kafka Connect REST | `http://localhost:8083` | `http://localhost:18086` | ![](images/slides/kafka-connect.png) |
 | MySQL | `localhost:3306` (user: `flink`, parolă: `flink`, db: `poc_db`) | `localhost:13306` | — |
-| Kafka (extern) | `localhost:9092` (topicuri: `poc.cdc.*`) | `localhost:19092` (listener Strimzi extern nodeport; advertisedHost=localhost) | — |
+| Kafka (extern) | `localhost:9092` (topicuri: `poc.flink.*` pentru Flink, `poc.kc.*` pentru Kafka Connect) | `localhost:19092` (listener Strimzi extern nodeport; advertisedHost=localhost) | — |
 | Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
 | Grafana | `http://localhost:3001` (dashboard + alerte; admin/admin) | `http://localhost:13001` (admin/admin) | — |
 
@@ -765,14 +765,14 @@ Stack-ul Podman leagă direct porturile pe host; stack-ul k8s nu leagă niciun p
 | **Server-ID binlog MySQL** | Intervale fără suprapunere 5600–6099 impuse prin lint CI + template imagine de bază | Aceleași intervale impuse prin `JobConfig`; KC folosește rezervat 5500–5599 |
 | **Kafka** | Confluent Kafka Cloud (managed) | Container KRaft `cp-kafka:7.8.0`; broker unic; `localhost:9092` |
 | **Kafka Connect** | Confluent managed KC pentru SFTP (20) + SingleStore (1); înlocuit pentru 74 conectori CDC | Container KC local + Debezium + SMT-uri personalizate; comparație alăturată doar |
-| **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | Compatibil S3 (MinIO) via `s3://flink-checkpoints`; HashMapStateBackend (stare in-memory, checkpoint-uri persistate în MinIO); aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
+| **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | Compatibil S3 (MinIO) via `s3://flink-checkpoints`; backend RocksDB incremental, checkpoint-uri persistate în MinIO; aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (build imagine, ștergere `yq`, selectare variantă) + ArgoCD (deploy/restart) | `./gradlew all` (build → restart compose → deploy conectori → CT-uri) |
 | **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare total, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Versiune Java** | 17 (joburi Flink); SMT nu se aplică (fără KC în calea Flink producție) | 17 (joburi Flink); 11 (KC SMT-uri — constrângere cp-kafka-connect 7.6.1) |
 | **IAM / Securitate** | Token-uri RDS IAM, IRSA, gestionare lease binlog | Fără IAM; credențiale plain `flink`/`flink`; testarea rotației nu este posibilă |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` în ArgoCD — **o singură dată**, revertați imediat la `last-state` după | Anulare job, ștergere stare, re-submitere (`flink cancel <JOB_ID>` + `flink run`) |
-| **Backend stare** | RocksDB (recomandare producție; configurat via cluster config) | In-memory / HashMapStateBackend (implicit pentru demo local) |
-| **Nomenclatură topicuri Kafka** | `<echipă>.<schemă>.<tabel>` cu prefixe per variantă pentru toate cele 26 de echipe | `poc.cdc.<variantă>.<tabel>` (schemă unică `poc_db`) |
+| **Backend stare** | RocksDB (recomandare producție; configurat via cluster config) | RocksDB incremental, memorie gestionată (la fel ca producția; setat via `FLINK_PROPERTIES` / `flinkConfiguration`, nu în codul job-ului) |
+| **Nomenclatură topicuri Kafka** | `<echipă>.<schemă>.<tabel>` cu prefixe per variantă pentru toate cele 26 de echipe | `poc.flink.<variantă>.<tabel>` (Flink) / `poc.kc.<variantă>` (Kafka Connect); schemă unică `poc_db` |
 | **Proprietate observabilitate** | Trei direcții: Module Owner (modul KC) / Flink Platform Team (modul Flink) / fiecare echipă (config.tf) | Dezvoltator unic; model de proprietate nu este necesar |
 | **Scară** | 74 conectori CDC → 26 echipe → ~600 monitoare la starea finală | 1 schemă (`poc_db`), 3 tabele (`orders`, `customers`, `outbox_events`), 5 variante, 57 teste unitare + CT per variantă |
 | **Submitere YAML Pipeline** | `flink-cdc.sh` via init-container sau `kubectl exec`; `FlinkDeployment` pornește cu JM gol până când este cablat | Containerul `flink-cdc-submitter` rulează `flink-cdc.sh` automat la JM gata |

@@ -123,7 +123,7 @@ Two fundamentally different ways a connector reads MySQL and writes to Kafka.
           ┌────────────┴────────────┐
           ▼                         ▼
    ┌──────────────┐         ┌────────────────┐
-   │ poc.cdc      │         │ poc.cdc        │
+   │ poc.flink    │         │ poc.flink      │
    │   .orders    │         │   .customers   │
    └──────────────┘         └────────────────┘
 ```
@@ -382,7 +382,7 @@ Each POC variant gets its own dedicated, non-overlapping range on four axes so t
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
 | Per-variant component tests | Passing (5 Flink + 5 KC variants) |
 | StatementSet → 1 JobGraph | Verified (SQL API only; Table API uses single INSERT, not StatementSet) |
-| All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 3 tables, 2 outbox destinations, in-memory state) |
+| All 5 variants running simultaneously | Runs at POC scale (localhost:8081; 3 tables, 2 outbox destinations, RocksDB incremental state) |
 
 > The POC validates the mechanism at POC scale — 5 variants, 57 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3).
 Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is the open spike work (S2/S3/S5).
@@ -569,8 +569,8 @@ Checkpoint state is persisted to S3-compatible storage (MinIO locally, AWS S3 in
 configured in `flink-conf.yaml`:
 
 ```yaml
-# Local POC: uses default HashMapStateBackend (no state.backend override needed)
-# Production: set state.backend: rocksdb via cluster config or FLINK_PROPERTIES
+# Local POC: state.backend: rocksdb (+ incremental) set via FLINK_PROPERTIES — same as production
+# Production: state.backend: rocksdb via cluster config / FLINK_PROPERTIES
 state.checkpoints.dir: s3://flink-checkpoints/checkpoints
 state.savepoints.dir:  s3://flink-checkpoints/savepoints
 s3.endpoint: http://minio:9000
@@ -749,7 +749,7 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 | Kafka UI | `http://localhost:8080` | — (not deployed in the k8s slice) | ![](images/slides/kafka-ui.png) |
 | Kafka Connect REST | `http://localhost:8083` | `http://localhost:18086` | ![](images/slides/kafka-connect.png) |
 | MySQL | `localhost:3306` (user: `flink`, password: `flink`, db: `poc_db`) | `localhost:13306` | — |
-| Kafka (external) | `localhost:9092` (topics: `poc.cdc.*`) | `localhost:19092` (Strimzi external nodeport listener; advertisedHost=localhost) | — |
+| Kafka (external) | `localhost:9092` (topics: `poc.flink.*` for Flink, `poc.kc.*` for Kafka Connect) | `localhost:19092` (Strimzi external nodeport listener; advertisedHost=localhost) | — |
 | Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
 | Grafana | `http://localhost:3001` (dashboard + alerts; admin/admin) | `http://localhost:13001` (admin/admin) | — |
 
@@ -767,14 +767,14 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 | **MySQL binlog server-ID** | Non-overlapping ranges 5600–6099 enforced by CI lint + base image template | Same ranges enforced by `JobConfig`; KC uses reserved 5500–5599 |
 | **Kafka** | Confluent Kafka Cloud (managed) | `cp-kafka:7.8.0` KRaft container; single broker; `localhost:9092` |
 | **Kafka Connect** | Confluent managed KC for SFTP (20) + SingleStore (1); being replaced for 74 CDC connectors | Local KC container + Debezium + custom SMTs; side-by-side comparison only |
-| **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | S3-compatible (MinIO) via `s3://flink-checkpoints`; HashMapStateBackend (state in-memory, checkpoints persisted to MinIO); same code config (30 s interval, EXACTLY_ONCE) |
+| **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | S3-compatible (MinIO) via `s3://flink-checkpoints`; RocksDB incremental backend, checkpoints persisted to MinIO; same code config (30 s interval, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (image build, `yq` delete, variant select) + ArgoCD (deploy/restart) | `./gradlew all` (build → compose restart → deploy connectors → CTs) |
 | **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors total, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Java version** | 17 (Flink jobs); SMT not applicable (no KC in production Flink path) | 17 (Flink jobs); 11 (KC SMTs — cp-kafka-connect 7.6.1 constraint) |
 | **IAM / Security** | RDS IAM tokens, IRSA, binlog lease management | No IAM; plain `flink`/`flink` credentials; no rotation testing possible |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` in ArgoCD — **one-shot only**, revert to `last-state` immediately after | Cancel job, delete state, re-submit (`flink cancel <JOB_ID>` + `flink run`) |
-| **State backend** | RocksDB (production recommendation; configured via cluster config) | In-memory / HashMapStateBackend (default for local demo) |
-| **Kafka topic naming** | `<tribe>.<schema>.<table>` with per-variant prefixes across all 26 teams | `poc.cdc.<variant>.<table>` (single `poc_db` schema) |
+| **State backend** | RocksDB (production recommendation; configured via cluster config) | RocksDB incremental, managed memory (same as production; set via `FLINK_PROPERTIES` / `flinkConfiguration`, not in job code) |
+| **Kafka topic naming** | `<tribe>.<schema>.<table>` with per-variant prefixes across all 26 teams | `poc.flink.<variant>.<table>` (Flink) / `poc.kc.<variant>` (Kafka Connect); single `poc_db` schema |
 | **Observability ownership** | Three-way: Module Owner (KC module) / Flink Platform Team (Flink module) / each tribe (config.tf) | Single developer; no ownership model needed |
 | **Scale** | 74 CDC connectors → 26 teams → ~600 monitors at end-state | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 57 unit tests + CT per variant |
 | **YAML Pipeline submission** | `flink-cdc.sh` via init-container or `kubectl exec`; `FlinkDeployment` comes up with empty JM until wired | `flink-cdc-submitter` container runs `flink-cdc.sh` automatically on JM ready |

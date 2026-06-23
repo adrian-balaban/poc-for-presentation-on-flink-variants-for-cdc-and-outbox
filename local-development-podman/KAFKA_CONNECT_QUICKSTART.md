@@ -59,7 +59,7 @@ podman exec kafka kafka-topics --bootstrap-server localhost:9092 --list | grep p
 ```bash
 podman exec kafka kafka-console-consumer \
   --bootstrap-server localhost:9092 \
-  --topic poc.cdc.datastream.orders \
+  --topic poc.kc.datastream.orders \
   --from-beginning \
   --max-messages 5
 ```
@@ -68,11 +68,11 @@ podman exec kafka kafka-console-consumer \
 
 | Name | Variant | Topic Prefix | SMT |
 |------|---------|--------------|-----|
-| `kc-datastream-cdc` | DataStream API | `poc.cdc.datastream` | `EnrichmentTransform` |
-| `kc-table-api-cdc` | Table API | `poc.cdc.tableapi` | `EnrichmentTransform` |
-| `kc-sql-api-cdc` | SQL API | `poc.cdc.sqlapi` | `EnrichmentTransform` |
-| `kc-outbox-cdc` | Outbox Pattern | `poc.cdc.outbox.*` | `OutboxRoutingTransform` |
-| `kc-yaml-pipeline-cdc` | YAML Pipeline | `poc.cdc.yaml` | `EnrichmentTransform` |
+| `kc-datastream-cdc` | DataStream API | `poc.kc.datastream` | `EnrichmentTransform` |
+| `kc-table-api-cdc` | Table API | `poc.kc.table-api` | `EnrichmentTransform` |
+| `kc-sql-api-cdc` | SQL API | `poc.kc.sql-api` | `EnrichmentTransform` |
+| `kc-outbox-cdc` | Outbox Pattern | `poc.kc.outbox.*` | `OutboxRoutingTransform` |
+| `kc-yaml-pipeline-cdc` | YAML Pipeline | `poc.kc.yaml-pipeline` | `EnrichmentTransform` |
 
 ## Rebuilding the Kafka Connect Image
 
@@ -87,7 +87,7 @@ podman build -t local-development-podman_kafka-connect:latest -f local-developme
 
 # 3. Restart kafka-connect
 podman stop kafka-connect && podman rm kafka-connect
-cd local-development
+cd local-development-podman
 podman-compose -f podman-compose.yml up -d kafka-connect
 
 # 4. Redeploy connectors
@@ -112,7 +112,7 @@ podman logs kafka-connect | grep -i "error\|exception"
 podman exec mysql mysql -uflink -pflink -e "SELECT COUNT(*) FROM poc_db.orders"
 
 # 3. Check if Kafka topic exists
-podman exec kafka kafka-topics --bootstrap-server localhost:9092 --describe --topic poc.cdc.datastream.orders
+podman exec kafka kafka-topics --bootstrap-server localhost:9092 --describe --topic poc.kc.datastream.orders
 ```
 
 ### Custom SMT not found

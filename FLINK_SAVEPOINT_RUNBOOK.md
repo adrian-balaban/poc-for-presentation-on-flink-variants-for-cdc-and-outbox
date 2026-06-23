@@ -97,18 +97,18 @@ podman exec flink-jm flink list
 
 ```bash
 # Example: rebuild variant with code changes
-cd /home/adrianb/_/claude/WIP-prezentare26062026/flink-cdc-poc
+cd /path/to/flink-cdc-poc
 ./gradlew :variant-flink-datastream-api-v1-cdc-job:shadowJar
 
 # Copy updated JAR to Flink container
-podman cp variant-flink-datastream-api-v1-cdc-job/build/libs/variant-flink-datastream-api-v1-cdc-job.jar \
+podman cp variant-flink-datastream-api-v1-cdc-job/build/libs/variant-flink-datastream-api-v1-cdc-job-all.jar \
   flink-jm:/opt/flink/jobs/
 ```
 
 ### Phase 5: Resume from Savepoint
 
 ```bash
-JOB_JAR="/opt/flink/jobs/variant-flink-datastream-api-v1-cdc-job.jar"
+JOB_JAR="/opt/flink/jobs/variant-flink-datastream-api-v1-cdc-job-all.jar"
 SAVEPOINT_PATH="file:///tmp/savepoint-2026-06-08"
 
 # Submit job restoring from savepoint
@@ -293,7 +293,7 @@ podman exec flink-jm tail -100f /opt/flink/log/*.log | grep -i checkpoint
 # 1. Pre-production: Run canary with savepoint enabled
 flink run -c poc.datastream.DataStreamCdcJob \
   -p 1 \
-  variant-flink-datastream-api-v1-cdc-job.jar
+  variant-flink-datastream-api-v1-cdc-job-all.jar
 
 # 2. Create savepoint after stable run (1+ hour)
 flink savepoint <JOB_ID> hdfs:///flink/production/sp-$(date +%Y%m%d-%H%M%S)
@@ -301,7 +301,7 @@ flink savepoint <JOB_ID> hdfs:///flink/production/sp-$(date +%Y%m%d-%H%M%S)
 # 3. Production: Deploy from savepoint
 flink run -s hdfs:///flink/production/sp-20260608-143022 \
   -p 4 \
-  variant-flink-datastream-api-v1-cdc-job.jar
+  variant-flink-datastream-api-v1-cdc-job-all.jar
 
 # 4. On upgrade: repeat steps 2-3 with new JAR
 ```

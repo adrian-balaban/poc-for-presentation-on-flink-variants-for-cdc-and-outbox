@@ -79,7 +79,7 @@ You do **not** need to stop the Podman stack for deploy.sh.
 ./gradlew allK8s
 ```
 
-Runs deploy.sh, opens port-forwards for all 8 services, executes each of the 5
+Runs deploy.sh, opens port-forwards for all services (5 Flink JMs + Kafka Connect + MySQL + Kafka + MinIO + Grafana + Prometheus), executes each of the 5
 Flink variant test classes (each targeting its own JM via `FLINK_REST_URL`) and
 all 5 Kafka Connect test classes, then tears down the tunnels.
 
@@ -95,7 +95,7 @@ mysql -h 127.0.0.1 -P 13306 -u flink -pflink poc_db \
 # 2. read it from the Kafka topic the DataStream job writes to
 kubectl -n poc exec -it poc-kafka-dual-role-0 -- \
   /opt/kafka/bin/kafka-console-consumer.sh \
-  --bootstrap-server localhost:9092 --topic poc.cdc.datastream.flink \
+  --bootstrap-server localhost:9092 --topic poc.flink.datastream.orders \
   --from-beginning --timeout-ms 85000 | grep K8S-E2E-marker
 ```
 
@@ -140,11 +140,11 @@ KAFKA_CONNECT_URL=http://localhost:18086 \
 | Flink RBAC | `k8s/flink/flink-rbac.yaml` | `flink` ServiceAccount + Role; shared by all 5 variants |
 | Base image | `flink-with-mysql/Dockerfile` → `flink-with-mysql:latest` | Flink 2.2 + mysql-connector-j + flink-s3-fs-presto + flink-metrics-prometheus; variant-agnostic runtime |
 | Artifact images | `k8s/flink/images/{datastream,table-api,sql-api,outbox}/Dockerfile` | `FROM busybox:1.35` + jar; one per Java variant; init-container copies jar to emptyDir |
-| DataStream job | `k8s/flink/flinkdeployment-datastream.yaml` | server-id 5900-5999; topic `poc.cdc.datastream.flink` |
-| Table API job | `k8s/flink/flinkdeployment-table-api.yaml` | server-id 6000-6099 (`MYSQL_TABLE_API_SERVER_ID`); topic `poc.cdc.table-api.flink` |
-| SQL API job | `k8s/flink/flinkdeployment-sql-api.yaml` | Two sources → 5800-5849 + 5850-5899; topics `poc.cdc.sql-api.flink.orders` + `.customers` |
-| Outbox job | `k8s/flink/flinkdeployment-outbox.yaml` | server-id 5600-5699 (`MYSQL_OUTBOX_SERVER_ID`); topic `poc.cdc.outbox.flink` |
-| YAML Pipeline (v5) | `k8s/flink/flinkdeployment-yaml.yaml` (session-cluster, `mode: standalone`) + `job-yaml-submitter.yaml` (Job) | Session-cluster has no `spec.job`; `mode: standalone` makes the operator pre-deploy the `taskManager.replicas` TM (native mode ignores it → no TM until a job is submitted → submitter deadlock); one-shot Job runs `flink-cdc.sh pipeline.yaml` via the `flink-cdc-submitter` image; topic `poc.cdc.yaml.flink.orders`; server-id 5700-5709 |
+| DataStream job | `k8s/flink/flinkdeployment-datastream.yaml` | server-id 5900-5999; topic `poc.flink.datastream.orders` |
+| Table API job | `k8s/flink/flinkdeployment-table-api.yaml` | server-id 6000-6099 (`MYSQL_TABLE_API_SERVER_ID`); topic `poc.flink.table-api.orders` |
+| SQL API job | `k8s/flink/flinkdeployment-sql-api.yaml` | Two sources → 5800-5849 + 5850-5899; topics `poc.flink.sql-api.orders` + `.customers` |
+| Outbox job | `k8s/flink/flinkdeployment-outbox.yaml` | server-id 5600-5699 (`MYSQL_OUTBOX_SERVER_ID`); topic `poc.flink.outbox.outbox-events` |
+| YAML Pipeline (v5) | `k8s/flink/flinkdeployment-yaml.yaml` (session-cluster, `mode: standalone`) + `job-yaml-submitter.yaml` (Job) | Session-cluster has no `spec.job`; `mode: standalone` makes the operator pre-deploy the `taskManager.replicas` TM (native mode ignores it → no TM until a job is submitted → submitter deadlock); one-shot Job runs `flink-cdc.sh pipeline.yaml` via the `flink-cdc-submitter` image; topic `poc.flink.yaml-pipeline.orders`; server-id 5700-5709 |
 | Kafka Connect | `k8s/kafka-connect/kafka-connect.yaml` (`KafkaConnect` CR + 5 `KafkaConnector` CRs) | Strimzi v1 (`kafka.strimzi.io/v1`); `groupId`/`offsetStorageTopic`/`configStorageTopic`/`statusStorageTopic` are required top-level spec fields; Debezium 3.0.2.Final (Kafka 4.x compatible); custom SMTs baked into `kafka-connect-debezium:local` image |
 | Monitoring | Helm `kube-prometheus-stack` (ns `monitoring`) + `pod-monitor.yaml` + `prometheus-rules.yaml` + `grafana-dashboard-cm.yaml` | Grafana at localhost:13001 (admin/admin); Prometheus at localhost:19090; 3 alert rules mirroring Terraform `alerts.tf` |
 
