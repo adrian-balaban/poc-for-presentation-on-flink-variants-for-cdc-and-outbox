@@ -51,14 +51,14 @@ Prezentarea a fost făcută pentru **Comunitatea Java Cognizant România**.
 *(Slide-urile 0–1c constituie cadrul de deschidere; blocul de 45 de minute începe aici.)*
 
 1. **Unde suntem** (2 min) — Contextul clientului + sfera migrării: 95 de conectori pe un singur cluster, 74 ținte MySQL, 21 rămân pe KC → *Slide-urile 2, 5*
-2. **De ce doare și ce cerem** (4 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească → *Slide 3*
-3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink într-un cadru; pool partajat vs. izolare per-job → *Slide 4*
-4. **POC-ul + dovezi** (8 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8, 12*
+2. **De ce doare și ce cerem** (5 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească → *Slide 3*
+3. **Ce este Flink și de ce este remedierea structurală** (4 min) — Flink într-un cadru; pool partajat vs. izolare per-job → *Slide 4*
+4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8, 12*
 5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi → *Slide-urile 9, 13*
-6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare → *Slide-urile 10, 17*
-7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă → *Slide 14*
+6. **Arhitectură și evitarea coliziunilor** (8 min) — Deployment K8s, intervale server-ID, monitorizare → *Slide-urile 10, 17*
+7. **Compromisurile** (5 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă → *Slide 14*
 8. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi → *Slide 15b*
-9. **Întrebări deschise** (3 min) — 8 spike-uri → *Slide 16*
+9. **Întrebări deschise** (4 min) — 8 spike-uri → *Slide 16*
 
 **Q&A: 15 minute**
 
@@ -84,7 +84,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 | **Apache Flink** | Motor de procesare a stream-urilor; poate face același lucru ca Debezium + KC, dar ca job izolat pe K8s |
 | **Flink Operator / CR** | Operator K8s care rulează fiecare job Flink ca un `FlinkDeployment` Custom Resource (JM + TM proprii) |
 | **StatementSet** | Construct Flink Table API care compilează mai multe INSERT-uri într-un singur JobGraph (un checkpoint) |
-| **IAM** | AWS Identity and Access Management — sistemul de permisiuni care controlează ce principali pot accesa ce resurse AWS; aici folosit pentru a acorda job-urilor Flink acces S3 la checkpoint-uri |
+| **IAM** | AWS Identity and Access Management — sistemul de permisiuni care controlează ce principal-i pot accesa ce resurse AWS; aici folosit pentru a acorda job-urilor Flink acces S3 la checkpoint-uri |
 | **RDS** | Bază de date relațională AWS managed — sursa MySQL de producție aici (auth IAM) |
 | **Tabelă outbox** | O tabelă DB scrisă în aceeași tranzacție cu înregistrarea de business; CDC o citește și rutează evenimentul la topicul Kafka potrivit — decuplează publicarea evenimentelor de schema principală |
 | **transactron** | Schema MySQL a clientului care conține tabelele de tip outbox |
@@ -188,7 +188,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 
 1. Imaginea de bază + patch-urile de securitate rămân **centralizate** — echipele nu dețin runtime-ul.
 2. **Să ne îndepărtăm de Confluent Platform** — licențiere și lock-in.
-3. **Clusterele per echipă nu rezolvă proprietatea** — înmulțesc costul de 26× fără a remedia cauza root.
+3. **Clusterele per echipă nu rezolvă proprietatea** — înmulțesc costul de 26× fără a remedia cauza principală.
 
 **Ce doare azi — și cât costă:**
 
@@ -222,6 +222,7 @@ Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce
 | Licențiere | Confluent Cloud (cu plată) | Apache 2.0 (gratuit) |
 
 > **"CDC" înseamnă două lucruri — nu le confunda:** (1) **Flink CDC `MySqlSource`** — conectorul care citește binlog-ul MySQL prin algoritmul propriu de snapshot incremental Flink CDC (variantele 1–4: DataStream / Table API / SQL API / Outbox; reuzește intern parserul de binlog Debezium, dar **nu** rulează pe conectorul Debezium Kafka Connect). (2) **Flink CDC YAML pipeline** — *framework-ul declarativ de pipeline YAML* deasupra aceleiași surse, fără Java (Varianta 5). Această prezentare acoperă ambele sensuri.
+
 ---
 
 ## Slide 5 — Scopul Migrării
@@ -244,10 +245,10 @@ Am construit **5 variante** și le-am rulat
 | 1 | CDC cu Flink DataStream API | 50 linii | Plic Debezium + îmbogățire | Da |
 | 2 | CDC cu Flink Table API | 99 linii | Rând proiectat aplatizat (upsert-kafka) | Da |
 | 3 | CDC cu Flink SQL API | 156 linii | Rând proiectat aplatizat (upsert-kafka) | Minim |
-| 4 | Flink CDC (YAML Pipeline) | 47 linii YAML | Plic Debezium nativ | **Nu** |
+| 4 | Flink CDC (YAML Pipeline) | 52 linii YAML | Plic Debezium nativ | **Nu** |
 | 5 | Outbox cu Flink DataStream API | 56 linii | Plic Debezium al rândului outbox (topic unic; routing per destinație este producție, nu în POC) | Da |
 
-> Toate cele patru variante Java partajează în plus ~391 linii de infrastructură `common/`
+> Toate cele patru variante Java partajează în plus ~412 linii de infrastructură `common/`
 > (`JobConfig`, `CheckpointConfigurer`, deserializator, routere, `KafkaSinkFactory`) —
 > clasele de intrare conțin doar cablajul specific variantei.
 
@@ -288,7 +289,7 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
 > Toate detaliile de conexiune vin din `JobConfig.fromEnv()` — nimic nu este hardcodat;
 > aceasta este aceeași parametrizare pe care se bazează modelul shared-job (vezi slide-ul Modelul Shared-Job).
 
-### YAML Pipeline (47 linii, zero Java)
+### YAML Pipeline (52 linii, zero Java)
 
 ```yaml
 source:
@@ -442,7 +443,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | Curbă de învățare — Flink Operator, checkpoint-uri, savepoint-uri | Atenuat pentru majoritatea echipelor prin modelul shared-job | Slide 7 (arbore de decizie), Slide 9 (shared-job) |
 | Secvențierea cutover — niciun plan de val, dual-run, gate paritate sau runbook de rollback încă | **Neatenuată** — S6 trebuie să livreze: plan de val, perioadă dual-run, gate paritate byte-for-byte, coordonare overlap server-ID binlog, runbook rollback | Slide 16, Spike S6 |
 | Suprafață operațională nouă — Flink Operator, checkpoint-uri, savepoint-uri | Atenuat prin proprietatea Flink Platform Team asupra imaginii de bază și modulului de monitorizare | Slide 17, Spike S1 |
-| Regresie observabilitate — metrici Debezium JMX (lag, stare snapshot, poziție binlog) nu au echivalent direct Flink | **Neatenuată** — interim: metrici Flink restart/backlog + verificări binlog-position din MySQL ca proxy lag; rezoluție completă în așteptarea Spike S1 | Slide 17, Spike S1 |
+| Regresie observabilitate — metrici Debezium JMX (lag, stare snapshot, poziție binlog) nu au echivalent direct Flink | **Neatenuată** — interimar: metrici Flink restart/backlog + verificări binlog-position din MySQL ca proxy lag; rezoluție completă în așteptarea Spike S1 | Slide 17, Spike S1 |
 | Evoluție schemă (ALTER TABLE) — comportamentul diferă per variantă; compatibilitatea schemei Kafka downstream nevalidată | **Neatenuată** — fără echivalent dbhistory.*; validare per echipă + politică compat schema-registry | Slide 16, Spike S8 (nou) |
 
 ---
@@ -460,7 +461,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | Overhead operațional | Ops cluster partajat centralizat | Izolare per echipă; Flink Platform Team deține imaginea de bază |
 | Cost migrare per echipă | Zero (status quo) | Livrabilele spike-urilor S5/S6 (automatizare cutover) |
 
-> **Atenție:** prețul Confluent per-conector depinde de nivelul contractului.
+> **Atenționare:** prețul Confluent per-conector depinde de nivelul contractului.
 > Economia direcțională (74 conectori eliminați din pool-ul facturat) este certă;
 > creșterea compute K8s trebuie dimensionată față de flota de workere KC existentă.
 
@@ -519,12 +520,12 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 
 ```
 flink-cdc-poc/
-├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~391 linii)
+├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~412 linii)
 ├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (50 linii, server-ID 5900–5999)
 ├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (99 linii, server-ID 6000–6099)
 ├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (156 linii, server-ID 5800–5899)
 ├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (56 linii, server-ID 5600–5699)
-├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (47 linii, canonical: src/main/resources/pipeline.yaml, server-ID 5700–5709)
+├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (52 linii, canonical: src/main/resources/pipeline.yaml, server-ID 5700–5709)
 ├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
 │                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
 │                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest

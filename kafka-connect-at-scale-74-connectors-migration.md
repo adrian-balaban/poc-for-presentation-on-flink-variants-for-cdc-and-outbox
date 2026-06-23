@@ -53,14 +53,14 @@ Presentation was made for the **Cognizant Java Community Romania**.
 *(Slides 0–1c set the opening frame; the 45-minute block starts here.)*
 
 1. **Where we are** (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC → *Slides 2, 5*
-2. **Why it hurts & what we require** (4 min) — Challenges + the 3 requirements any solution must meet → *Slide 3*
-3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation → *Slide 4*
-4. **The POC + evidence** (8 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table → *Slides 6–8, 12*
+2. **Why it hurts & what we require** (5 min) — Challenges + the 3 requirements any solution must meet → *Slide 3*
+3. **What is Flink, and why it's the structural fix** (4 min) — Flink in one frame; shared-pool vs per-job isolation → *Slide 4*
+4. **The POC + evidence** (10 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table → *Slides 6–8, 12*
 5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges → *Slides 9, 13*
-6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring → *Slides 10, 17*
-7. **The trade-offs** (4 min) — What changes, what remains, new operational surface → *Slide 14*
+6. **Architecture & collision avoidance** (8 min) — K8s deployment, server-ID ranges, monitoring → *Slides 10, 17*
+7. **The trade-offs** (5 min) — What changes, what remains, new operational surface → *Slide 14*
 8. **Cost of the change** (2 min) — TCO: what you stop paying, what you add → *Slide 15b*
-9. **Open questions** (3 min) — 8 spikes → *Slide 16*
+9. **Open questions** (4 min) — 8 spikes → *Slide 16*
 
 **Q&A: 15 minutes**
 
@@ -224,6 +224,7 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 | Licensing | Confluent Cloud (paid) | Apache 2.0 (free) |
 
 > **"CDC" means two things — don't confuse them:** (1) **Flink CDC `MySqlSource`** — the connector that reads the MySQL binlog via Flink CDC's own incremental-snapshot algorithm (variants 1–4: DataStream / Table API / SQL API / Outbox; it reuses Debezium's binlog parser internally but does **not** run on the Debezium Kafka Connect connector). (2) **Flink CDC YAML pipeline** — the declarative *YAML pipeline framework* on top of that same source, no Java (Variant 5). This talk covers both senses.
+
 ---
 
 ## Slide 5 — Scope of the Migration
@@ -246,10 +247,10 @@ We built **5 variants** and ran them
 | 1 | CDC with Flink DataStream API | 50 lines | Debezium envelope + enrichment | Yes |
 | 2 | CDC with Flink Table API | 99 lines | Flattened projected row (upsert-kafka) | Yes |
 | 3 | CDC with Flink SQL API | 156 lines | Flattened projected row (upsert-kafka) | Minimal |
-| 4 | CDC with Flink CDC (YAML Pipeline) | 47 lines YAML | Native Debezium envelope | **No** |
+| 4 | CDC with Flink CDC (YAML Pipeline) | 52 lines YAML | Native Debezium envelope | **No** |
 | 5 | Outbox with Flink DataStream API | 56 lines | Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC) | Yes |
 
-> All four Java variants additionally share ~391 lines of `common/` infrastructure
+> All four Java variants additionally share ~412 lines of `common/` infrastructure
 > (`JobConfig`, `CheckpointConfigurer`, deserializer, routers, `KafkaSinkFactory`) —
 > entry classes contain only variant-specific wiring.
 
@@ -290,7 +291,7 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
 > All connection details come from `JobConfig.fromEnv()` — nothing is hardcoded;
 > this is the same parametrisation the shared-job model relies on (see the Shared Job Model slide).
 
-### YAML Pipeline (47 lines, zero Java)
+### YAML Pipeline (52 lines, zero Java)
 
 ```yaml
 source:
@@ -522,12 +523,12 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 ```
 flink-cdc-poc/
-├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~391 lines)
+├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~412 lines)
 ├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (50 lines, server-ID 5900–5999)
 ├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (99 lines, server-ID 6000–6099)
 ├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (156 lines, server-ID 5800–5899)
 ├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (56 lines, server-ID 5600–5699)
-├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (47 lines, canonical: src/main/resources/pipeline.yaml, server-ID 5700–5709)
+├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (52 lines, canonical: src/main/resources/pipeline.yaml, server-ID 5700–5709)
 ├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
 │                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
 │                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest
