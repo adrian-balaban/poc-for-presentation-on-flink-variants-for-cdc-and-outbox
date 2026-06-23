@@ -30,6 +30,10 @@ local-development/terraform/.terraform/
 local-development/terraform/terraform.tfstate
 local-development/terraform/terraform.tfstate.backup
 local-development/terraform/*.tfplan
+local-development-podman/terraform/.terraform/
+local-development-podman/terraform/terraform.tfstate
+local-development-podman/terraform/terraform.tfstate.backup
+local-development-podman/terraform/*.tfplan
 # .terraform.lock.hcl IS intentionally committed (pinned provider versions)
 review*.txt
 docs/superpowers/plans/2026-06-18-deck-fixes-17-items.md
