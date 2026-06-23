@@ -40,3 +40,4 @@ docs/superpowers/plans/2026-06-18-deck-fixes-17-items.md
 # Accidentally-extracted Flink source files (jar xf side-effect)
 org/
 META-INF/
+local-development-k8s/.port-forward-pids
