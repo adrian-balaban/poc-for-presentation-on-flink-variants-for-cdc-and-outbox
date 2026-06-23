@@ -44,7 +44,7 @@ Five things you take away:
 
 Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flink, with a proof of concept covering all 5 variants.
 
-Presentation was made for the **Cognizant Java Community Romania**.  
+Presentation will be presented to the **Cognizant Java Community Romania**.  
 
 ---
 
@@ -217,7 +217,7 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 
 | | Kafka Connect today | Flink (proposed) |
 |--|--|--|
-| Deployment | 1 shared worker cluster | N isolated K8s jobs (thru Flink Operator) |
+| Deployment | 1 shared worker cluster | N isolated K8s jobs (through Flink Operator) |
 | Blast radius | 1 — all 95 connectors | 1 per tribe — contained |
 | Rebalance | one group → cascade across 26 teams | none — no shared group |
 | Offsets / state | shared offset topic | per-job exactly-once checkpoints (S3) |

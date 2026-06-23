@@ -42,7 +42,7 @@ Cinci lucruri pe care le iei de aici:
 
 Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Flink, cu un proof of concept acoperind toate 5 variantele.
 
-Prezentarea a fost făcută pentru **Comunitatea Java Cognizant România**.
+Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
 ---
 
@@ -114,7 +114,7 @@ Două moduri fundamental diferite prin care un conector citește din MySQL și s
                        │ conectorul urmărește binlog-ul
                        ▼
               ┌─────────────────┐
-              │ Conector CDC    │
+              │  Conector CDC   │
               │  (Flink / KC)   │
               └────────┬────────┘
                        │ un topic per tabelă capturată
@@ -145,10 +145,10 @@ Conectorul capturează modificările din fiecare tabelă din sfera de captură. 
 └───────────────────────────────────┬───────────────────────────────────────┘
                                     │ rutează după câmpul destination
                                     ▼
-                          ┌──────────────────────┐
-                          │ Conector Outbox       │
-                          │  (Flink / KC)         │
-                          └────────┬──────────────┘
+                          ┌──────────────────┐
+                          │ Conector Outbox  │
+                          │  (Flink / KC)    │
+                          └────────┬─────────┘
                                    │
               ┌────────────────────┼────────────────────┐
               ▼                    ▼                    ▼
@@ -246,7 +246,7 @@ Am construit **5 variante** și le-am rulat
 | 2 | CDC cu Flink Table API | 99 linii | Rând proiectat aplatizat (upsert-kafka) | Da |
 | 3 | CDC cu Flink SQL API | 156 linii | Rând proiectat aplatizat (upsert-kafka) | Minim |
 | 4 | Outbox cu Flink DataStream API | 56 linii | envelope Debezium al rândului outbox (topic unic; routing per destinație este producție, nu în POC) | Da |
-| 5 | Flink CDC (YAML Pipeline) | 52 linii YAML | envelope Debezium nativ | **Nu** |
+| 5 | CDC cu Flink CDC (YAML Pipeline) | 52 linii YAML | envelope Debezium nativ | **Nu** |
 
 > Toate cele patru variante Java partajează în plus ~412 linii de infrastructură `common/`
 > (`JobConfig`, `CheckpointConfigurer`, deserializator, routere, `KafkaSinkFactory`) —
@@ -334,7 +334,7 @@ applicationJobs:
 |----------|-------------|
 | `MYSQL_HOST/PORT/USER/PASSWORD` | Sursă CDC |
 | `MYSQL_DATABASE` / `MYSQL_TABLES` | Scopul capturii |
-| `MYSQL_SERVER_ID` | Interval replică binlog (neoverlapping) |
+| `MYSQL_SERVER_ID` | Interval replică binlog (fără suprapunere) |
 | `KAFKA_BOOTSTRAP` / `KAFKA_TOPIC_PREFIX` | Configurare sink |
 
 ---
@@ -457,12 +457,12 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 
 | Axă de cost | KC azi (95 conectori) | Propunere Flink (74 CDC → Flink; 21 KC rămân) |
 |-------------|----------------------|------------------------------------------------|
-| Licențiere Confluent | Factură completă pentru 95 conectori | ~22% conectori reținuți (21/95); mai puțini conectori → cluster mai mic → mai puține noduri de cluster facturabile — vezi atenționarea |
+| Licențiere Confluent | Factură completă pentru 95 conectori | ~22% conectori reținuți (21/95); mai puțini conectori → cluster mai mic → mai puține noduri de cluster facturabile — vezi mențiunea |
 | Compute (CPU/RAM K8s) | KC gestionat de Confluent (inclus în licență) | O pereche JM + TM per echipă; dimensionează per echipă față de rata de schimbare la vârf (estimare POC: ~0,5 vCPU + 1 GB RAM la throughput binlog scăzut; dimensionarea pentru producție în așteptarea Spike S2) |
 | Overhead operațional | Ops cluster partajat centralizat | Izolare per echipă; Flink Platform Team deține imaginea de bază |
 | Cost migrare per echipă | Zero (status quo) | Livrabilele spike-urilor S5/S6 (automatizare cutover) |
 
-> **Atenționare:** prețul Confluent per nod de cluster depinde de nivelul contractului.
+> **Mențiune:** prețul Confluent per nod de cluster depinde de nivelul contractului.
 > Economia direcțională (74 conectori mutați de pe clusterul KC, permițând rularea pe mai puține noduri) este certă;
 > creșterea compute K8s trebuie dimensionată față de flota de workere KC existentă.
 
@@ -615,7 +615,7 @@ s3.secret-key: minioadmin
 
 - **Acces binlog MySQL** — Flink CDC citește binlog-ul direct; necesită `log-bin`, `binlog-format=ROW`, `binlog-row-image=FULL`
 - **Scheme per variantă**: `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db`
-- **Intervale `server-id` neoverlapping**: outbox 5600–5699, pipeline 5700–5709, sql-api 5800–5899, shared-cdc 5900–5999, table-api 6000–6099; KC rezervat 5500–5599
+- **Intervale `server-id` fără suprapunere**: outbox 5600–5699, pipeline 5700–5709, sql-api 5800–5899, shared-cdc 5900–5999, table-api 6000–6099; KC rezervat 5500–5599
 - **Rotație token RDS IAM** — mod de eșec doar în producție (S5); patternul IAM capturat în template-ul imaginii de bază
 - **IRSA** — pentru permisiunile S3 ale checkpoint store-ului; rotația testată în soak-ul ≥7 zile Faza 1
 - **Privilegii MySQL** — `RELOAD` + `LOCK TABLES` necesare pentru snapshot-ul inițial
@@ -762,7 +762,7 @@ Stack-ul Podman leagă direct porturile pe host; stack-ul k8s nu leagă niciun p
 | **Versiune Flink** | 2.2 (via `flink-base-image`) | 2.2.0 (Dockerfile personalizat: `flink-with-mysql`) |
 | **Versiune Flink CDC** | 3.6.0-2.2 (inclus în imaginile de variantă) | 3.6.0-2.2 (dependență Gradle în `build.gradle`) |
 | **MySQL** | RDS (AWS); autentificare IAM; IRSA pentru S3; date de producție | Container `mysql:8.0`; user `flink`/`flink`; `poc_db`; date seed via `init.sql` |
-| **Server-ID binlog MySQL** | Intervale neoverlapping 5600–6099 impuse prin lint CI + template imagine de bază | Aceleași intervale impuse prin `JobConfig`; KC folosește rezervat 5500–5599 |
+| **Server-ID binlog MySQL** | Intervale fără suprapunere 5600–6099 impuse prin lint CI + template imagine de bază | Aceleași intervale impuse prin `JobConfig`; KC folosește rezervat 5500–5599 |
 | **Kafka** | Confluent Kafka Cloud (managed) | Container KRaft `cp-kafka:7.8.0`; broker unic; `localhost:9092` |
 | **Kafka Connect** | Confluent managed KC pentru SFTP (20) + SingleStore (1); înlocuit pentru 74 conectori CDC | Container KC local + Debezium + SMT-uri personalizate; comparație alăturată doar |
 | **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | Compatibil S3 (MinIO) via `s3://flink-checkpoints`; HashMapStateBackend (stare in-memory, checkpoint-uri persistate în MinIO); aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
