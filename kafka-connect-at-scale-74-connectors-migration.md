@@ -212,7 +212,7 @@ The application controls the event shape and destination. The business table sch
 
 **Apache Flink** is a stateful stream-processing engine: a continuous job that reads events, keeps state, and writes results — with **exactly-once checkpoints** (durable, recoverable) and **event-time** semantics. Each job runs as its **own isolated K8s deployment** (own JobManager + TaskManager) under the Flink Operator.
 
-**Flink + MySql Connector** or **Flink CDC** does the same job as Debezium-on-Kafka-Connect — reads the MySQL outbox table and emits change events to Kafka.
+**Flink + MySQL Connector** or **Flink CDC** does the same job as Debezium-on-Kafka-Connect — reads the MySQL outbox table and emits change events to Kafka.
 
 The structural argument in one frame — this is the bridge from "why it hurts" to "why Flink fixes it":
 
@@ -354,10 +354,10 @@ The `flink-base-chart` `applicationJobs` map emits per key:
 
 Each POC variant gets its own dedicated, non-overlapping range on four axes so they can all run simultaneously without collision:
 
-- **MySQL server-ID range — so Flink CDC's parallel readers don't steal each other's binlog lease
+- **MySQL server-ID range** — so Flink CDC's parallel readers don't steal each other's binlog lease
 - **MySQL schema** — so each variant has its own source database
 - **Kafka topic prefix** — so topics don't overlap
-- **S3 checkpoint paths** — so checkpointing don't overlap 
+- **S3 checkpoint paths** — so checkpoints don't overlap
 
 | Axis | Allocation |
 |------|------------|
@@ -704,7 +704,7 @@ s3.secret-key: minioadmin
 | `prometheus` | `prom/prometheus:v2.52.0` | 9090 | Scrapes Flink JM/TM metrics every 15 s; local only |
 | `grafana` | `grafana/grafana:10.4.3` | 3001 | Dashboard + alert rules (managed by Terraform); admin/admin |
 
-### Gradle Modules TO MODIFY with links to README.md
+### Gradle Modules
 
 | Module | Role |
 |--------|------|
@@ -717,7 +717,7 @@ s3.secret-key: minioadmin
 | `component-tests` | End-to-end: submits fat-jars to JM REST; polls Kafka; covers all 5 Flink + 5 KC variants |
 | `kafka-connect-smts` | `EnrichmentTransform` + `OutboxRoutingTransform` (Java 11, shadow JAR) |
 
-### Build & Test Commands TO MODIFY with links to README.md
+### Build & Test Commands
 
 | Command | What it does |
 |---------|-------------|

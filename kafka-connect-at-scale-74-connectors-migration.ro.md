@@ -198,9 +198,9 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 | Furtuni de rebalansare — un conector defect destabilizează tot | Toate cele 26 de echipe | De mai multe ori/trimestru | Incidente inter-echipe; downtime consumatori în timpul cascadei |
 | Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident | Fără izolare între echipe |
 | Lag recurent — niciun reglaj per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
-| Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | Dupa deploy conector nou | Defecte ajung în prod nedetectate |
+| Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | După deploy conector nou | Defecte ajung în prod nedetectate |
 | Licențiere Confluent Kafka Cloud | Organizația | Lunar | **Cost lunar de licențiere semnificativ** |
-| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release si la fiecare vulnerabilitate fixata | Overhead de coordonare la nivel de flotă |
+| Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release și la fiecare vulnerabilitate fixată | Overhead de coordonare la nivel de flotă |
 
 > Un singur restart de conector declanșează o **rebalansare în cascadă între echipe fără legătură** — și majoritatea rândurilor de mai sus corespund unei îmbunătățiri concrete (vezi slide-ul Îmbunătățiri).
 
@@ -394,7 +394,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 
 ![Flink Dashboard — 5 variante rulând simultan](images/slides/flink-dashboard.png)
 
-> Toate cele cinci variante CDC (DataStream, Table API, SQL API, Outbox, YAML Pipeline) active în un singur
+> Toate cele cinci variante CDC (DataStream, Table API, SQL API, Outbox, YAML Pipeline) active într-un singur
 > cluster Flink. Fiecare are propriul interval server-ID MySQL; zero coliziuni.
 
 ### Kafka UI — Cluster poc (32 topics, 109 partiții)
@@ -426,7 +426,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 |---------------------|--------------|
 | Furtuni de rebalansare — un conector defect destabilizează totul | **Raza de impact izolată** — jobul Flink al fiecărei echipe este izolat; eșecul rămâne per-echipă |
 | Raza de impact partajată — 95 conectori, un singur cluster | **Proprietate clară** — echipa deține repo-ul și cadența de deploy a conectorului lor |
-| Lag recurent — fără pârghie per echipă | **Lag-ul este gestionat pe echipa si per-job** |
+| Lag recurent — fără pârghie per echipă | **Lag-ul este gestionat pe echipă și per-job** |
 | Eșecuri doar în producție | **Ciclu de viață Kubernetes nativ** — Flink Operator; testele component locale prind problemele înainte de deploy |
 | Licențiere Confluent | **Economii parțiale de licențiere** — 74 conectori eliminați din pool-ul facturat; 21 conectori SFTP/SingleStore rămân pe KC |
 | Upgrade-uri coordonate la nivel de flotă | **Upgrade-uri independente** — versionare per job; fără coordonare la nivel de flotă |
@@ -452,7 +452,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 
 **Starea actuală (Confluent KC):** o singură factură de cluster partajat acoperă toți 95 de conectori.
 
-**Starea propusă (Flink):** factura Confluent redusă la 21 de conectori; Flink rulează pe K8s existent fara licente suplimentare.
+**Starea propusă (Flink):** factura Confluent redusă la 21 de conectori; Flink rulează pe K8s existent fără licențe suplimentare.
 
 | Axă de cost | KC azi (95 conectori) | Propunere Flink (74 CDC → Flink; 21 KC rămân) |
 |-------------|----------------------|------------------------------------------------|
@@ -475,7 +475,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | S2 | Presiunea memoriei la snapshot inițial pe cel mai mare tabel (~15M rânduri) | Previne surprizele în Faza 1/2 | Faza 0 | 2 zile |
 | S3 | Rutare outbox multi-topic la scară (POC testează la 2; outbox-ul de producție folosește ~15 destinații) | Blocker go-live Faza 1 | Faza 0 | 2 zile |
 | S4 | Echivalentul Flink pentru `snapshot.aborted`/`snapshot.running` | Migrarea outbox-transactron-connector (Faza 3) | Faza 0 | 2 zile |
-| S5 | Moduri de eșec în producție (RDS IAM, lease-uri binlog, rotație IRSA) | POC-ul nu le poate suprafața; soak-ul de staging este necesar | Faza 1 | ≥7 zile soak |
+| S5 | Moduri de eșec în producție (RDS IAM, lease-uri binlog, rotație IRSA) | POC-ul nu le poate expune; soak-ul de staging este necesar | Faza 1 | ≥7 zile soak |
 | S6 | Automatizare cutover (KC → Flink): plan de val, perioadă dual-run, gate paritate byte-for-byte, coordonare overlap server-ID binlog, runbook rollback | Niciun plan de cutover nu există încă; switch-urile manuale nu vor scala la 26 de echipe | Faza 2 | ~5 zile |
 | S7 | Instrumente Claude de migrare self-service pentru echipe | Echipele nu pot aștepta asistență de la Flink Platform Team | Faza 1 | 3 zile |
 | S8 | Evoluție schemă — comportamentul ALTER TABLE per variantă Flink; fără echivalent dbhistory.*; politică compat schema-registry | Raza de impact per echipă pentru schimbări de schemă; realitate zilnică în producție | Faza 0 | 2 zile |
