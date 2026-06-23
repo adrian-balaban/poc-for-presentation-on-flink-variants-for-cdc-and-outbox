@@ -42,7 +42,7 @@ Cinci lucruri pe care le iei de aici:
 
 Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Flink, cu un proof of concept acoperind toate 5 variantele.
 
-Prezentarea a fost facuta pentru **Comunitatea Java Cognizant România**.
+Prezentarea a fost făcută pentru **Comunitatea Java Cognizant România**.
 
 ---
 
@@ -55,10 +55,9 @@ Prezentarea a fost facuta pentru **Comunitatea Java Cognizant România**.
 3. **Ce este Flink și de ce este remedierea structurală** (3 min) — Flink într-un cadru; pool partajat vs. izolare per-job → *Slide 4*
 4. **POC-ul + dovezi** (8 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8, 12*
 5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi → *Slide-urile 9, 13*
-6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare → *Slide-urile 10, 11, 17*
+6. **Arhitectură și evitarea coliziunilor** (7 min) — Deployment K8s, intervale server-ID, monitorizare → *Slide-urile 10, 17*
 7. **Compromisurile** (4 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă → *Slide 14*
-8. **De ce aceasta față de alternative** (5 min) — Matrice de decizie: de ce Flink CDC vs KC vs altele → *Slide 15*
-8b. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi → *Slide 15b*
+8. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi → *Slide 15b*
 9. **Întrebări deschise** (3 min) — 8 spike-uri → *Slide 16*
 10. **Recomandare & pasul următor** (2 min) — decizia de adoptare, prima echipă, calendar → *Slide 18*
 
@@ -91,7 +90,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 | **Tabelă outbox** | O tabelă DB scrisă în aceeași tranzacție cu înregistrarea de business; CDC o citește și rutează evenimentul la topicul Kafka potrivit — decuplează publicarea evenimentelor de schema principală |
 | **transactron** | Schema MySQL a clientului care conține tabelele de tip outbox |
 
-> **De reținut:** toate variantele (cu exceptia celei de tip oubox )folosesc același lucru — binlog-ul MySQL — și scriu în Kafka.
+> **De reținut:** toate variantele (cu excepția celei de tip outbox) folosesc același lucru — binlog-ul MySQL — și scriu în Kafka.
 > Diferența este *cum* și *unde* rulează procesul de citire.
 
 ---
@@ -211,7 +210,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 
 **Apache Flink** este un motor de procesare a stream-urilor cu stare (stateful): un job continuu care citește evenimente, menține stare și scrie rezultate — cu **checkpoint-uri exactly-once** (durabile, recuperabile) și semantici **event-time**. Fiecare job rulează ca **propriul deployment K8s izolat** (JobManager + TaskManager proprii) sub Flink Operator.
 
-**Flink + MySql Connector** sau *Flink CDC" face același lucru ca Debezium-on-Kafka-Connect — citește tabela outbox din MySQL și emite evenimente de modificare către Kafka.
+**Flink + MySQL Connector** sau **Flink CDC** face același lucru ca Debezium-on-Kafka-Connect — citește tabela outbox din MySQL și emite evenimente de modificare către Kafka.
 
 Argumentul structural într-un singur cadru — aceasta este puntea de la "de ce doare" la "de ce Flink remediază":
 
@@ -263,7 +262,7 @@ Am construit **5 variante** și le-am rulat
 |-------------------|--------------------|----|
 | Outbox (tranzacțional, rutare per-rând) | DataStream | Table/SQL API nu pot face rutare per-rând |
 | CDC cu îmbogățire/transformare personalizată | DataStream CDC | Acces Java la `CdcEventRouter` + `MapFunction` personalizat |
-| CDC simplu (tabel → topic, fără transformare) | YAML Pipeline/SQL API | Zero Java; SQL API construiește deja module shade |
+| CDC simplu (tabel → topic, fără transformare) | YAML Pipeline/SQL API | Zero Java; SQL API produce un fat JAR / shadow JAR prin plugin-ul Gradle shadow |
 | CDC cu join-uri/agregări SQL viitoare | Table API | Deblochează ecosistemul Table API Flink (Java type-safe) |
 
 ---
@@ -449,31 +448,6 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 
 ---
 
-## Slide 15 — Alternative Luate în Considerare și Raționament
-
-![Analiza Alternativelor: De Ce Modelul Flink Shared-Job?](images/alternatives-analysis.svg)
-
-> **Cauza root:** arhitectura de *pool partajat de workere* — un cluster, un grup
-> de rebalansare, o rază de impact. Orice remediere trebuie să elimine partajarea
-> *sau* să elimine raza de impact. Tabelul de mai jos este fiecare opțiune judecată
-> față de acest criteriu.
-
-| Opțiune | De Ce Nu a Fost Aleasă |
-|--------|---------------|
-| Rămâne pe Confluent Kafka Cloud (status quo) | Raza de impact, costul licenței, niciun reglaj per echipă — durerea rămâne |
-| Kafka Connect self-managed (renunță la licență) | Elimină costul licenței dar păstrează raza de impact partajată + adaugă povară operațională (nu este un serviciu managed ca Confluent) |
-| Clustere KC dedicate per echipă | Rezolvă izolarea dar înmulțește costul și overhead-ul operațional de 26 ori (un cluster KC per echipă față de unul partajat) |
-| Flink — fork Java per echipă | Izolare reală, dar fiecare echipă menține Java + un pipeline de release |
-| **Flink — modelul shared-job (ales)** | Izolare + fără fork Java per echipă; o imagine de bază per variantă, overrides exclusiv Helm |
-
-> **Raționament:** Flink este singura opțiune care elimină atât raza de impact **cât și**
-> costul licenței. În cadrul Flink, modelul shared-job păstrează câștigul de izolare fără a forța 26 de
-> echipe să dețină fiecare cod Java — calea cu cel mai mic efort spre aceleași garanții.
->
-> **Încadrare:** sfera este delimitată — migrează cei 74 de conectori MySQL CDC la Flink; păstrează cei 21 de conectori SFTP/SingleStore pe KC (fără echivalent Flink). Flink este adoptat unde se potrivește, nu ca replacement general.
-
----
-
 ## Slide 15b — Costul Total de Proprietate (Nivel Înalt)
 
 **Starea actuală (Confluent KC):** o singură factură de cluster partajat acoperă toți 95 de conectori.
@@ -555,12 +529,15 @@ flink-cdc-poc/
 ├── component-tests/                    # end-to-end: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
 │                                       #   DataStreamOutboxTest, YamlPipelineCdcTest,
 │                                       #   KafkaConnectVariantTest, KafkaConnectOutboxTest
-└── local-development/
-    ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
-    ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
-    ├── flink-cdc-submitter/            # rulează flink-cdc.sh pentru varianta YAML Pipeline
-    ├── kafka-connect/                  # Debezium + SMT-uri personalizate; 5 configurații JSON conector
-    └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
+├── local-development-podman/           # Stack Podman Compose
+│   ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
+│   ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
+│   ├── flink-cdc-submitter/            # rulează flink-cdc.sh pentru varianta YAML Pipeline
+│   ├── kafka-connect/                  # Debezium + SMT-uri personalizate; 5 configurații JSON conector
+│   └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
+└── local-development-k8s/              # Stack Kubernetes (kind + Flink Operator + Strimzi)
+    ├── deploy.sh / teardown.sh
+    └── flink/  kafka/  kafka-connect/  mysql/  minio/  monitoring/
 ```
 
 ## Backup — Configurarea Checkpoint-urilor (pregătit pentru producție)

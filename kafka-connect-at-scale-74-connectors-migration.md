@@ -57,10 +57,9 @@ Presentation was made for the **Cognizant Java Community Romania**.
 3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation → *Slide 4*
 4. **The POC + evidence** (8 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table → *Slides 6–8, 12*
 5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges → *Slides 9, 13*
-6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring → *Slides 10, 11, 17*
+6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring → *Slides 10, 17*
 7. **The trade-offs** (4 min) — What changes, what remains, new operational surface → *Slide 14*
-8. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others → *Slide 15*
-8b. **Cost of the change** (2 min) — TCO: what you stop paying, what you add → *Slide 15b*
+8. **Cost of the change** (2 min) — TCO: what you stop paying, what you add → *Slide 15b*
 9. **Open questions** (3 min) — 8 spikes → *Slide 16*
 10. **Recommendation & next step** (2 min) — commit decision, first tribe, timeline → *Slide 18*
 
@@ -93,7 +92,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | **Outbox table** | A DB table written in the same transaction as the business record; CDC reads it and routes the event to the right Kafka topic — decouples event publishing from the main business schema |
 | **transactron** | The client's internal MySQL schema containing the outbox-type tables |
 
-> **Key point:** every variant (except oubox type) in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
+> **Key point:** every variant (except outbox type) in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
 > The difference is *how* and *where* the reading process runs.
 
 ---
@@ -265,7 +264,7 @@ We built **5 variants** and ran them
 |----------------|--------------------|----|
 | Outbox (transactional, per-row routing) | DataStream | Table/SQL API can't do per-row routing |
 | CDC with custom enrichment/transformation | DataStream CDC | Java access to `CdcEventRouter` + custom `MapFunction` |
-| Simple CDC (table → topic, no transform) | YAML Pipeline/SQL API | Zero Java; SQL API already building shade modules |
+| Simple CDC (table → topic, no transform) | YAML Pipeline/SQL API | Zero Java; SQL API produces a fat JAR / shadow JAR via the Gradle shadow plugin |
 | CDC with future SQL joins/aggregation | Table API | Unlocks Flink's Table API ecosystem (type-safe Java) |
 
 ---
@@ -449,30 +448,6 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 | New operational surface — Flink Operator, checkpoints, savepoints | Mitigated by Flink Platform Team ownership of base image and monitoring module | Slide 17, Spike S1 |
 | Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink equivalent | **Not yet mitigated** — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1 | Slide 17, Spike S1 |
 | Schema evolution (ALTER TABLE) — behavior differs by variant; downstream Kafka schema compatibility not validated | **Not yet mitigated** — no dbhistory.* equivalent; validate per tribe + schema-registry compat policy | Slide 16, Spike S8 (new) |
-
----
-
-## Slide 15 — Alternatives Considered & Reasoning (TODO remove?)
-
-![Alternatives Analysis: Why Flink Shared-Job Model?](images/alternatives-analysis.svg)
-
-> **Root cause:** the *shared-worker-pool* architecture — one cluster, one rebalance
-> group, one blast radius. Any fix must remove the sharing *or* remove the blast
-> radius. The table below is each option judged against that.
-
-| Option | Why Not Chosen |
-|--------|---------------|
-| Stay on Confluent Kafka Cloud (status quo) | Blast radius, licensing cost, no per-tribe lever — the pain remains |
-| Self-managed Kafka Connect (drop license) | Removes license cost but keeps shared blast radius + adds ops burden (not a managed service like Confluent) |
-| Per-tribe dedicated KC clusters | Solves isolation but multiplies cost and operational overhead 26× (one KC cluster per tribe vs one shared) |
-| Flink — per-tribe Java fork | True isolation, but every tribe maintains Java + a release pipeline |
-| **Flink — shared-job model (chosen)** | Isolation + no per-tribe Java fork; one base image per variant, Helm-only overrides |
-
-> **Reasoning:** Flink is the only option that removes blast radius **and** licensing
-> cost. Within Flink, the shared-job model keeps the isolation win without forcing 26
-> teams to each own Java code — the lowest-friction path to the same guarantees.
->
-> **Framing:** scope is bounded — migrate the 74 MySQL CDC connectors to Flink; retain the 21 SFTP/SingleStore connectors on KC (no Flink equivalent). Flink is adopted where it fits, not as a blanket replacement.
 
 ---
 
