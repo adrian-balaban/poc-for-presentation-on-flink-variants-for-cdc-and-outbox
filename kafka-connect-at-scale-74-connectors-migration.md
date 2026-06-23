@@ -50,7 +50,7 @@ Presentation was made for the **Cognizant Java Community Romania**.
 
 ## Slide 1b — Agenda (45 minutes)
 
-*(Slides 0–1c set the opening frame; the 45-minute block starts here.)*
+*(Slides 0–1d set the opening frame (~6 min); the 45-minute block starts here.)*
 
 1. **Where we are** (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC → *Slides 2, 5*
 2. **Why it hurts & what we require** (5 min) — Challenges + the 3 requirements any solution must meet → *Slide 3*
@@ -64,7 +64,7 @@ Presentation was made for the **Cognizant Java Community Romania**.
 
 **Q&A: 15 minutes**
 
-*(agenda total: 45 min + 15 min Q&A; Slide 1c is an optional ~75 s Kafka primer and Slide 11b live screenshots are shown only if time permits — neither counted in the 45 min.)*
+*(agenda total: 45 min + 15 min Q&A; opening frame Slides 0–1d (~6 min: Slide 1c ~75 s Kafka primer, Slide 1d ~3 min CDC-vs-Outbox patterns); Slide 11b live screenshots shown only if time permits — none counted in the 45 min.)*
 
 ---
 
@@ -200,7 +200,7 @@ The application controls the event shape and destination. The business table sch
 | Shared blast radius — 95 connectors, one cluster | All 26 teams | Every incident | No isolation between tribes |
 | Recurring lag — no per-tribe lever | Team + consumers | Ongoing | SLA risk on downstream consumers |
 | Production-only failures — surface only after deploy | New-connector teams | New-connector window | Defects reach prod undetected |
-| Confluent Kafka Cloud licensing | Organisation | Monthly | **Material monthly licensing cost** |
+| Confluent Kafka Cloud licensing | Organisation | Monthly | **Material monthly licensing cost** (see Slide 14 TCO) |
 | Centralised security patching | Maintenance team | Every release cycle and every vulnerability fix | Fleet-wide coordination overhead |
 
 > One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and most rows above map to a concrete improvement (see the Improvements slide).
@@ -247,8 +247,8 @@ We built **5 variants** and ran them
 | 1 | CDC with Flink DataStream API | 50 lines | Debezium envelope + enrichment | Yes |
 | 2 | CDC with Flink Table API | 99 lines | Flattened projected row (upsert-kafka) | Yes |
 | 3 | CDC with Flink SQL API | 156 lines | Flattened projected row (upsert-kafka) | Minimal |
-| 4 | CDC with Flink CDC (YAML Pipeline) | 52 lines YAML | Native Debezium envelope | **No** |
-| 5 | Outbox with Flink DataStream API | 56 lines | Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC) | Yes |
+| 4 | Outbox with Flink DataStream API | 56 lines | Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC) | Yes |
+| 5 | CDC with Flink CDC (YAML Pipeline) | 52 lines YAML | Native Debezium envelope | **No** |
 
 > All four Java variants additionally share ~412 lines of `common/` infrastructure
 > (`JobConfig`, `CheckpointConfigurer`, deserializer, routers, `KafkaSinkFactory`) —
@@ -680,7 +680,7 @@ s3.secret-key: minioadmin
 | Apache Flink | 2.2.0 |
 | Flink CDC | 3.6.0-2.2 |
 | flink-connector-kafka | 5.0.0-2.2 |
-| Kafka (Confluent) | KRaft mode, cp-kafka 7.6.1 |
+| Kafka (Confluent) | KRaft mode, cp-kafka 7.8.0 (broker upgraded 7.6.1→7.8.0, CVE-2024-27309 / CVE-2024-31141) |
 | MySQL | 8.0 |
 | Java (Flink jobs) | 17 |
 | Java (Kafka Connect SMTs) | 11 (cp-kafka-connect 7.6.1 JDK) |
@@ -693,7 +693,7 @@ s3.secret-key: minioadmin
 | Service | Image | Port(s) | Role |
 |---------|-------|---------|------|
 | `mysql` | `mysql:8.0` | 3306 | CDC source; `log-bin`, `binlog-format=ROW`, `binlog-row-image=FULL`, `server-id=1` |
-| `kafka` | `cp-kafka:7.6.1` | 9092 (ext), 29092 (int), 9093 (controller) | KRaft broker + controller; `auto.create.topics.enable=true` |
+| `kafka` | `cp-kafka:7.8.0` | 9092 (ext), 29092 (int), 9093 (controller) | KRaft broker + controller; `auto.create.topics.enable=true` |
 | `flink-jobmanager` | custom (Flink 2.2 + mysql-connector-j) | 8081 (REST), 6123 (RPC) | JobManager; 8 task slots; `taskmanager.slot.timeout=60000` |
 | `flink-taskmanager` | custom (same image) | 8082, 6124 | TaskManager; 8 task slots |
 | `flink-cdc-submitter` | custom | — | Runs `flink-cdc.sh` for YAML Pipeline variant on JM ready; `restart: on-failure` |
@@ -765,7 +765,7 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 | **Flink CDC version** | 3.6.0-2.2 (bundled in variant images) | 3.6.0-2.2 (Gradle dep in `build.gradle`) |
 | **MySQL** | RDS (AWS); IAM auth; IRSA for S3; production data | `mysql:8.0` container; user `flink`/`flink`; `poc_db`; seed data via `init.sql` |
 | **MySQL binlog server-ID** | Non-overlapping ranges 5600–6099 enforced by CI lint + base image template | Same ranges enforced by `JobConfig`; KC uses reserved 5500–5599 |
-| **Kafka** | Confluent Kafka Cloud (managed) | `cp-kafka:7.6.1` KRaft container; single broker; `localhost:9092` |
+| **Kafka** | Confluent Kafka Cloud (managed) | `cp-kafka:7.8.0` KRaft container; single broker; `localhost:9092` |
 | **Kafka Connect** | Confluent managed KC for SFTP (20) + SingleStore (1); being replaced for 74 CDC connectors | Local KC container + Debezium + custom SMTs; side-by-side comparison only |
 | **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | S3-compatible (MinIO) via `s3://flink-checkpoints`; HashMapStateBackend (state in-memory, checkpoints persisted to MinIO); same code config (30 s interval, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (image build, `yq` delete, variant select) + ArgoCD (deploy/restart) | `./gradlew all` (build → compose restart → deploy connectors → CTs) |
