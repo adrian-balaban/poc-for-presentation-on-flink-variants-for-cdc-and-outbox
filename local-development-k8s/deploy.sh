@@ -216,12 +216,25 @@ kubectl apply -f "$K8S/flink/flink-rbac.yaml"
 # Delete existing FlinkDeployments so the operator recreates pods from the freshly-loaded
 # artifact images. `kubectl apply` with the same image tag (:latest) is a no-op for the
 # operator — pods keep using the old baked-in fat-jar. Delete forces a full restart.
+#
+# delete_flinkdeployment: delete with --wait=false (fire-and-forget), then bound-wait for
+# the deletion. If the operator's finalizer (flinkdeployments.flink.apache.org/finalizer)
+# doesn't clear within 120s — which happens when the Flink operator's kubernetes-client
+# watch is wedged and stops reconciling — force-patch the finalizer off so the object is
+# GC'd, then bound-wait again. Without this, `kubectl delete` blocks indefinitely on the
+# finalizer and hangs the whole `allK8s` build for hours (observed: 93 min stall).
+delete_flinkdeployment() {  # name
+  local name="$1"
+  kubectl -n poc delete flinkdeployment "${name}" --ignore-not-found=true --wait=false
+  if kubectl -n poc wait flinkdeployment "${name}" --for=delete --timeout=120s 2>/dev/null; then
+    return 0
+  fi
+  echo "⚠ ${name}: finalizer did not clear in 120s — force-patching finalizer and retrying"
+  kubectl -n poc patch flinkdeployment "${name}" --type=merge -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
+  kubectl -n poc wait flinkdeployment "${name}" --for=delete --timeout=60s 2>/dev/null || true
+}
 for name in "${VARIANT_NAMES[@]}"; do
-  kubectl -n poc delete flinkdeployment "${name}" --ignore-not-found=true
-done
-# Wait until all 4 are gone before re-applying so the operator starts clean.
-for name in "${VARIANT_NAMES[@]}"; do
-  kubectl -n poc wait flinkdeployment "${name}" --for=delete --timeout=120s 2>/dev/null || true
+  delete_flinkdeployment "${name}"
 done
 for dep in "${VARIANT_DEPLOYMENTS[@]}"; do
   kubectl apply -f "$K8S/flink/${dep}"
@@ -241,8 +254,7 @@ kubectl apply -f "$K8S/flink/configmap-yaml-pipeline.yaml"
 # Delete the session cluster so the operator starts it fresh with the new pipeline image;
 # a running pipeline from a previous deploy would conflict on the MySQL server-ID range
 # and cause restart loops when the submitter re-submits.
-kubectl -n poc delete flinkdeployment yaml-pipeline-cdc --ignore-not-found=true
-kubectl -n poc wait flinkdeployment/yaml-pipeline-cdc --for=delete --timeout=120s 2>/dev/null || true
+delete_flinkdeployment yaml-pipeline-cdc
 kubectl apply -f "$K8S/flink/flinkdeployment-yaml.yaml"
 
 # Wait for the JM to become available before launching the submitter. The
