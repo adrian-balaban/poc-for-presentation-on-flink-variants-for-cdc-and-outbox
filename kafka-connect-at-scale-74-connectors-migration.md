@@ -44,7 +44,7 @@ Five things you take away:
 
 Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flink, with a proof of concept covering all 5 variants.
 
-Presentation will be presented to the **Cognizant Java Community Romania**.  
+This talk is being prepared for the **Cognizant Java Community Romania**.  
 
 ---
 
