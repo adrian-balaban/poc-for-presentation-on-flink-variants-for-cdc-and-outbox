@@ -12,19 +12,19 @@
 flink            = "2.2.0"        # ext.flinkVersion       — Flink runtime artifacts
 flinkCdc         = "3.6.0-2.2"    # ext.flinkCdcVersion    — flink-sql-connector-mysql-cdc
 flinkKafka       = "5.0.0-2.2"    # ext.flinkKafkaVersion  — flink-connector-kafka
-kafka            = "3.7.0"        # ext.kafkaVersion       — kafka-clients
+kafka            = "3.8.1"        # ext.kafkaVersion       — kafka-clients (3.7.0 had CVE-2024-31141)
 java             = "17"           # ext.javaVersion        — Flink modules (SMTs use 11)
 
 # ── Libraries ────────────────────────────────────────────────────────────────
-mysqlConnector   = "8.3.0"
+mysqlConnector   = "9.1.0"       # 8.3.0 had CVE-2024-21272; 9.x is latest stable
 junitJupiter     = "5.10.2"
 junit4           = "4.13.2"       # kafka-connect-smts (Java 11 module)
 assertj          = "3.25.3"
 slf4jSimple      = "2.0.13"       # unified across all modules
 lombok           = "1.18.30"
 lz4              = "1.8.0"        # forced via resolutionStrategy (lz4-java conflict)
-json             = "20231013"     # org.json
-connectApi       = "3.6.1"       # kafka-connect-smts: org.apache.kafka:connect-api
+json             = "20240303"     # org.json (20231013 was stale; patched further in 20240303)
+connectApi       = "3.8.1"       # kafka-connect-smts: org.apache.kafka:connect-api (aligned with kafka version)
 
 # ── Build tooling ────────────────────────────────────────────────────────────
 shadow           = "8.1.1"        # com.github.johnrengelman:shadow
