@@ -23,6 +23,12 @@ Run synchronously so the exit code is immediately available:
 
 ```bash
 cd /home/adrianb/_/claude/github/public_poc-for-presentation-on-flink-variants-for-cdc-and-outbox
+
+# Stop any Gradle processes / daemons left over from a previous iteration so they
+# don't hold file locks, stale build state, or ports.
+./gradlew --stop || true
+pkill -f 'gradle' 2>/dev/null || true
+
 set -o pipefail                       # so the captured exit reflects gradlew, not tee
 ./gradlew all allK8s 2>&1 | tee /tmp/flink-cdc-all.log
 GRADLEW_EXIT=${PIPESTATUS[0]}         # tee's exit ($?) is always 0 — read gradlew's instead
