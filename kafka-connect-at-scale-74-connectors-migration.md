@@ -3,6 +3,7 @@
 **Author:** Adrian Balaban  
 **Date:** 2026-06-26
 
+In this session, we will explore Kafka Connect through real client experience, focusing on a proof of concept and a proposed migration of 74 connectors from Confluent Kafka Cloud to Flink. We will walk through the current challenges, what improvements the new approach aims to address, and the trade-offs involved. The talk also highlights alternative options considered and the reasoning behind the proposed solution.
 
 ---
 
@@ -43,25 +44,25 @@ Five things you take away:
 
 Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flink, with a proof of concept covering all 5 variants.
 
-Presentation demo originally delivered to the **Cognizant Java Community Romania**.  
-
-Second goal: produce near-production-quality code.
+Presentation was made for the **Cognizant Java Community Romania**.  
 
 ---
 
 ## Slide 1b — Agenda (45 minutes)
 
-1. **Where we are** (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC
-2. **Why it hurts & what we require** (4 min) — Challenges + the 3 requirements any solution must meet
-3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation
-4. **The POC + evidence** (8 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table
-5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges
-6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring
-7. **The trade-offs** (4 min) — What changes, what remains, new operational surface
-8. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others
-8b. **Cost of the change** (2 min) — TCO: what you stop paying, what you add
-9. **Open questions** (3 min) — 8 spikes
-10. **Recommendation & next step** (2 min) — commit decision, first tribe, timeline
+*(Slides 0–1c set the opening frame; the 45-minute block starts here.)*
+
+1. **Where we are** (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC → *Slides 2, 5*
+2. **Why it hurts & what we require** (4 min) — Challenges + the 3 requirements any solution must meet → *Slide 3*
+3. **What is Flink, and why it's the structural fix** (3 min) — Flink in one frame; shared-pool vs per-job isolation → *Slide 4*
+4. **The POC + evidence** (8 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table → *Slides 6–8, 12*
+5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges → *Slides 9, 13*
+6. **Architecture & collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring → *Slides 10, 11, 17*
+7. **The trade-offs** (4 min) — What changes, what remains, new operational surface → *Slide 14*
+8. **Why this over alternatives** (5 min) — Decision matrix: why Flink CDC vs KC vs others → *Slide 15*
+8b. **Cost of the change** (2 min) — TCO: what you stop paying, what you add → *Slide 15b*
+9. **Open questions** (3 min) — 8 spikes → *Slide 16*
+10. **Recommendation & next step** (2 min) — commit decision, first tribe, timeline → *Slide 18*
 
 **Q&A: 15 minutes**
 
@@ -80,18 +81,19 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | Term | What it is (one sentence) |
 |------|---------------------------|
 | **MySQL binlog** | MySQL's internal journal of every INSERT/UPDATE/DELETE — Debezium reads it like a replica |
-| **Debezium** | Open-source library that turns the binlog into JSON change events |
+| **Debezium** | Open-source CDC platform that tails the MySQL binlog and emits every INSERT/UPDATE/DELETE as a structured JSON event; used internally by Flink CDC as its binlog parser (not the same as the KC Debezium connector) |
 | **Kafka Connect** | The platform that runs Debezium (and other connectors) as managed workers |
 | **SMT** | Single Message Transformer — a KC plugin that modifies each record in-flight (enrichment, routing) |
 | **Confluent Cloud** | Kafka + Kafka Connect as a managed service (you pay for it, you don't operate it) |
 | **Apache Flink** | Stream-processing engine; can do the same job as Debezium + KC, but as an isolated K8s job |
 | **Flink Operator / CR** | K8s operator that runs each Flink job as a `FlinkDeployment` Custom Resource (own JM + TM) |
 | **StatementSet** | Flink Table API construct that compiles several INSERTs into one JobGraph (one checkpoint) |
-| **IRSA** | IAM Roles for Service Accounts — how K8s pods get AWS permissions (S3 checkpoint access) |
+| **IAM** | AWS Identity and Access Management — the permission system that controls which principals can access which AWS resources; here used to grant Flink jobs S3 access for checkpoints |
 | **RDS** | AWS managed relational database — the production MySQL source here (IAM auth) |
-| **transactron** | The client's internal outbox connector, migrated in Phase 3 (see Spike S4) |
+| **Outbox table** | A DB table written in the same transaction as the business record; CDC reads it and routes the event to the right Kafka topic — decouples event publishing from the main business schema |
+| **transactron** | The client's internal MySQL schema containing the outbox-type tables |
 
-> **Key point:** every variant in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
+> **Key point:** every variant (except oubox type) in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
 > The difference is *how* and *where* the reading process runs.
 
 ---
@@ -114,7 +116,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 
 ## Slide 3 — What We Require, and What Hurts Today
 
-**What we require of any solution** *(Kafka Guild, solution-agnostic — the yardstick for the options on the Alternatives slide):*
+**What we require of any solution** *(solution-agnostic — the yardstick for the options on the Alternatives slide):*
 
 1. Base image + security patching stay **centralised** — tribes don't own the runtime.
 2. **Move away from Confluent Platform** — licensing and lock-in.
@@ -129,7 +131,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | Recurring lag — no per-tribe lever | Team + consumers | Ongoing | SLA risk on downstream consumers |
 | Production-only failures — surface only after deploy | New-connector teams | New-connector window | Defects reach prod undetected |
 | Confluent Kafka Cloud licensing | Organisation | Monthly | **Material monthly licensing cost** |
-| Centralised security patching | Maintenance team | Every release cycle | Fleet-wide coordination overhead |
+| Centralised security patching | Maintenance team | Every release cycle and every vulnerability fix | Fleet-wide coordination overhead |
 
 > One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and most rows above map to a concrete improvement (see the Improvements slide).
 
@@ -145,7 +147,7 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 
 | | Kafka Connect today | Flink (proposed) |
 |--|--|--|
-| Deployment | 1 shared worker cluster | N isolated K8s jobs (Flink Operator) |
+| Deployment | 1 shared worker cluster | N isolated K8s jobs (thru Flink Operator) |
 | Blast radius | 1 — all 95 connectors | 1 per tribe — contained |
 | Rebalance | one group → cascade across 26 teams | none — no shared group |
 | Offsets / state | shared offset topic | per-job exactly-once checkpoints (S3) |

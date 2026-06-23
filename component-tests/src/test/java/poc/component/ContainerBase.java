@@ -14,20 +14,29 @@ import poc.common.config.JobConfig;
 
 /**
  * Base class for component tests that use existing container infrastructure. Tests connect to MySQL
- * + Kafka already running via podman-compose.
+ * + Kafka already running via podman-compose (default) or the k8s slice via kubectl port-forward.
+ *
+ * <p>The connection endpoints are env-overridable so the same tests can target either stack without
+ * code changes: against the Podman stack the defaults apply; against the k8s slice set, e.g.,
+ * {@code MYSQL_PORT=13306 KAFKA_BOOTSTRAP=localhost:19092} (the port-forward ports from K8S.md).
+ * User/password/database are identical across both stacks and stay fixed.
  *
  * <p>Server-ID ranges reserved for component tests: 7000–7099 (not in CLAUDE.md prod ranges).
  */
 @Slf4j
 public abstract class ContainerBase {
 
-  private static final String MYSQL_HOST = "localhost";
-  private static final int MYSQL_PORT = 3306;
+  // Env-overridable with Podman-stack defaults — read once at class load, so set
+  // them on the Gradle/test JVM invocation (e.g. MYSQL_PORT=13306 ./gradlew ...).
+  private static final String MYSQL_HOST = System.getenv().getOrDefault("MYSQL_HOST", "localhost");
+  private static final int MYSQL_PORT =
+      Integer.parseInt(System.getenv().getOrDefault("MYSQL_PORT", "3306"));
   private static final String MYSQL_USER = "flink";
   private static final String MYSQL_PASSWORD = "flink";
   private static final String MYSQL_DATABASE = "poc_db";
 
-  private static final String KAFKA_BOOTSTRAP = "localhost:9092";
+  private static final String KAFKA_BOOTSTRAP =
+      System.getenv().getOrDefault("KAFKA_BOOTSTRAP", "localhost:9092");
 
   private static volatile boolean schemaInitialized = false;
   private static volatile Boolean podmanAvailable = null;
@@ -44,8 +53,9 @@ public abstract class ContainerBase {
     }
     Assumptions.assumeTrue(
         podmanAvailable,
-        "Podman stack (MySQL/Kafka) not available — skipping component tests. "
-            + "Run: cd local-development && podman-compose -f podman-compose.yml up -d");
+        "CDC stack (MySQL/Kafka) not available — skipping component tests. "
+            + "Run: cd local-development && podman-compose -f podman-compose.yml up -d "
+            + "(Podman), or ./local-development/k8s/deploy.sh + kubectl port-forward (k8s; see K8S.md)");
   }
 
   private static boolean checkPodmanConnectivity() {
