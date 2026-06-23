@@ -1,4 +1,4 @@
-# Kafka Connect @ Scară: Cazul Migrării a 74 de Conectori
+# Kafka Connect la Scară Largă: Cazul Migrării a 74 de Conectori
 
 **Autor:** Adrian Balaban  
 **Data:** 2026-06-26
@@ -53,16 +53,16 @@ Prezentarea a fost făcută pentru **Comunitatea Java Cognizant România**.
 1. **Unde suntem** (2 min) — Contextul clientului + sfera migrării: 95 de conectori pe un singur cluster, 74 ținte MySQL, 21 rămân pe KC → *Slide-urile 2, 5*
 2. **De ce doare și ce cerem** (5 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le îndeplinească → *Slide 3*
 3. **Ce este Flink și de ce este remedierea structurală** (4 min) — Flink într-un cadru; pool partajat vs. izolare per-job → *Slide 4*
-4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8, 12*
-5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi → *Slide-urile 9, 13*
-6. **Arhitectură și evitarea coliziunilor** (8 min) — Deployment K8s, intervale server-ID, monitorizare → *Slide-urile 10, 17*
-7. **Compromisurile** (5 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă → *Slide 14*
-8. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi → *Slide 15b*
-9. **Întrebări deschise** (4 min) — 8 spike-uri → *Slide 16*
+4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8, 11*
+5. **Soluția + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi → *Slide-urile 9, 12*
+6. **Arhitectură și evitarea coliziunilor** (8 min) — Deployment K8s, intervale server-ID, monitorizare → *Slide-urile 10, 16*
+7. **Compromisurile** (5 min) — Ce se schimbă, ce rămâne, suprafața operațională nouă → *Slide 13*
+8. **Costul schimbării** (2 min) — TCO: ce nu mai plătești, ce adaugi → *Slide 14*
+9. **Întrebări deschise** (4 min) — 8 spike-uri → *Slide 15*
 
 **Q&A: 15 minute**
 
-*(total agendă: 45 min + 15 min Q&A; Slide 1c este un primer Kafka opțional de ~75 s, iar capturile de ecran live Slide 12b se arată doar dacă timpul permite — niciuna nu e inclusă în cele 45 min.)*
+*(total agendă: 45 min + 15 min Q&A; Slide 1c este un primer Kafka opțional de ~75 s, iar capturile de ecran live Slide 11b se arată doar dacă timpul permite — niciuna nu e inclusă în cele 45 min.)*
 
 ---
 
@@ -370,7 +370,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 
 ---
 
-## Slide 12 — Dovezi POC
+## Slide 11 — Dovezi POC
 
 | Verificare | Rezultat |
 |-------------|--------|
@@ -387,7 +387,7 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 
 ---
 
-## Slide 12b — Dovezi POC: Capturi de Ecran Live
+## Slide 11b — Dovezi POC: Capturi de Ecran Live
 
 **Toate cele 5 variante Flink rulând simultan pe localhost — capturate în timpul POC-ului live.**
 
@@ -421,7 +421,7 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 
 ---
 
-## Slide 13 — Îmbunătățiri Adresate
+## Slide 12 — Îmbunătățiri Adresate
 
 | Provocare (Slide 3) | Îmbunătățire |
 |---------------------|--------------|
@@ -436,20 +436,20 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 
 ---
 
-## Slide 14 — Compromisurile (Registru de Riscuri)
+## Slide 13 — Compromisurile (Registru de Riscuri)
 
 | Risc | Status / Atenuare | Unde este abordat |
 |------|-------------------|-------------------|
-| KC rămâne pentru 21 conectori SFTP/SingleStore — două sisteme de operat | Acceptat; SFTP/SingleStore nu au echivalent Flink | Slide 5 (scop), Slide 15b (TCO) |
+| KC rămâne pentru 21 conectori SFTP/SingleStore — două sisteme de operat | Acceptat; SFTP/SingleStore nu au echivalent Flink | Slide 5 (scop), Slide 14 (TCO) |
 | Curbă de învățare — Flink Operator, checkpoint-uri, savepoint-uri | Atenuat pentru majoritatea echipelor prin modelul shared-job | Slide 7 (arbore de decizie), Slide 9 (shared-job) |
-| Secvențierea cutover — niciun plan de val, dual-run, gate paritate sau runbook de rollback încă | **Neatenuată** — S6 trebuie să livreze: plan de val, perioadă dual-run, gate paritate byte-for-byte, coordonare overlap server-ID binlog, runbook rollback | Slide 16, Spike S6 |
-| Suprafață operațională nouă — Flink Operator, checkpoint-uri, savepoint-uri | Atenuat prin proprietatea Flink Platform Team asupra imaginii de bază și modulului de monitorizare | Slide 17, Spike S1 |
-| Regresie observabilitate — metrici Debezium JMX (lag, stare snapshot, poziție binlog) nu au echivalent direct Flink | **Neatenuată** — interimar: metrici Flink restart/backlog + verificări binlog-position din MySQL ca proxy lag; rezoluție completă în așteptarea Spike S1 | Slide 17, Spike S1 |
-| Evoluție schemă (ALTER TABLE) — comportamentul diferă per variantă; compatibilitatea schemei Kafka downstream nevalidată | **Neatenuată** — fără echivalent dbhistory.*; validare per echipă + politică compat schema-registry | Slide 16, Spike S8 (nou) |
+| Secvențierea cutover — niciun plan de val, dual-run, gate paritate sau runbook de rollback încă | **Neatenuată** — S6 trebuie să livreze: plan de val, perioadă dual-run, gate paritate byte-for-byte, coordonare overlap server-ID binlog, runbook rollback | Slide 15, Spike S6 |
+| Suprafață operațională nouă — Flink Operator, checkpoint-uri, savepoint-uri | Atenuat prin proprietatea Flink Platform Team asupra imaginii de bază și modulului de monitorizare | Slide 16, Spike S1 |
+| Regresie observabilitate — metrici Debezium JMX (lag, stare snapshot, poziție binlog) nu au echivalent direct Flink | **Neatenuată** — interimar: metrici Flink restart/backlog + verificări binlog-position din MySQL ca proxy lag; rezoluție completă în așteptarea Spike S1 | Slide 16, Spike S1 |
+| Evoluție schemă (ALTER TABLE) — comportamentul diferă per variantă; compatibilitatea schemei Kafka downstream nevalidată | **Neatenuată** — fără echivalent dbhistory.*; validare per echipă + politică compat schema-registry | Slide 15, Spike S8 (nou) |
 
 ---
 
-## Slide 15b — Costul Total de Proprietate (Nivel Înalt)
+## Slide 14 — Costul Total de Proprietate (Nivel Înalt)
 
 **Starea actuală (Confluent KC):** o singură factură de cluster partajat acoperă toți 95 de conectori.
 
@@ -468,7 +468,7 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 
 ---
 
-## Slide 16 — Spike-uri Deschise
+## Slide 15 — Spike-uri Deschise
 
 | ID | Subiect | De Ce Contează | Faza | Timebox |
 |----|-------|---------------|------|---------|
@@ -487,7 +487,7 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 
 ---
 
-## Slide 17 — Monitorizare Centralizată: KC și Flink
+## Slide 16 — Monitorizare Centralizată: KC și Flink
 
 | | Acum (KC / Debezium JMX) | Gap | Țintă (Flink, post-S1) |
 |--|--------------------------|-----|------------------------|

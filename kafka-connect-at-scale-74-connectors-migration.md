@@ -55,16 +55,16 @@ Presentation was made for the **Cognizant Java Community Romania**.
 1. **Where we are** (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC → *Slides 2, 5*
 2. **Why it hurts & what we require** (5 min) — Challenges + the 3 requirements any solution must meet → *Slide 3*
 3. **What is Flink, and why it's the structural fix** (4 min) — Flink in one frame; shared-pool vs per-job isolation → *Slide 4*
-4. **The POC + evidence** (10 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table → *Slides 6–8, 12*
-5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges → *Slides 9, 13*
-6. **Architecture & collision avoidance** (8 min) — K8s deployment, server-ID ranges, monitoring → *Slides 10, 17*
-7. **The trade-offs** (5 min) — What changes, what remains, new operational surface → *Slide 14*
-8. **Cost of the change** (2 min) — TCO: what you stop paying, what you add → *Slide 15b*
-9. **Open questions** (4 min) — 8 spikes → *Slide 16*
+4. **The POC + evidence** (10 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table → *Slides 6–8, 11*
+5. **The solution + improvements** (5 min) — Shared-job model; concrete improvements vs today's challenges → *Slides 9, 12*
+6. **Architecture & collision avoidance** (8 min) — K8s deployment, server-ID ranges, monitoring → *Slides 10, 16*
+7. **The trade-offs** (5 min) — What changes, what remains, new operational surface → *Slide 13*
+8. **Cost of the change** (2 min) — TCO: what you stop paying, what you add → *Slide 14*
+9. **Open questions** (4 min) — 8 spikes → *Slide 15*
 
 **Q&A: 15 minutes**
 
-*(agenda total: 45 min + 15 min Q&A; Slide 1c is an optional ~75 s Kafka primer and Slide 12b live screenshots are shown only if time permits — neither counted in the 45 min.)*
+*(agenda total: 45 min + 15 min Q&A; Slide 1c is an optional ~75 s Kafka primer and Slide 11b live screenshots are shown only if time permits — neither counted in the 45 min.)*
 
 ---
 
@@ -372,7 +372,7 @@ Each POC variant gets its own dedicated, non-overlapping range on four axes so t
 
 ---
 
-## Slide 12 — POC Evidence
+## Slide 11 — POC Evidence
 
 | Verification | Result |
 |-------------|--------|
@@ -389,7 +389,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 ---
 
-## Slide 12b — POC Evidence: Live Screenshots
+## Slide 11b — POC Evidence: Live Screenshots
 
 **All 5 Flink variants running simultaneously on localhost — captured during the live POC.**
 
@@ -423,7 +423,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 ---
 
-## Slide 13 — Improvements Addressed
+## Slide 12 — Improvements Addressed
 
 | Challenge (Slide 3) | Improvement |
 |---------------------|-------------|
@@ -438,20 +438,20 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 ---
 
-## Slide 14 — The Trade-offs (Risk Register)
+## Slide 13 — The Trade-offs (Risk Register)
 
 | Risk | Status / Mitigation | Where addressed |
 |------|---------------------|-----------------|
-| KC remains for 21 SFTP/SingleStore connectors — two systems to operate | Accepted; SFTP/SingleStore have no Flink equivalent | Slide 5 (scope), Slide 15b (TCO) |
+| KC remains for 21 SFTP/SingleStore connectors — two systems to operate | Accepted; SFTP/SingleStore have no Flink equivalent | Slide 5 (scope), Slide 14 (TCO) |
 | Learning curve — Flink Operator, checkpoints, savepoints | Mitigated for most tribes by shared-job model | Slide 7 (decision tree), Slide 9 (shared-job) |
-| Cutover sequencing — no wave plan, dual-run, parity gate, or rollback runbook yet | **Not yet mitigated** — S6 must deliver: wave plan, dual-run period, byte-for-byte parity gate, binlog server-ID overlap coordination, rollback runbook | Slide 16, Spike S6 |
-| New operational surface — Flink Operator, checkpoints, savepoints | Mitigated by Flink Platform Team ownership of base image and monitoring module | Slide 17, Spike S1 |
-| Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink equivalent | **Not yet mitigated** — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1 | Slide 17, Spike S1 |
-| Schema evolution (ALTER TABLE) — behavior differs by variant; downstream Kafka schema compatibility not validated | **Not yet mitigated** — no dbhistory.* equivalent; validate per tribe + schema-registry compat policy | Slide 16, Spike S8 (new) |
+| Cutover sequencing — no wave plan, dual-run, parity gate, or rollback runbook yet | **Not yet mitigated** — S6 must deliver: wave plan, dual-run period, byte-for-byte parity gate, binlog server-ID overlap coordination, rollback runbook | Slide 15, Spike S6 |
+| New operational surface — Flink Operator, checkpoints, savepoints | Mitigated by Flink Platform Team ownership of base image and monitoring module | Slide 16, Spike S1 |
+| Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink equivalent | **Not yet mitigated** — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1 | Slide 16, Spike S1 |
+| Schema evolution (ALTER TABLE) — behavior differs by variant; downstream Kafka schema compatibility not validated | **Not yet mitigated** — no dbhistory.* equivalent; validate per tribe + schema-registry compat policy | Slide 15, Spike S8 (new) |
 
 ---
 
-## Slide 15b — Total Cost of Ownership (High-Level)
+## Slide 14 — Total Cost of Ownership (High-Level)
 
 **Current state (Confluent KC):** one shared cluster bill covers all 95 connectors.
 
@@ -470,7 +470,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 ---
 
-## Slide 16 — Open Spikes
+## Slide 15 — Open Spikes
 
 | ID | Topic | Why It Matters | Phase | Timebox |
 |----|-------|---------------|-------|---------|
@@ -489,7 +489,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 ---
 
-## Slide 17 — Centralised Monitoring: KC and Flink
+## Slide 16 — Centralised Monitoring: KC and Flink
 
 | | Now (KC / Debezium JMX) | Gap | Target (Flink, post-S1) |
 |--|-------------------------|-----|-------------------------|
