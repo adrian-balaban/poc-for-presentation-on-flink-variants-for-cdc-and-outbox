@@ -428,7 +428,7 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 | Raza de impact partajată — 95 conectori, un singur cluster | **Proprietate clară** — echipa deține repo-ul și cadența de deploy a conectorului lor |
 | Lag recurent — fără pârghie per echipă | **Lag-ul este gestionat pe echipă și per-job** |
 | Eșecuri doar în producție | **Ciclu de viață Kubernetes nativ** — Flink Operator; testele component locale prind problemele înainte de deploy |
-| Licențiere Confluent | **Economii parțiale de licențiere** — 74 conectori eliminați din pool-ul facturat; 21 conectori SFTP/SingleStore rămân pe KC |
+| Licențiere Confluent | **Economii parțiale de licențiere** — 74 conectori mutați de pe clusterul KC, deci poate fi redus la mai puține cluster nodes facturabile; 21 conectori SFTP/SingleStore rămân pe KC |
 | Upgrade-uri coordonate la nivel de flotă | **Upgrade-uri independente** — versionare per job; fără coordonare la nivel de flotă |
 
 > **Notă:** Sink-ul exactly-once necesită tranzacții Kafka (`DeliveryGuarantee.EXACTLY_ONCE` + prefix ID tranzacțional în `KafkaSinkFactory`); broker-ul Kafka trebuie să aibă tranzacțiile activate.
@@ -452,17 +452,17 @@ Fiecare variantă POC primește propriul interval dedicat, fără suprapunere, p
 
 **Starea actuală (Confluent KC):** o singură factură de cluster partajat acoperă toți 95 de conectori.
 
-**Starea propusă (Flink):** factura Confluent redusă la 21 de conectori; Flink rulează pe K8s existent fără licențe suplimentare.
+**Starea propusă (Flink):** factura Confluent redusă — doar 21 conectori rămân pe KC, deci clusterul poate rula pe mai puține noduri; Flink rulează pe K8s existent fără licențe suplimentare.
 
 | Axă de cost | KC azi (95 conectori) | Propunere Flink (74 CDC → Flink; 21 KC rămân) |
 |-------------|----------------------|------------------------------------------------|
-| Licențiere Confluent | Factură completă pentru 95 conectori | ~22% conectori reținuți (21/95); prețul este pe task/throughput, nu strict per-conector — vezi atenționarea |
+| Licențiere Confluent | Factură completă pentru 95 conectori | ~22% conectori reținuți (21/95); mai puțini conectori → cluster mai mic → mai puține cluster nodes facturabile — vezi atenționarea |
 | Compute (CPU/RAM K8s) | KC gestionat de Confluent (inclus în licență) | O pereche JM + TM per echipă; dimensionează per echipă față de rata de schimbare la vârf (estimare POC: ~0,5 vCPU + 1 GB RAM la throughput binlog scăzut; dimensionarea pentru producție în așteptarea Spike S2) |
 | Overhead operațional | Ops cluster partajat centralizat | Izolare per echipă; Flink Platform Team deține imaginea de bază |
 | Cost migrare per echipă | Zero (status quo) | Livrabilele spike-urilor S5/S6 (automatizare cutover) |
 
-> **Atenționare:** prețul Confluent per-conector depinde de nivelul contractului.
-> Economia direcțională (74 conectori eliminați din pool-ul facturat) este certă;
+> **Atenționare:** prețul Confluent per cluster node depinde de nivelul contractului.
+> Economia direcțională (74 conectori mutați de pe clusterul KC, permițând rularea pe mai puține noduri) este certă;
 > creșterea compute K8s trebuie dimensionată față de flota de workere KC existentă.
 
 ---

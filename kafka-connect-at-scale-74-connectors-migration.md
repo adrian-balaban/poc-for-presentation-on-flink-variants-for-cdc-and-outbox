@@ -431,7 +431,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 | Shared blast radius — 95 connectors, one cluster | **Clear ownership** — tribe owns their connector repo and deploy cadence |
 | Recurring lag — no per-tribe lever | **Lag is managed per-team and per-job** |
 | Production-only failures | **Native Kubernetes lifecycle** — Flink Operator; local component tests catch issues before deploy |
-| Confluent licensing | **Partial licensing savings** — 74 connectors removed from billable pool; 21 SFTP/SingleStore connectors retained on KC |
+| Confluent licensing | **Partial licensing savings** — 74 connectors moved off the KC cluster, so it can be downsized to fewer billable cluster nodes; 21 SFTP/SingleStore connectors retained on KC |
 | Fleet-wide coordinated upgrades | **Independent upgrades** — per-job versioning; no fleet-wide coordination |
 
 > **Note:** Exactly-once sink requires Kafka transactions (`DeliveryGuarantee.EXACTLY_ONCE` + transactional ID prefix in `KafkaSinkFactory`); Kafka broker must have transactions enabled.
@@ -455,17 +455,17 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 **Current state (Confluent KC):** one shared cluster bill covers all 95 connectors.
 
-**Proposed state (Flink):** Confluent bill reduced to 21 connectors; Flink runs on existing K8s compute with no additional licensing.
+**Proposed state (Flink):** Confluent bill reduced — only 21 connectors remain on KC, so its cluster can run on fewer nodes; Flink runs on existing K8s compute with no additional licensing.
 
 | Cost axis | KC today (95 connectors) | Flink proposal (74 CDC → Flink; 21 KC retained) |
 |-----------|--------------------------|--------------------------------------------------|
-| Confluent licensing | Full 95-connector bill | ~22% of connectors retained (21/95); pricing is per task/throughput, not strictly per-connector — see caveat |
+| Confluent licensing | Full 95-connector bill | ~22% of connectors retained (21/95); fewer connectors → smaller cluster → fewer billable cluster nodes — see caveat |
 | Compute (K8s CPU/RAM) | KC managed by Confluent (included in license) | One JM + TM pod pair per tribe; size per tribe against peak change rate (POC estimate: ~0.5 vCPU + 1 GB RAM at low binlog throughput; production sizing pending Spike S2) |
 | Operational overhead | Shared cluster ops centralised | Per-tribe isolation; Flink Platform Team owns base image |
 | Per-tribe migration cost | Zero (status quo) | S5/S6 spike deliverables (cutover automation) |
 
-> **Caveat:** exact Confluent per-connector pricing depends on contract tier.
-> The directional saving (74 connectors removed from billed pool) is certain;
+> **Caveat:** exact Confluent per-cluster-node pricing depends on contract tier.
+> The directional saving (74 connectors moved off the KC cluster, letting it run on fewer nodes) is certain;
 > the K8s compute uplift should be sized against the existing KC worker fleet.
 
 ---
