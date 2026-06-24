@@ -76,7 +76,7 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 
 | Termen | Ce este (o propoziție) |
 |--------|------------------------|
-| **MySQL binlog** | Jurnalul intern MySQL cu toate INSERT/UPDATE/DELETE — Debezium îl citește ca un replica |
+| **MySQL binlog** | Jurnalul intern MySQL cu toate INSERT/UPDATE/DELETE — Debezium îl citește ca o replică |
 | **Debezium** | Platformă CDC open-source care citește binlog-ul MySQL și emite fiecare INSERT/UPDATE/DELETE ca eveniment JSON structurat; folosit intern de Flink CDC ca parser de binlog (nu același conector KC Debezium) |
 | **Kafka Connect** | Platforma care rulează Debezium (și alți conectori) ca workere gestionate |
 | **SMT** | Single Message Transformer — un plugin KC care modifică fiecare înregistrare în zbor (enrichment, routing) |
