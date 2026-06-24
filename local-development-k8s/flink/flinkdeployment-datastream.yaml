@@ -109,7 +109,7 @@ spec:
   jobManager:
     replicas: 1
     resource:
-      memory: 2Gi
+      memory: 1500Mi
       cpu: 1
     # Init-container that populates the emptyDir with the variant fat-jar before
     # the JM main container starts. Runs on the JM only — in application/native
@@ -132,7 +132,7 @@ spec:
   taskManager:
     replicas: 1
     resource:
-      memory: 2Gi
+      memory: 1500Mi
       cpu: 1
   job:
     jarURI: local:///opt/flink/usrlib/datastream-job.jar

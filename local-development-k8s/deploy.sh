@@ -63,8 +63,20 @@ kubectl config use-context "kind-$CLUSTER"
 # live (takes effect on the running container's cgroup immediately) and
 # idempotent, so re-running deploy.sh is cheap.
 NODE_CONTAINER="${CLUSTER}-control-plane"
+# Detect which container runtime manages the kind node (docker or podman).
+# kind defaults to docker when both are installed and KIND_EXPERIMENTAL_PROVIDER
+# is not set.  All exec/update calls below use CTR_EXEC / CTR_UPDATE so the
+# script works with either runtime.
+if docker inspect "$NODE_CONTAINER" &>/dev/null && \
+   [ "$(docker inspect "$NODE_CONTAINER" --format '{{.State.Status}}')" = "running" ]; then
+  CTR_EXEC="docker exec"
+  CTR_UPDATE="docker update"
+else
+  CTR_EXEC="podman exec"
+  CTR_UPDATE="podman update"
+fi
 echo "▶ ensuring kind node pids_limit ≥ 8192 (avoid containerd-shim thread EAGAIN under cold-start burst)"
-podman update --pids-limit 8192 "$NODE_CONTAINER" >/dev/null || \
+$CTR_UPDATE --pids-limit 8192 "$NODE_CONTAINER" >/dev/null || \
   echo "⚠ could not raise pids_limit on $NODE_CONTAINER (continuing — may hit thread EAGAIN under burst)"
 
 # ── 2. build the 4 Java fat-jars + Kafka Connect SMT ───────────────────────
@@ -159,24 +171,24 @@ _kind_load localhost/kafka-connect-debezium:local
 # unqualified name (flink-with-mysql:latest) and imagePullPolicy: Never requires an
 # exact tag match in containerd's k8s.io namespace.  Re-tag to both the unqualified
 # form and the docker.io/library normalised form (what kubelet's CRI resolves to).
-# `podman exec` into the kind node container to run ctr commands directly.
+# CTR_EXEC was set in section 1b based on which runtime manages the kind node.
 NODE="${CLUSTER}-control-plane"
 echo "▶ re-tagging images in kind node containerd (kind+podman localhost/ prefix quirk)"
 # ctr images tag won't overwrite an existing tag — delete stale docker.io/library/ and
 # bare aliases first so the re-tag always points at the freshly-loaded localhost/ image.
 for img in flink-with-mysql "${VARIANT_ARTIFACTS[@]}" flink-cdc-submitter; do
-  podman exec "$NODE" ctr -n k8s.io images rm "docker.io/library/${img}:latest" 2>/dev/null || true
-  podman exec "$NODE" ctr -n k8s.io images rm "${img}:latest" 2>/dev/null || true
-  podman exec "$NODE" ctr -n k8s.io images tag "localhost/${img}:latest" "${img}:latest" >/dev/null \
+  $CTR_EXEC "$NODE" ctr -n k8s.io images rm "docker.io/library/${img}:latest" 2>/dev/null || true
+  $CTR_EXEC "$NODE" ctr -n k8s.io images rm "${img}:latest" 2>/dev/null || true
+  $CTR_EXEC "$NODE" ctr -n k8s.io images tag "localhost/${img}:latest" "${img}:latest" >/dev/null \
     || echo "⚠ re-tag localhost/${img}:latest → ${img}:latest failed"
-  podman exec "$NODE" ctr -n k8s.io images tag "localhost/${img}:latest" "docker.io/library/${img}:latest" >/dev/null \
+  $CTR_EXEC "$NODE" ctr -n k8s.io images tag "localhost/${img}:latest" "docker.io/library/${img}:latest" >/dev/null \
     || echo "⚠ re-tag localhost/${img}:latest → docker.io/library/${img}:latest failed"
 done
 # kafka-connect-debezium uses tag :local (not :latest) so it's handled separately.
-podman exec "$NODE" ctr -n k8s.io images tag \
+$CTR_EXEC "$NODE" ctr -n k8s.io images tag \
   "localhost/kafka-connect-debezium:local" "kafka-connect-debezium:local" >/dev/null \
   || echo "⚠ re-tag localhost/kafka-connect-debezium:local → kafka-connect-debezium:local failed (may already exist)"
-podman exec "$NODE" ctr -n k8s.io images tag \
+$CTR_EXEC "$NODE" ctr -n k8s.io images tag \
   "localhost/kafka-connect-debezium:local" "docker.io/library/kafka-connect-debezium:local" >/dev/null \
   || echo "⚠ re-tag localhost/kafka-connect-debezium:local → docker.io/library/kafka-connect-debezium:local failed (may already exist)"
 

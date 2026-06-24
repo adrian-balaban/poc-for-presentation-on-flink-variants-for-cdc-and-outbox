@@ -40,7 +40,7 @@ spec:
   jobManager:
     replicas: 1
     resource:
-      memory: 2Gi
+      memory: 1500Mi
       cpu: 1
     podTemplate:
       spec:
@@ -58,7 +58,7 @@ spec:
   taskManager:
     replicas: 1
     resource:
-      memory: 2Gi
+      memory: 1500Mi
       cpu: 1
   job:
     jarURI: local:///opt/flink/usrlib/sql-api-job.jar

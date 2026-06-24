@@ -67,12 +67,12 @@ spec:
   jobManager:
     replicas: 1
     resource:
-      memory: 2Gi
+      memory: 1500Mi
       cpu: 1
   taskManager:
     replicas: 1
     resource:
-      memory: 2Gi
+      memory: 1500Mi
       cpu: 1
   # No spec.job — session cluster mode. No podTemplate — nothing to override
   # (no fat-jar volume, no MYSQL_*/KAFKA_* env needed on the Flink runtime pods).
