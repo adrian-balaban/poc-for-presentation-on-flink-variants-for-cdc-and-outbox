@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
@@ -31,17 +30,21 @@ class DataStreamCdcTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void cdcSource_capturesSnapshotRow_andPublishesEnrichedEventToKafka() throws Exception {
+    // Unique marker so the predicate selects this run's row, not a retained row from a prior run
+    // on the shared, never-truncated topic.
+    String marker = "DS-TEST-" + System.currentTimeMillis() % 1_000_000;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1, 11.11, 'DS-TEST')");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1, 11.11, '%s')",
+              marker));
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(120));
-    List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
-    assertThat(messages).isNotEmpty();
-    assertThat(messages).anyMatch(m -> m.contains("DS-TEST"));
-    log.info("DataStream CDC: {} Kafka message(s) received", messages.size());
+    String msg = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains(marker));
+    assertThat(msg).as("expected CDC event containing " + marker).isNotNull();
+    log.info("DataStream CDC: received Kafka message for {}", marker);
   }
 
   @Test
@@ -49,16 +52,18 @@ class DataStreamCdcTest extends FlinkTestBase {
   void cdcSource_capturesBinlogInsert_afterSnapshotComplete() throws Exception {
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(120));
 
+    String marker = "BINLOG-TEST-" + System.currentTimeMillis() % 1_000_000;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (2, 22.22, 'BINLOG-TEST')");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (2, 22.22, '%s')",
+              marker));
     }
 
-    List<String> messages = pollKafka(TOPIC, 1, Duration.ofSeconds(45));
-    assertThat(messages).isNotEmpty();
-    assertThat(messages).anyMatch(m -> m.contains("BINLOG-TEST"));
-    log.info("DataStream CDC binlog test: {} Kafka message(s) received", messages.size());
+    String msg = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains(marker));
+    assertThat(msg).as("expected binlog CDC event containing " + marker).isNotNull();
+    log.info("DataStream CDC binlog test: received Kafka message for {}", marker);
   }
 
   /**

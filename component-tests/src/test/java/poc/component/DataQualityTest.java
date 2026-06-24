@@ -39,10 +39,16 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void kafkaMessage_deserializesToValidJson_withRequiredFields() throws Exception {
+    // Per-run customer_id so the predicate selects this run's row out of the shared,
+    // never-truncated topic (which retains rows from prior runs and the other tests here).
+    final long cid = System.currentTimeMillis() % 1_000_000;
+    final String marker = "DQ-TEST-" + cid;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (1000, 123.45, 'DQ-TEST')");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, 123.45, '%s')",
+              cid, marker));
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
@@ -52,18 +58,18 @@ class DataQualityTest extends FlinkTestBase {
             Duration.ofSeconds(45),
             m -> {
               JSONObject a = afterOf(m);
-              return a != null && a.optLong("customer_id") == 1000;
+              return a != null && a.optLong("customer_id") == cid;
             });
 
-    assertThat(msg).as("expected CDC message for customer_id=1000").isNotNull();
+    assertThat(msg).as("expected CDC message for customer_id=" + cid).isNotNull();
     JSONObject after = afterOf(msg);
 
     assertThat(after.has("id")).isTrue();
     assertThat(after.has("customer_id")).isTrue();
     assertThat(after.has("amount")).isTrue();
     assertThat(after.has("status")).isTrue();
-    assertThat(after.getLong("customer_id")).isEqualTo(1000);
-    assertThat(after.getString("status")).isEqualTo("DQ-TEST");
+    assertThat(after.getLong("customer_id")).isEqualTo(cid);
+    assertThat(after.getString("status")).isEqualTo(marker);
 
     log.info("Data quality check passed: after={}", after);
   }
@@ -71,10 +77,13 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void kafkaMessage_includesVariantAnnotation() throws Exception {
+    final long cid = System.currentTimeMillis() % 1_000_000;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (2000, 99.99, 'VARIANT-TEST')");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, 99.99, 'VARIANT-TEST-%d')",
+              cid, cid));
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
@@ -84,10 +93,10 @@ class DataQualityTest extends FlinkTestBase {
             Duration.ofSeconds(45),
             m -> {
               JSONObject a = afterOf(m);
-              return a != null && a.optLong("customer_id") == 2000;
+              return a != null && a.optLong("customer_id") == cid;
             });
 
-    assertThat(msg).as("expected CDC message for customer_id=2000").isNotNull();
+    assertThat(msg).as("expected CDC message for customer_id=" + cid).isNotNull();
     JSONObject json = new JSONObject(msg);
 
     assertThat(json.has("variant")).as("variant annotation should be present").isTrue();
@@ -100,10 +109,13 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(180)
   void kafkaMessage_preservesNullValues() throws Exception {
+    final long cid = System.currentTimeMillis() % 1_000_000;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (3000, 50.00, NULL)");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, 50.00, NULL)",
+              cid));
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
@@ -115,10 +127,10 @@ class DataQualityTest extends FlinkTestBase {
             Duration.ofSeconds(90),
             m -> {
               JSONObject a = afterOf(m);
-              return a != null && a.optLong("customer_id") == 3000 && a.isNull("status");
+              return a != null && a.optLong("customer_id") == cid && a.isNull("status");
             });
 
-    assertThat(msg).as("expected CDC message for customer_id=3000").isNotNull();
+    assertThat(msg).as("expected CDC message for customer_id=" + cid).isNotNull();
     JSONObject after = afterOf(msg);
 
     assertThat(after.isNull("status")).as("NULL status should be serialised as JSON null").isTrue();
@@ -128,37 +140,47 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void multipleInserts_produceMultipleMessages_inOrder() throws Exception {
+    final long stamp = System.currentTimeMillis() % 1_000_000;
+    final String first = "FIRST-" + stamp;
+    final String second = "SECOND-" + stamp;
+    final String third = "THIRD-" + stamp;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (4000, 10.00, 'FIRST')");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, 10.00, '%s')",
+              stamp, first));
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (4001, 20.00, 'SECOND')");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, 20.00, '%s')",
+              stamp, second));
       s.executeUpdate(
-          "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (4002, 30.00, 'THIRD')");
+          String.format(
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, 30.00, '%s')",
+              stamp, third));
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
 
-    String first =
+    String firstMsg =
         waitForKafkaMessage(
             TOPIC,
             Duration.ofSeconds(60),
-            m -> "FIRST".equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
-    String second =
+            m -> first.equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
+    String secondMsg =
         waitForKafkaMessage(
             TOPIC,
             Duration.ofSeconds(60),
-            m -> "SECOND".equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
-    String third =
+            m -> second.equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
+    String thirdMsg =
         waitForKafkaMessage(
             TOPIC,
             Duration.ofSeconds(60),
-            m -> "THIRD".equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
+            m -> third.equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
 
-    assertThat(first).as("FIRST message").isNotNull();
-    assertThat(second).as("SECOND message").isNotNull();
-    assertThat(third).as("THIRD message").isNotNull();
+    assertThat(firstMsg).as(first + " message").isNotNull();
+    assertThat(secondMsg).as(second + " message").isNotNull();
+    assertThat(thirdMsg).as(third + " message").isNotNull();
 
     log.info("Message ordering verified: all 3 inserts produced Kafka messages");
   }
@@ -166,20 +188,21 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void jsonFormat_isConsistent_acrossMessages() throws Exception {
+    final long base = System.currentTimeMillis() % 1_000_000;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       for (int i = 0; i < 3; i++) {
         s.executeUpdate(
             String.format(
-                "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, %.2f, 'FORMAT-TEST')",
-                5000 + i, 100.00 + i));
+                "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, %.2f, 'FORMAT-TEST-%d')",
+                base + i, 100.00 + i, base));
       }
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
 
     for (int i = 0; i < 3; i++) {
-      final long cid = 5000 + i;
+      final long cid = base + i;
       String msg =
           waitForKafkaMessage(
               TOPIC,

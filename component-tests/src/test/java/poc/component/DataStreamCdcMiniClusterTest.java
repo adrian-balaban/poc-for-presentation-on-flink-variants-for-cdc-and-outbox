@@ -2,10 +2,8 @@ package poc.component;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.flink.util.Collector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,18 +26,6 @@ import poc.common.router.CdcEventRouter;
 @Slf4j
 @DisplayName("Flink DataStream API v.1 : CDC Routing Tests")
 class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
-
-  static class ListCollector<T> implements Collector<T> {
-    final List<T> out = new ArrayList<>();
-
-    @Override
-    public void collect(T record) {
-      out.add(record);
-    }
-
-    @Override
-    public void close() {}
-  }
 
   private static JobConfig testJobConfig(String topicPrefix) {
     return new JobConfig.Builder()

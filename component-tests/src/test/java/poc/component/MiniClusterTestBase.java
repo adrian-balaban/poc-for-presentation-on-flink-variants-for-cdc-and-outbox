@@ -33,10 +33,33 @@ abstract class MiniClusterTestBase extends ContainerBase {
   }
 
   /**
+   * Collector that accumulates emitted records into a list — for asserting on a process function's
+   * output without a Flink runtime. Hoisted here so both MiniCluster test classes share one
+   * definition.
+   */
+  static final class ListCollector<T> implements org.apache.flink.util.Collector<T> {
+    final List<T> out = new ArrayList<>();
+
+    @Override
+    public void collect(T record) {
+      out.add(record);
+    }
+
+    @Override
+    public void close() {}
+  }
+
+  /**
    * A {@link Sink} that accumulates records in a synchronized list.
    *
    * <p>Static so it is reachable across Flink's serialization boundary — the SinkWriter lambda runs
    * in the operator thread, while assertions run in the test thread.
+   *
+   * <p><b>Concurrency caveat:</b> because {@code COLLECTED} is a single static list, only one test
+   * may use this sink at a time. That holds under JUnit's default sequential execution; if parallel
+   * test execution is ever enabled, two MiniCluster tests sharing this sink would interleave writes
+   * and corrupt each other's assertions. Keep these tests sequential (or give the sink an
+   * instance-scoped buffer) before enabling parallelism.
    */
   static final class CollectingSink implements Sink<String> {
 

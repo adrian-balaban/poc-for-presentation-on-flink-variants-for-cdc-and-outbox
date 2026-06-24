@@ -95,15 +95,19 @@ class SchemaEvolutionTest extends KafkaConnectBase {
         preId = keys.getLong(1);
       }
     }
+    // Select by the unique status marker, NOT by id: this test DROPs+CREATEs the table each run,
+    // which resets AUTO_INCREMENT, so preId is always 1 and postId always 2. Matching on id alone
+    // would pick up a retained message at the same low id from a previous run on this
+    // never-truncated topic (observed: post-ALTER assertion read a prior run's new_field value).
     String preMsg =
         waitForKafkaMessage(
             TOPIC,
             Duration.ofSeconds(60),
             m -> {
               JSONObject a = afterOf(m);
-              return a != null && a.optLong("id") == preId;
+              return a != null && preMarker.equals(a.optString("status"));
             });
-    assertThat(preMsg).as("pre-ALTER row reached Kafka for id=" + preId).isNotNull();
+    assertThat(preMsg).as("pre-ALTER row reached Kafka for marker=" + preMarker).isNotNull();
     JSONObject preAfter = afterOf(preMsg);
     assertThat(preAfter.optLong("id")).isEqualTo(preId);
     assertThat(preAfter.has("new_field")).as("pre-ALTER row must NOT carry new_field").isFalse();
@@ -116,29 +120,34 @@ class SchemaEvolutionTest extends KafkaConnectBase {
 
     // ── Post-ALTER insert: new_field must appear in the payload ───────────────
     long postId;
-    String postValue = "POST-" + System.currentTimeMillis() % 1_000_000;
+    long postStamp = System.currentTimeMillis() % 1_000_000;
+    String postMarker = "POST-ALTER-" + postStamp;
+    String postValue = "POST-" + postStamp;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
           String.format(
               "INSERT INTO poc_db.schema_evo (customer_id, amount, status, new_field) "
-                  + "VALUES (2, 2.20, 'POST-ALTER', '%s')",
-              postValue),
+                  + "VALUES (2, 2.20, '%s', '%s')",
+              postMarker, postValue),
           Statement.RETURN_GENERATED_KEYS);
       try (ResultSet keys = s.getGeneratedKeys()) {
         assertThat(keys.next()).isTrue();
         postId = keys.getLong(1);
       }
     }
+    // Match on the unique post-ALTER status marker, not id (see comment above on AUTO_INCREMENT
+    // reset). This guarantees we read THIS run's post-ALTER row, so the new_field assertion below
+    // reflects the current schema evolution rather than a stale prior-run message.
     String postMsg =
         waitForKafkaMessage(
             TOPIC,
             Duration.ofSeconds(60),
             m -> {
               JSONObject a = afterOf(m);
-              return a != null && a.optLong("id") == postId;
+              return a != null && postMarker.equals(a.optString("status"));
             });
-    assertThat(postMsg).as("post-ALTER row reached Kafka for id=" + postId).isNotNull();
+    assertThat(postMsg).as("post-ALTER row reached Kafka for marker=" + postMarker).isNotNull();
     JSONObject postAfter = afterOf(postMsg);
     assertThat(postAfter.optLong("id")).isEqualTo(postId);
     assertThat(postAfter.has("new_field"))
