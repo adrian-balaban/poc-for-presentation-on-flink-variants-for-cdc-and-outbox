@@ -22,7 +22,7 @@ Cinci lucruri pe care le iei de aici:
    singur cluster, licențiere Confluent Cloud.
 3. **Flink, conectorii Flink și Debezium pe scurt** — ce sunt, unde se
    suprapun, unde diferă; Debezium ca parser de binlog reutilizat intern de
-   Flink CDC (nu ca același conector KC).
+   Flink CDC (nu același conector KC).
 4. **Flink este complet event-driven** — nu doar un conector CDC, ci un motor de
    stream processing cu stare, event-time și checkpoint-uri exactly-once, fiecare
    job ca deployment K8s izolat.
