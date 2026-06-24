@@ -70,4 +70,5 @@ test {
     systemProperty 'rootProjectDir', rootProject.projectDir.absolutePath
 
     jvmArgs '-Xmx512m'
+    jvmArgs '-Dlog.file=/dev/null'
 }
