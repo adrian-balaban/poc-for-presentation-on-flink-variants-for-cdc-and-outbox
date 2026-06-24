@@ -6,7 +6,11 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -218,18 +222,17 @@ class ErrorScenarioTest extends FlinkTestBase {
    * until it has counted the target number of <em>matching</em> messages.
    */
   private static int countMatching(
-      String topic, Duration timeout, java.util.function.Predicate<String> filter, int minCount) {
-    java.util.Properties props = new java.util.Properties();
+      String topic, Duration timeout, Predicate<String> filter, int minCount) {
+    Properties props = new Properties();
     props.put("bootstrap.servers", KAFKA_BOOTSTRAP);
-    props.put("group.id", "err-" + java.util.UUID.randomUUID());
+    props.put("group.id", "err-" + UUID.randomUUID());
     props.put("auto.offset.reset", "earliest");
     props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
     props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
     int count = 0;
     long deadline = System.currentTimeMillis() + timeout.toMillis();
-    try (org.apache.kafka.clients.consumer.KafkaConsumer<String, String> consumer =
-        new org.apache.kafka.clients.consumer.KafkaConsumer<>(props)) {
+    try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
       consumer.subscribe(java.util.List.of(topic));
       while (count < minCount && System.currentTimeMillis() < deadline) {
         var records = consumer.poll(Duration.ofMillis(500));

@@ -3,12 +3,13 @@ package poc.common.config;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Map;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class JobConfigTest {
 
   // Lookup that returns null for every key — exercises all defaults
-  private static final java.util.function.Function<String, String> EMPTY = k -> null;
+  private static final Function<String, String> EMPTY = k -> null;
 
   @Test
   void defaults_whenNoEnvVarsSet() {
@@ -31,7 +32,7 @@ class JobConfigTest {
 
   @Test
   void blankValues_fallBackToDefaults() {
-    java.util.function.Function<String, String> blanks = k -> "  ";
+    Function<String, String> blanks = k -> "  ";
 
     JobConfig cfg = JobConfig.fromEnv(blanks);
 

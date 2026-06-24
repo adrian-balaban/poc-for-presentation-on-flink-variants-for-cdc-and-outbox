@@ -50,7 +50,7 @@ class YamlPipelineCdcTest extends ContainerBase {
     // Insert a unique marker so this test is self-contained regardless of snapshot state.
     // The YAML pipeline job is already running (submitted by flink-cdc-submitter on stack start);
     // this binlog insert will be picked up and committed at the next checkpoint (≤30 s).
-    String marker = "YAML-E2E-" + System.currentTimeMillis();
+    String marker = "YAML-E2E-" + uniqueId();
     // Use a parameterised PreparedStatement rather than string concatenation — models the
     // "near-production-quality" idiom this POC targets and avoids any quoting pitfalls.
     try (java.sql.Connection c = flinkConn();

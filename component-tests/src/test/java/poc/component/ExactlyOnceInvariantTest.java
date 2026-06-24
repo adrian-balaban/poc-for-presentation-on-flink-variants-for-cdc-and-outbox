@@ -9,10 +9,12 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -110,9 +112,8 @@ class ExactlyOnceInvariantTest extends FlinkTestBase {
 
     long deadlineMs = System.currentTimeMillis() + deadline.toMillis();
     long lastMatchMs = 0;
-    try (org.apache.kafka.clients.consumer.KafkaConsumer<String, String> consumer =
-        new org.apache.kafka.clients.consumer.KafkaConsumer<>(props)) {
-      consumer.subscribe(java.util.List.of(topic));
+    try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
+      consumer.subscribe(List.of(topic));
       while (System.currentTimeMillis() < deadlineMs) {
         var records = consumer.poll(Duration.ofMillis(500));
         for (var record : records) {

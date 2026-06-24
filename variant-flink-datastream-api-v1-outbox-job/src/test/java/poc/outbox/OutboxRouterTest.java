@@ -84,15 +84,16 @@ class OutboxRouterTest {
 
   @Test
   void processElement_routesToCorrectTopic_viaExtractField() throws Exception {
-    OutboxRouter router = new OutboxRouter(config());
+    JobConfig cfg = config();
+    OutboxRouter router = new OutboxRouter(cfg);
     String event = "{\"destination\":\"payments\",\"amount\":99}";
 
     // Routing decision is observable through extractField (the same logic processElement uses).
     String destination = router.extractField(event, "destination");
-    String topic = "poc.flink" + ".outbox." + destination;
+    String topic = cfg.kafkaTopicPrefix + ".outbox." + destination;
 
     assertEquals("payments", destination);
-    assertEquals("poc.flink.outbox.payments", topic);
+    assertEquals(cfg.kafkaTopicPrefix + ".outbox.payments", topic);
   }
 
   @Test
