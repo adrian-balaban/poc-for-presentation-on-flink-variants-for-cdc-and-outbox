@@ -70,7 +70,7 @@ Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
 ```
 MySQL binlog  →  Debezium  →  Kafka  →  consumatori
-               (capturează     topics          (alte sisteme,
+               (capturează     topicuri        (alte sisteme,
                 schimbări)                       DB-uri)
 ```
 
