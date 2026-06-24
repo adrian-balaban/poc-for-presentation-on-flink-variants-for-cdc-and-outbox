@@ -47,15 +47,17 @@ class KafkaConnectVariantTest extends KafkaConnectBase {
     deployConnector(connectorName, config);
     waitForConnectorRunning(connectorName, Duration.ofSeconds(60));
 
-    // Insert a test row with a unique status tag for this variant
+    // Unique per-run status so the predicate can't match a retained row from a prior run
+    // on the shared, never-truncated topic.
+    long uid = uniqueId();
     String expectedStatus =
-        String.format("KC-%s-TEST", variantName.toUpperCase().replace("-", "_"));
+        String.format("KC-%s-%d", variantName.toUpperCase().replace("-", "_"), uid);
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
           String.format(
-              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (999, 99.99, '%s')",
-              expectedStatus));
+              "INSERT INTO poc_db.orders (customer_id, amount, status) VALUES (%d, 99.99, '%s')",
+              uid, expectedStatus));
       log.info("Inserted test row for {}", displayName);
     }
 

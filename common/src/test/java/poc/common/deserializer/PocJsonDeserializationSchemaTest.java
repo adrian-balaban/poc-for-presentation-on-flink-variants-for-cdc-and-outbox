@@ -10,4 +10,11 @@ class PocJsonDeserializationSchemaTest {
   void constructor_createsInstance() {
     assertNotNull(new PocJsonDeserializationSchema());
   }
+
+  @Test
+  void getProducedType_returnsNonNull() {
+    // Confirms the Flink type system wiring inherited from JsonDebeziumDeserializationSchema
+    // is intact — a broken super-class delegation would return null or throw.
+    assertNotNull(new PocJsonDeserializationSchema().getProducedType());
+  }
 }

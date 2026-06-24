@@ -164,12 +164,18 @@ public abstract class ContainerBase {
           if (topics.contains(topic)) {
             return;
           }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
         } catch (Exception ignored) {
         }
-        Thread.sleep(500);
+        try {
+          Thread.sleep(500);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        }
       }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
     }
     log.warn("waitForTopicAvailable: topic '{}' not found within {}", topic, timeout);
   }

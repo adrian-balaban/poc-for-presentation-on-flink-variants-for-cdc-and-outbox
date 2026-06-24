@@ -211,7 +211,7 @@ class FlinkRestClient {
     }
     // Flink metrics endpoint returns a JSON array directly: [{id, value}, ...]
     JSONArray metrics = new JSONArray(r.body());
-    if (metrics == null || metrics.isEmpty()) {
+    if (metrics.isEmpty()) {
       return null;
     }
     for (int i = 0; i < metrics.length(); i++) {

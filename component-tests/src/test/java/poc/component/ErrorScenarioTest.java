@@ -220,8 +220,7 @@ class ErrorScenarioTest extends FlinkTestBase {
   private static int countMatching(
       String topic, Duration timeout, java.util.function.Predicate<String> filter, int minCount) {
     java.util.Properties props = new java.util.Properties();
-    props.put(
-        "bootstrap.servers", System.getenv().getOrDefault("KAFKA_BOOTSTRAP", "localhost:9092"));
+    props.put("bootstrap.servers", KAFKA_BOOTSTRAP);
     props.put("group.id", "err-" + java.util.UUID.randomUUID());
     props.put("auto.offset.reset", "earliest");
     props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");

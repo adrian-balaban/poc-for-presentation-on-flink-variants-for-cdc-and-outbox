@@ -23,7 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
  * <p>For full end-to-end testing against a live CDC source and Kafka broker, use FlinkTestBase.
  */
 @Slf4j
-abstract class MiniClusterTestBase extends ContainerBase {
+abstract class MiniClusterTestBase {
 
   /** Env is recreated fresh before each test so parallelism settings don't bleed across tests. */
   protected StreamExecutionEnvironment env;

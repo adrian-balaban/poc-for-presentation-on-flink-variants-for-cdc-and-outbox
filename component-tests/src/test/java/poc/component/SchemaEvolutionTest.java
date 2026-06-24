@@ -40,11 +40,13 @@ class SchemaEvolutionTest extends KafkaConnectBase {
   private static Connection rootConn() throws Exception {
     String host = System.getenv().getOrDefault("MYSQL_HOST", "localhost");
     int port = Integer.parseInt(System.getenv().getOrDefault("MYSQL_PORT", "3306"));
+    String user = System.getenv().getOrDefault("MYSQL_ROOT_USER", "root");
+    String password = System.getenv().getOrDefault("MYSQL_ROOT_PASSWORD", "root");
     return DriverManager.getConnection(
         String.format(
             "jdbc:mysql://%s:%d/poc_db?allowPublicKeyRetrieval=true&useSSL=false", host, port),
-        "root",
-        "root");
+        user,
+        password);
   }
 
   private static JSONObject afterOf(String msg) {

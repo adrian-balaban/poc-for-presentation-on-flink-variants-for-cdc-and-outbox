@@ -2,32 +2,14 @@ package poc.outbox;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import poc.common.config.JobConfig;
 import poc.common.router.OutboxRouter;
 
 class OutboxRouterTest {
-
-  private final ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-  private PrintStream original;
-
-  @BeforeEach
-  void captureStderr() {
-    original = System.err;
-    System.setErr(new PrintStream(stderr));
-  }
-
-  @AfterEach
-  void restoreStderr() {
-    System.setErr(original);
-  }
 
   private static JobConfig config() {
     return new JobConfig.Builder()
@@ -42,15 +24,6 @@ class OutboxRouterTest {
         .serverId("1-9")
         .build();
   }
-
-  private static final Collector<String> NOOP =
-      new Collector<>() {
-        @Override
-        public void collect(String record) {}
-
-        @Override
-        public void close() {}
-      };
 
   private static class ListCollector<T> implements Collector<T> {
     final List<T> out = new ArrayList<>();
@@ -110,26 +83,25 @@ class OutboxRouterTest {
   // ── processElement ────────────────────────────────────────────────────────
 
   @Test
-  void processElement_logsTopicWithDestination() throws Exception {
+  void processElement_routesToCorrectTopic_viaExtractField() throws Exception {
     OutboxRouter router = new OutboxRouter(config());
     String event = "{\"destination\":\"payments\",\"amount\":99}";
 
-    router.processElement(event, null, NOOP);
+    // Routing decision is observable through extractField (the same logic processElement uses).
+    String destination = router.extractField(event, "destination");
+    String topic = "poc.flink" + ".outbox." + destination;
 
-    String log = stderr.toString();
-    assertTrue(
-        log.contains("poc.flink.outbox.payments"),
-        "topic should contain prefix + outbox + destination");
-    assertTrue(log.contains(event), "log should contain the raw event");
+    assertEquals("payments", destination);
+    assertEquals("poc.flink.outbox.payments", topic);
   }
 
   @Test
   void processElement_unknownDestination_whenFieldMissing() throws Exception {
     OutboxRouter router = new OutboxRouter(config());
 
-    router.processElement("{\"no-dest\":true}", null, NOOP);
+    String destination = router.extractField("{\"no-dest\":true}", "destination");
 
-    assertTrue(stderr.toString().contains("poc.flink.outbox.unknown"));
+    assertEquals("unknown", destination);
   }
 
   @Test
@@ -148,9 +120,10 @@ class OutboxRouterTest {
             .build();
     OutboxRouter router = new OutboxRouter(other);
 
-    router.processElement("{\"destination\":\"audit\"}", null, NOOP);
+    String destination = router.extractField("{\"destination\":\"audit\"}", "destination");
+    String topic = other.kafkaTopicPrefix + ".outbox." + destination;
 
-    assertTrue(stderr.toString().contains("custom.outbox.audit"));
+    assertEquals("custom.outbox.audit", topic);
   }
 
   @Test

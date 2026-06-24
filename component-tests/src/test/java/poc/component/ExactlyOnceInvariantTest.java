@@ -102,8 +102,7 @@ class ExactlyOnceInvariantTest extends FlinkTestBase {
   private void pollUntilSettled(
       String topic, Set<Long> targetIds, Map<Long, Integer> counts, Duration deadline) {
     Properties props = new Properties();
-    props.put(
-        "bootstrap.servers", System.getenv().getOrDefault("KAFKA_BOOTSTRAP", "localhost:9092"));
+    props.put("bootstrap.servers", KAFKA_BOOTSTRAP);
     props.put("group.id", "eo-" + System.nanoTime());
     props.put("auto.offset.reset", "earliest");
     props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
