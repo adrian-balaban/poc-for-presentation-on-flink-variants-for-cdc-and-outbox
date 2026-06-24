@@ -1,6 +1,8 @@
 package poc.datastream;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.cdc.connectors.mysql.source.MySqlSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import poc.common.checkpoint.CheckpointConfigurer;
@@ -37,14 +39,25 @@ public class DataStreamCdcJob {
             .build();
 
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-    // Checkpoint configuration for exactly-once CDC semantics
     CheckpointConfigurer.applyExactlyOnce(env);
 
+    buildPipeline(env, source, KafkaSinkFactory.create(config, "datastream.orders"), config);
+    env.execute("Flink DataStream API v.1 CDC Job");
+  }
+
+  /**
+   * Wires source → CdcEventRouter → sink on the given environment.
+   *
+   * <p>Extracted so tests can inject a bounded in-memory source and a collecting sink instead of
+   * the real MySqlSource + KafkaSink, exercising the full operator graph in a local MiniCluster.
+   */
+  public static void buildPipeline(
+      StreamExecutionEnvironment env,
+      Source<String, ?, ?> source,
+      Sink<String> sink,
+      JobConfig config) {
     env.fromSource(source, WatermarkStrategy.noWatermarks(), "MySQL CDC Source")
         .process(new CdcEventRouter(config))
-        .sinkTo(KafkaSinkFactory.create(config, "datastream.orders"));
-
-    env.execute("Flink DataStream API v.1 CDC Job");
+        .sinkTo(sink);
   }
 }
