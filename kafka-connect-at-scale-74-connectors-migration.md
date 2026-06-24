@@ -1,3 +1,12 @@
+<!--
+  HOW TO PRESENT THIS FILE
+  ------------------------
+  This deck is built for the "Markdown Presentation & Slideshow for VS Code" extension:
+  https://marketplace.visualstudio.com/items?itemName=KunalPathak.markdown-presentation-tool
+-->
+
+<!-- slide -->
+
 # Kafka Connect @ Scale: 74 Connectors Migration Case
 
 **Author:** Adrian Balaban  
@@ -5,7 +14,9 @@
 
 In this session, we will explore Kafka Connect through real client experience, focusing on a proof of concept and a proposed migration of 74 connectors from Confluent Kafka Cloud to Flink. We will walk through the current challenges, what improvements the new approach aims to address, and the trade-offs involved. The talk also highlights alternative options considered and the reasoning behind the proposed solution.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 0 — Why this talk is useful (what you'll be able to do after it)
 
@@ -35,7 +46,9 @@ Five things you take away:
 > Goal: at the end you can choose between KC and Flink with arguments — and you
 > have code to start from, not from zero.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 1 — The Problem in One Sentence
 
@@ -46,7 +59,9 @@ Proposed migration of **74 MySQL connectors** from Confluent Kafka Cloud to Flin
 
 This talk is being prepared for the **Cognizant Java Community Romania**.  
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 1b — Agenda (45 minutes)
 
@@ -66,7 +81,9 @@ This talk is being prepared for the **Cognizant Java Community Romania**.
 
 *(agenda total: 45 min + 15 min Q&A; opening frame Slides 0–1d (~6 min: Slide 1c ~75 s Kafka primer, Slide 1d ~3 min CDC-vs-Outbox patterns); Slide 11b live screenshots shown only if time permits — none counted in the 45 min.)*
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 1c — Context in ~75 seconds (for those new to Kafka)
 
@@ -93,7 +110,9 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 > **Key point:** every variant (except outbox type) in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
 > The difference is *how* and *where* the reading process runs.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 1d — Two Connector Patterns: CDC vs Outbox
 
@@ -165,7 +184,9 @@ The application controls the event shape and destination. The business table sch
 > Outbox gives the application full control over which event shape reaches which topic —
 > one outbox table → many topics, routed by a `destination` field written at insert time.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 2 — The Client Context (Where We Are Today)
 
@@ -181,7 +202,9 @@ The application controls the event shape and destination. The business table sch
 > growing — it is the single biggest source of cross-team incidents. That scaling
 > pressure is why we're looking now.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 3 — What We Require, and What Hurts Today
 
@@ -204,7 +227,9 @@ The application controls the event shape and destination. The business table sch
 
 > One bad connector restart triggers a **cascade rebalance across unrelated tribes** — and most rows above map to a concrete improvement (see the Improvements slide).
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 4 — What Is Flink, and Why It's the Structural Fix
 
@@ -224,7 +249,9 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 
 > **"CDC" means two things — don't confuse them:** (1) **Flink CDC `MySqlSource`** — the connector that reads the MySQL binlog via Flink CDC's own incremental-snapshot algorithm (variants 1–4: DataStream / Table API / SQL API / Outbox; it reuses Debezium's binlog parser internally but does **not** run on the Debezium Kafka Connect connector). (2) **Flink CDC YAML pipeline** — the declarative *YAML pipeline framework* on top of that same source, no Java (Variant 5). This talk covers both senses.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 5 — Scope of the Migration
 
@@ -234,7 +261,9 @@ The structural argument in one frame — this is the bridge from "why it hurts" 
 
 ![Migration Pattern: Before and After](images/migration-before-after.svg)
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 6 — The POC: Five Flink Variants
 
@@ -253,7 +282,9 @@ We built **5 variants** and ran them
 > (`JobConfig`, `CheckpointConfigurer`, deserializer, routers, `KafkaSinkFactory`) —
 > entry classes contain only variant-specific wiring.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 7 — Decision Matrix: Which Variant for Which Connector?
 
@@ -266,7 +297,9 @@ We built **5 variants** and ran them
 | Simple CDC (table → topic, no transform) | YAML Pipeline/SQL API | Zero Java; SQL API produces a fat JAR / shadow JAR via the Gradle shadow plugin |
 | CDC with future SQL joins/aggregation | Table API | Unlocks Flink's Table API ecosystem (type-safe Java) |
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 8 — The Java Dev's View: Code Comparison
 
@@ -309,7 +342,9 @@ pipeline:
   name: Flink CDC YAML Pipeline CDC Job
 ```
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 9 — Recommended Architecture: Shared Job Model
 
@@ -338,7 +373,9 @@ applicationJobs:
 | `MYSQL_SERVER_ID` | Binlog replica range (non-overlapping) |
 | `KAFKA_BOOTSTRAP` / `KAFKA_TOPIC_PREFIX` | Sink config |
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 10 — K8s Deployment Model
 
@@ -369,7 +406,9 @@ Each POC variant gets its own dedicated, non-overlapping range on four axes so t
 > parallel readers + restart attempts. A single int collides on restart because the
 > previous MySQL binlog lease hasn't timed out.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 11 — POC Evidence
 
@@ -386,7 +425,9 @@ Each POC variant gets its own dedicated, non-overlapping range on four axes so t
 > The POC validates the mechanism at POC scale — 5 variants, 57 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3).
 Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is the open spike work (S2/S3/S5).
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 11b — POC Evidence: Live Screenshots
 
@@ -420,7 +461,9 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 > 3 monitors shipped (mirroring Datadog): Restart Loop, Checkpoint Duration, Checkpoint Failures — all 5 variants green. Monitors #4–#7 (connector lag, snapshot status, binlog position) pending Spike S1.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 12 — Improvements Addressed
 
@@ -435,7 +478,9 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 > **Note:** Exactly-once sink requires Kafka transactions (`DeliveryGuarantee.EXACTLY_ONCE` + transactional ID prefix in `KafkaSinkFactory`); Kafka broker must have transactions enabled.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 13 — The Trade-offs (Risk Register)
 
@@ -448,7 +493,9 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 | Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink equivalent | **Not yet mitigated** — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1 | Slide 16, Spike S1 |
 | Schema evolution (ALTER TABLE) — behavior differs by variant; downstream Kafka schema compatibility not validated | **Not yet mitigated** — no dbhistory.* equivalent; validate per tribe + schema-registry compat policy | Slide 15, Spike S8 (new) |
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 14 — Total Cost of Ownership (High-Level)
 
@@ -467,7 +514,9 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 > The directional saving (74 connectors moved off the KC cluster, letting it run on fewer nodes) is certain;
 > the K8s compute uplift should be sized against the existing KC worker fleet.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 15 — Open Spikes
 
@@ -486,7 +535,9 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 **Phase legend:** 0 = spikes (pre-pilot) · 1 = first-tribe pilot go-live · 2 = expansion across tribes · 3 = outbox cutover
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Slide 16 — Centralised Monitoring: KC and Flink
 
@@ -507,14 +558,18 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 **Target state:** One shared Terraform module per platform (KC module owned by Module Owner; Flink module by Flink Platform Team), consumed by each tribe's `config.tf` — ~600 monitors across 26 teams at end-state.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## APPENDIX — Backup Slides (Not Part of the 45-Minute Talk)
 
 > The three lists below are reference material for Q&A only. Do not present them live —
 > they are here so you can jump to a specific table if asked a detailed infra question.
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Detailed Reference — POC Module Structure
 
@@ -595,7 +650,9 @@ s3.secret-key: minioadmin
 | `CheckpointTimeout` | 60,000 ms | 2× the interval; gives headroom for large-state jobs under load |
 | `MinPauseBetweenCheckpoints` | 5,000 ms | Prevents checkpoint storms after one finishes |
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Infrastructure List 1 — Client (Production) Infrastructure
 
@@ -655,7 +712,9 @@ s3.secret-key: minioadmin
 - **RDS IAM tokens** — short-lived; expiry surfaces only in production
 - **Binlog leases** — MySQL binlog replica; server-ID lease timeout must be managed on restart
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Infrastructure List 2 — Local POC Infrastructure
 *Source: `flink-cdc-poc/` folder (`podman-compose.yml`, `build.gradle`, `README.md`, `KAFKA_CONNECT.md`, `FLINK_CHECKPOINT_CONFIG.md`)*
@@ -740,7 +799,9 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 | Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
 | Grafana | `http://localhost:3001` (dashboard + alerts; admin/admin) | `http://localhost:13001` (admin/admin) | — |
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## Infrastructure List 3 — Comparison: Client vs Local POC
 
@@ -766,7 +827,9 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 | **Scale** | 74 CDC connectors → 26 teams → ~600 monitors at end-state | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 57 unit tests + CT per variant |
 | **YAML Pipeline submission** | `flink-cdc.sh` via init-container or `kubectl exec`; `FlinkDeployment` comes up with empty JM until wired | `flink-cdc-submitter` container runs `flink-cdc.sh` automatically on JM ready |
 
----
+<!-- /slide -->
+
+<!-- slide -->
 
 ## References
 
@@ -784,3 +847,5 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 - `flink-cdc-poc/FLINK_CHECKPOINT_CONFIG.md` — checkpoint semantics, monitoring, troubleshooting
 - `flink-cdc-poc/FLINK_SAVEPOINT_RUNBOOK.md` — safe upgrade workflows, state recovery
 - `flink-cdc-poc/KAFKA_CONNECT.md` — KC CDC variants, SMTs, Flink vs KC comparison
+
+<!-- /slide -->
