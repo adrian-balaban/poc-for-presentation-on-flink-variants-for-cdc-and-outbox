@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Timeout;
 class KafkaConnectOutboxTest extends KafkaConnectBase {
 
   private static final String CONNECTOR_NAME = "kc-outbox-cdc";
-  private static final String OUTBOX_TABLE = "poc_db.outbox_events";
 
   @Test
   @Timeout(120)
