@@ -87,7 +87,6 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 | **IAM** | AWS Identity and Access Management — sistemul de permisiuni care controlează ce entități (principals) pot accesa ce resurse AWS; aici folosit pentru a acorda job-urilor Flink acces S3 la checkpoint-uri |
 | **RDS** | Bază de date relațională AWS managed — sursa MySQL de producție aici (auth IAM) |
 | **Tabelă outbox** | O tabelă DB scrisă în aceeași tranzacție cu înregistrarea de business; CDC o citește și rutează evenimentul la topicul Kafka potrivit — decuplează publicarea evenimentelor de schema principală |
-| **transactron** | Schema MySQL a clientului care conține tabelele de tip outbox |
 
 > **De reținut:** toate variantele (cu excepția celei de tip outbox) folosesc același lucru — binlog-ul MySQL — și scriu în Kafka.
 > Diferența este *cum* și *unde* rulează procesul de citire.
@@ -475,7 +474,7 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 | S1 | Paritate metrici Flink — metrici Debezium JMX via Flink? | Determină designul modulului de monitorizare; blochează maparea monitoarelor KC #4–#7 | Faza 0 | 3 zile |
 | S2 | Presiunea memoriei la snapshot inițial pe cel mai mare tabel (~15M rânduri) | Previne surprizele în Faza 1/2 | Faza 0 | 2 zile |
 | S3 | Rutare outbox multi-topic la scară (POC testează la 2; outbox-ul de producție folosește ~15 destinații) | Blocker go-live Faza 1 | Faza 0 | 2 zile |
-| S4 | Echivalentul Flink pentru `snapshot.aborted`/`snapshot.running` | Migrarea outbox-transactron-connector (Faza 3) | Faza 0 | 2 zile |
+| S4 | Echivalentul Flink pentru `snapshot.aborted`/`snapshot.running` | Migrarea outbox-connector (Faza 3) | Faza 0 | 2 zile |
 | S5 | Moduri de eșec în producție (RDS IAM, lease-uri binlog, rotație IRSA) | POC-ul nu le poate expune; soak-ul de staging este necesar | Faza 1 | ≥7 zile soak |
 | S6 | Automatizare cutover (KC → Flink): plan de val, perioadă dual-run, gate paritate byte-for-byte, coordonare overlap server-ID binlog, runbook rollback | Niciun plan de cutover nu există încă; switch-urile manuale nu vor scala la 26 de echipe | Faza 2 | ~5 zile |
 | S7 | Instrumente Claude de migrare self-service pentru echipe | Echipele nu pot aștepta asistență de la Flink Platform Team | Faza 1 | 3 zile |
@@ -483,7 +482,7 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 
 **Total Faza 0 (S1–S4, S8): ~11 zile de inginerie — paralelizabil într-un singur sprint.**
 
-**Legenda fazelor:** 0 = spike-uri (pre-pilot) · 1 = go-live pilot prima echipă · 2 = extindere · 3 = cutover outbox + transactron
+**Legenda fazelor:** 0 = spike-uri (pre-pilot) · 1 = go-live pilot prima echipă · 2 = extindere · 3 = cutover outbox 
 
 ---
 
@@ -648,28 +647,11 @@ s3.secret-key: minioadmin
 - Bucket S3 partajat pentru checkpoint-uri/savepoint-uri — auto-namespace după `jobId`
 - Căile `checkpointing.dir` per job nu trebuie să se suprapună
 
-### Observabilitate (Datadog via Terraform)
-
-- **`<datadog-tf-repo>`** — repo Terraform central pentru toate cele 26 de echipe (starea țintă)
-- **Monitoare livrate** (3 specifice Flink confirmate: Restart Loop, Durata Checkpoint, Eșecuri Checkpoint; numărul total pentru toate echipele urmărit în `<datadog-tf-repo>`)
-- **Dashboard-uri livrate** (2): `[Platform] Flink Jobs Monitoring`, `[Platform] Flink CDC Streamer`
-- **~600 monitoare** la starea finală pentru 26 de echipe — previzionare cotă necesară (item deschis)
-- **Rutare notificări**: 3 canale globale (1/env) + Slack/Zendesk/PagerDuty per echipă
-- **Module Terraform**: `<kafka-datadog-tf-module>/kafka-connector-outbox` → `<datadog-tf-repo>/monitors/shared-definitions/kafka-connect` (Module Owner); modul Flink nou (Flink Platform Team)
-- **Validare**: `terraform plan` + `*.tftest.hcl`; fără `terraform apply` din branch-uri
-
 ### IAM / Securitate
 
 - **IRSA** — acces S3 checkpoint; rotația trebuie testată
 - **Token-uri RDS IAM** — de scurtă durată; expirarea apare doar în producție
 - **Lease-uri binlog** — replică binlog MySQL; timeout-ul lease-ului server-ID trebuie gestionat la restart
-
-### Nu Mai Este Necesar Post-Migrare
-
-- Topicul de semnal Kafka (`private.debezium.signal.*.v1`)
-- Clasele Java `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, `SignalMessage`
-- Confluent Kafka Connect pentru cei 74 de conectori Debezium MySQL
-- Topicurile de schema history `dbhistory.*` pentru acei 74 de conectori — **înlocuite de urmărirea schemei in-job în Flink CDC** (fără topic extern; comportamentul ALTER TABLE diferă per variantă — vezi Spike S8)
 
 ---
 
@@ -772,7 +754,7 @@ Stack-ul Podman leagă direct porturile pe host; stack-ul k8s nu leagă niciun p
 | **Kafka Connect** | Confluent managed KC pentru SFTP (20) + SingleStore (1); înlocuit pentru 74 conectori CDC | Container KC local + Debezium + SMT-uri personalizate; comparație alăturată doar |
 | **Checkpointing** | Bucket S3 (per-job `checkpointing.dir`); permisiuni IRSA | Compatibil S3 (MinIO) via `s3://flink-checkpoints`; backend RocksDB incremental, checkpoint-uri persistate în MinIO; aceeași configurație cod (interval 30 s, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (build imagine, ștergere `yq`, selectare variantă) + ArgoCD (deploy/restart) | `./gradlew all` (build → restart compose → deploy conectori → CT-uri) |
-| **Monitorizare** | Datadog via `<datadog-tf-repo>` (16 monitoare total, 2 dashboard-uri; țintă: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
+| **Monitorizare** | Datadog | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Versiune Java** | 17 (joburi Flink); SMT nu se aplică (fără KC în calea Flink producție) | 17 (joburi Flink); 11 (KC SMT-uri — constrângere cp-kafka-connect 7.6.1) |
 | **IAM / Securitate** | Token-uri RDS IAM, IRSA, gestionare lease binlog | Fără IAM; credențiale plain `flink`/`flink`; testarea rotației nu este posibilă |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` în ArgoCD — **o singură dată**, revertați imediat la `last-state` după | Anulare job, ștergere stare, re-submitere (`flink cancel <JOB_ID>` + `flink run`) |

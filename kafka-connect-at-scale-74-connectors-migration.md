@@ -89,7 +89,6 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumers
 | **IAM** | AWS Identity and Access Management — the permission system that controls which principals can access which AWS resources; here used to grant Flink jobs S3 access for checkpoints |
 | **RDS** | AWS managed relational database — the production MySQL source here (IAM auth) |
 | **Outbox table** | A DB table written in the same transaction as the business record; CDC reads it and routes the event to the right Kafka topic — decouples event publishing from the main business schema |
-| **transactron** | The client's internal MySQL schema containing the outbox-type tables |
 
 > **Key point:** every variant (except outbox type) in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
 > The difference is *how* and *where* the reading process runs.
@@ -477,7 +476,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 | S1 | Flink metric parity — Debezium JMX metrics via Flink? | Determines monitoring module design; blocks #4–#7 KC monitor mapping | Phase 0 | 3 days |
 | S2 | Initial snapshot memory pressure on largest table (~15M rows) | Prevents surprise in Phase 1/2 | Phase 0 | 2 days |
 | S3 | Outbox multi-topic routing at scale (POC tests at 2; production outbox uses ~15 destinations) | Phase 1 go-live blocker | Phase 0 | 2 days |
-| S4 | `snapshot.aborted`/`snapshot.running` Flink equivalent | outbox-transactron-connector migration (Phase 3) | Phase 0 | 2 days |
+| S4 | `snapshot.aborted`/`snapshot.running` Flink equivalent | outbox-connector migration (Phase 3) | Phase 0 | 2 days |
 | S5 | Production failure modes (RDS IAM, binlog leases, IRSA rotation) | POC can't surface these; staging soak needed | Phase 1 | ≥7-day soak |
 | S6 | Cutover automation (KC → Flink): wave plan, dual-run period, byte-for-byte parity gate, binlog server-ID overlap coordination, rollback runbook | No cutover plan exists yet; manual switches won't scale to 26 tribes | Phase 2 | ~5 days |
 | S7 | Self-service Claude migration tooling for tribes | Tribes can't wait for Flink Platform Team hand-holding | Phase 1 | 3 days |
@@ -485,7 +484,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 
 **Phase 0 total (S1–S4, S8): ~11 engineering days — parallelisable within 1 sprint.**
 
-**Phase legend:** 0 = spikes (pre-pilot) · 1 = first-tribe pilot go-live · 2 = expansion across tribes · 3 = outbox + transactron cutover
+**Phase legend:** 0 = spikes (pre-pilot) · 1 = first-tribe pilot go-live · 2 = expansion across tribes · 3 = outbox cutover
 
 ---
 
@@ -650,28 +649,11 @@ s3.secret-key: minioadmin
 - Shared S3 bucket for checkpoints/savepoints — auto-namespaced by `jobId`
 - Per-job `checkpointing.dir` paths must not overlap
 
-### Observability (Datadog via Terraform)
-
-- **`<datadog-tf-repo>`** — central Terraform repo for all 26 teams (target state)
-- **Shipped monitors** (3 Flink-specific confirmed: Restart Loop, Checkpoint Duration, Checkpoint Failures; full count across all teams tracked in `<datadog-tf-repo>`)
-- **Shipped dashboards** (2): `[Platform] Flink Jobs Monitoring`, `[Platform] Flink CDC Streamer`
-- **~600 monitors** at end-state across 26 teams — quota forecast needed (open item)
-- **Notification routing**: 3 global channels (1/env) + per-team Slack/Zendesk/PagerDuty
-- **Terraform modules**: `<kafka-datadog-tf-module>/kafka-connector-outbox` → `<datadog-tf-repo>/monitors/shared-definitions/kafka-connect` (Module Owner); new Flink module (Flink Platform Team)
-- **Validation**: `terraform plan` + `*.tftest.hcl`; no `terraform apply` from branches
-
 ### IAM / Security
 
 - **IRSA** — S3 checkpoint access; rotation must be tested
 - **RDS IAM tokens** — short-lived; expiry surfaces only in production
 - **Binlog leases** — MySQL binlog replica; server-ID lease timeout must be managed on restart
-
-### Not Needed Post-Migration
-
-- Kafka signal topic (`private.debezium.signal.*.v1`)
-- `OneShotUnboundedSource`, `SnapshotSignalProcessFunction`, `SignalMessage` Java classes
-- Confluent Kafka Connect for the 74 Debezium MySQL connectors
-- `dbhistory.*` schema history topics for those 74 connectors — **replaced by in-job schema tracking in Flink CDC** (no external topic; ALTER TABLE behavior differs by variant — see Spike S8)
 
 ---
 
@@ -774,7 +756,7 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 | **Kafka Connect** | Confluent managed KC for SFTP (20) + SingleStore (1); being replaced for 74 CDC connectors | Local KC container + Debezium + custom SMTs; side-by-side comparison only |
 | **Checkpointing** | S3 bucket (per-job `checkpointing.dir`); IRSA permissions | S3-compatible (MinIO) via `s3://flink-checkpoints`; RocksDB incremental backend, checkpoints persisted to MinIO; same code config (30 s interval, EXACTLY_ONCE) |
 | **CI/CD** | Jenkins (image build, `yq` delete, variant select) + ArgoCD (deploy/restart) | `./gradlew all` (build → compose restart → deploy connectors → CTs) |
-| **Monitoring** | Datadog via `<datadog-tf-repo>` (16 monitors total, 2 dashboards; target: ~600) | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
+| **Monitoring** | Datadog | Flink Dashboard `:8081` + Kafka UI `:8080` + KC REST `:8083` + Prometheus `:9090` + Grafana `:3001` |
 | **Java version** | 17 (Flink jobs); SMT not applicable (no KC in production Flink path) | 17 (Flink jobs); 11 (KC SMTs — cp-kafka-connect 7.6.1 constraint) |
 | **IAM / Security** | RDS IAM tokens, IRSA, binlog lease management | No IAM; plain `flink`/`flink` credentials; no rotation testing possible |
 | **Re-snapshot** | `upgradeMode: stateless` + `restartNonce` in ArgoCD — **one-shot only**, revert to `last-state` immediately after | Cancel job, delete state, re-submit (`flink cancel <JOB_ID>` + `flink run`) |
