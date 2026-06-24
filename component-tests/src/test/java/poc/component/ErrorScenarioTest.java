@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -25,10 +26,10 @@ import org.junit.jupiter.api.Timeout;
  * keeps producing after a quiet period and a write burst, and that awkward payloads — large strings
  * and embedded quotes/apostrophes — survive the CDC round-trip intact.
  *
- * <p>Every test tags its rows with a per-run {@code stamp} ({@code currentTimeMillis() %
- * 1_000_000}) so its {@code waitForKafkaMessage} predicates select only this run's rows out of the
- * shared, never-truncated {@code poc.flink.datastream.orders} topic, which retains rows from prior
- * runs and from the other tests reading the same topic.
+ * <p>Every test tags its rows with a per-run {@code stamp} from {@link
+ * ContainerBase#uniqueId()} so its {@code waitForKafkaMessage} predicates select only this run's
+ * rows out of the shared, never-truncated {@code poc.flink.datastream.orders} topic, which retains
+ * rows from prior runs and from the other tests reading the same topic.
  */
 @Slf4j
 @DisplayName("CDC Edge Cases & Continued Operation")
@@ -233,7 +234,7 @@ class ErrorScenarioTest extends FlinkTestBase {
     int count = 0;
     long deadline = System.currentTimeMillis() + timeout.toMillis();
     try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
-      consumer.subscribe(java.util.List.of(topic));
+      consumer.subscribe(List.of(topic));
       while (count < minCount && System.currentTimeMillis() < deadline) {
         var records = consumer.poll(Duration.ofMillis(500));
         for (var record : records) {
