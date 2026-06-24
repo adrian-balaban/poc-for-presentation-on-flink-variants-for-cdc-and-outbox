@@ -177,7 +177,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 - Totul partajează un singur cluster: o configurație, un singur grup de rebalansare, o singură rază de impact
 
 > Clusterul partajat era convenabil la 5 conectori. La 95 pe 26 de echipe — și
-> în creștere — este singura sursă majoră de incidente inter-echipe. Această
+> în creștere — este cea mai mare sursă de incidente inter-echipe. Această
 > presiune de scalare este motivul pentru care investigăm acum.
 
 ---
@@ -196,7 +196,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 |----------|------|-----------|-----------------|
 | Furtuni de rebalansare — un conector defect destabilizează tot | Toate cele 26 de echipe | De mai multe ori/trimestru | Incidente inter-echipe; downtime consumatori în timpul cascadei |
 | Raza de impact partajată — 95 de conectori, un cluster | Toate cele 26 de echipe | La fiecare incident | Fără izolare între echipe |
-| Lag recurent — niciun reglaj per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
+| Lag recurent — fără pârghie per echipă | Echipa + consumatori | Continuu | Risc SLA pe consumatorii downstream |
 | Eșecuri doar în producție — se manifestă abia după deploy | Echipele cu conectori noi | După deploy conector nou | Defecte ajung în prod nedetectate |
 | Licențiere Confluent Kafka Cloud | Organizația | Lunar | **Cost lunar de licențiere semnificativ** (vezi Slide 14 TCO) |
 | Patch-uri de securitate centralizate | Echipa de mentenanță | La fiecare ciclu de release și la fiecare vulnerabilitate fixată | Overhead de coordonare la nivel de flotă |
