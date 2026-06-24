@@ -260,11 +260,11 @@ Tests submit the variant fat-jar to the JM at `FLINK_REST_URL`, wait for RUNNING
 
 | Test class | Variant | Server-ID | Status |
 |---|---|---|---|
-| `KafkaConnectDataStreamTest` | kc-datastream-cdc | 5510 | ✅ PASS |
-| `KafkaConnectTableApiTest` | kc-table-api-cdc | 5520 | ✅ PASS |
-| `KafkaConnectSqlApiTest` | kc-sql-api-cdc | 5530 | ✅ PASS |
+| `KafkaConnectVariantTest` (parameterized) | kc-datastream-cdc | 5510 | ✅ PASS |
+| `KafkaConnectVariantTest` (parameterized) | kc-table-api-cdc | 5520 | ✅ PASS |
+| `KafkaConnectVariantTest` (parameterized) | kc-sql-api-cdc | 5530 | ✅ PASS |
+| `KafkaConnectVariantTest` (parameterized) | kc-yaml-pipeline-cdc | 5540 | ✅ PASS |
 | `KafkaConnectOutboxTest` | kc-outbox-cdc | 5550 | ✅ PASS |
-| `KafkaConnectYamlPipelineTest` | kc-yaml-pipeline-cdc | 5540 | ✅ PASS |
 
 **Stack availability:**
 - If Podman stack is running (MySQL + Kafka + Flink JM): tests pass (✅ green in VS Code)
