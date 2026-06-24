@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
@@ -34,35 +33,60 @@ class KafkaConnectOutboxTest extends KafkaConnectBase {
     deployOutboxConnector();
     waitForConnectorRunning(CONNECTOR_NAME, Duration.ofSeconds(60));
 
+    // Unique per-run payload marker so the predicate selects this run's events out of the
+    // shared, never-truncated outbox topics (which retain events from prior runs).
+    long uid = uniqueId();
+    String ordersPayload = String.format("{\"id\":%d,\"amount\":100.0}", uid);
+    String paymentPayload = String.format("{\"id\":%d,\"status\":\"paid\"}", uid);
+
     // Insert outbox events with different destinations
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
-          "INSERT INTO poc_db.outbox_events (destination, payload) "
-              + "VALUES ('orders-svc', '{\"id\": 1, \"amount\": 100.0}')");
+          String.format(
+              "INSERT INTO poc_db.outbox_events (destination, payload) VALUES ('orders-svc', '%s')",
+              ordersPayload));
       s.executeUpdate(
-          "INSERT INTO poc_db.outbox_events (destination, payload) "
-              + "VALUES ('payment-svc', '{\"id\": 2, \"status\": \"paid\"}')");
-      log.info("Inserted test outbox events");
+          String.format(
+              "INSERT INTO poc_db.outbox_events (destination, payload) VALUES ('payment-svc', '%s')",
+              paymentPayload));
+      log.info("Inserted test outbox events for uid={}", uid);
     }
 
-    // Poll orders-svc topic
-    List<String> ordersMessages = pollKafka("poc.kc.outbox.orders-svc", 1, Duration.ofSeconds(60));
-    assertThat(ordersMessages).isNotEmpty();
+    // Wait for this run's orders-svc event; match on the unique payload marker.
+    String ordersMsg =
+        waitForKafkaMessage(
+            "poc.kc.outbox.orders-svc",
+            Duration.ofSeconds(60),
+            m -> {
+              try {
+                return m != null && m.contains(String.valueOf(uid)) && m.contains("orders-svc");
+              } catch (Exception e) {
+                return false;
+              }
+            });
+    assertThat(ordersMsg).as("expected orders-svc outbox event for uid=" + uid).isNotNull();
 
     // Verify routing metadata
-    String ordersMsg = ordersMessages.get(0);
     JSONObject ordersObj = new JSONObject(ordersMsg);
     assertThat(ordersObj.optString("_route_destination")).isEqualTo("orders-svc");
     assertThat(ordersObj.optString("_route_topic")).isEqualTo("poc.kc.outbox.orders-svc");
     assertThat(ordersObj.has("_routed_at")).isTrue();
 
-    // Poll payment-svc topic
-    List<String> paymentMessages =
-        pollKafka("poc.kc.outbox.payment-svc", 1, Duration.ofSeconds(60));
-    assertThat(paymentMessages).isNotEmpty();
+    // Wait for this run's payment-svc event.
+    String paymentMsg =
+        waitForKafkaMessage(
+            "poc.kc.outbox.payment-svc",
+            Duration.ofSeconds(60),
+            m -> {
+              try {
+                return m != null && m.contains(String.valueOf(uid)) && m.contains("payment-svc");
+              } catch (Exception e) {
+                return false;
+              }
+            });
+    assertThat(paymentMsg).as("expected payment-svc outbox event for uid=" + uid).isNotNull();
 
-    String paymentMsg = paymentMessages.get(0);
     JSONObject paymentObj = new JSONObject(paymentMsg);
     assertThat(paymentObj.optString("_route_destination")).isEqualTo("payment-svc");
     assertThat(paymentObj.optString("_route_topic")).isEqualTo("poc.kc.outbox.payment-svc");
