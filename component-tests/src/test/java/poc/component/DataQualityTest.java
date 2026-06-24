@@ -41,7 +41,7 @@ class DataQualityTest extends FlinkTestBase {
   void kafkaMessage_deserializesToValidJson_withRequiredFields() throws Exception {
     // Per-run customer_id so the predicate selects this run's row out of the shared,
     // never-truncated topic (which retains rows from prior runs and the other tests here).
-    final long cid = System.currentTimeMillis() % 1_000_000;
+    final long cid = uniqueId();
     final String marker = "DQ-TEST-" + cid;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
@@ -77,7 +77,7 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void kafkaMessage_includesVariantAnnotation() throws Exception {
-    final long cid = System.currentTimeMillis() % 1_000_000;
+    final long cid = uniqueId();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
@@ -109,7 +109,7 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(180)
   void kafkaMessage_preservesNullValues() throws Exception {
-    final long cid = System.currentTimeMillis() % 1_000_000;
+    final long cid = uniqueId();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
@@ -140,7 +140,7 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void multipleInserts_produceMultipleMessages_inOrder() throws Exception {
-    final long stamp = System.currentTimeMillis() % 1_000_000;
+    final long stamp = uniqueId();
     final String first = "FIRST-" + stamp;
     final String second = "SECOND-" + stamp;
     final String third = "THIRD-" + stamp;
@@ -188,7 +188,7 @@ class DataQualityTest extends FlinkTestBase {
   @Test
   @Timeout(90)
   void jsonFormat_isConsistent_acrossMessages() throws Exception {
-    final long base = System.currentTimeMillis() % 1_000_000;
+    final long base = uniqueId();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       for (int i = 0; i < 3; i++) {

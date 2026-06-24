@@ -72,7 +72,7 @@ class CdcOperationsTest extends FlinkTestBase {
     // poll window for the INSERT op=c can expire before the binlog event arrives.
     pollKafka(TOPIC, 1, Duration.ofSeconds(90));
 
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     String inserted = "OP-INSERT-" + stamp;
     String updated = "OP-UPDATE-" + stamp;
     long rowId;

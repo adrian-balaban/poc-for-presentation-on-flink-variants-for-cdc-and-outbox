@@ -208,8 +208,9 @@ public abstract class KafkaConnectBase extends ContainerBase {
       String statusJson = getConnectorStatus(connectorName);
       try {
         org.json.JSONObject status = new org.json.JSONObject(statusJson);
+        org.json.JSONObject connectorNode = status.optJSONObject("connector");
         boolean connectorRunning =
-            "RUNNING".equals(status.getJSONObject("connector").getString("state"));
+            connectorNode != null && "RUNNING".equals(connectorNode.getString("state"));
         org.json.JSONArray tasks = status.optJSONArray("tasks");
         boolean allTasksRunning =
             tasks != null

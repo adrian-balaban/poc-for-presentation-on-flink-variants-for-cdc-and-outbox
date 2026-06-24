@@ -46,7 +46,7 @@ class DataStreamOutboxTest extends FlinkTestBase {
   void outboxSource_preservesDestinationField_forMultipleDestinations() throws Exception {
     // Unique destinations so the predicates reliably select this test's events out of the seeded
     // payments/notifications/audit snapshot rows already on the topic.
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     String destA = "payments-" + stamp;
     String destB = "notifications-" + stamp;
     try (Connection c = flinkConn();

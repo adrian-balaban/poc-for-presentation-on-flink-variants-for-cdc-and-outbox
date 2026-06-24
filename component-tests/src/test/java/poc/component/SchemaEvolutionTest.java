@@ -82,7 +82,7 @@ class SchemaEvolutionTest extends KafkaConnectBase {
 
     // ── Pre-ALTER insert: no new_field in the payload ─────────────────────────
     long preId;
-    String preMarker = "PRE-ALTER-" + System.currentTimeMillis() % 1_000_000;
+    String preMarker = "PRE-ALTER-" + java.util.UUID.randomUUID();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
@@ -120,9 +120,9 @@ class SchemaEvolutionTest extends KafkaConnectBase {
 
     // ── Post-ALTER insert: new_field must appear in the payload ───────────────
     long postId;
-    long postStamp = System.currentTimeMillis() % 1_000_000;
-    String postMarker = "POST-ALTER-" + postStamp;
-    String postValue = "POST-" + postStamp;
+    String postUuid = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    String postMarker = "POST-ALTER-" + postUuid;
+    String postValue = "POST-" + postUuid;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(

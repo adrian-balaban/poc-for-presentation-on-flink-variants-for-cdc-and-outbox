@@ -32,7 +32,7 @@ class DataStreamCdcTest extends FlinkTestBase {
   void cdcSource_capturesSnapshotRow_andPublishesEnrichedEventToKafka() throws Exception {
     // Unique marker so the predicate selects this run's row, not a retained row from a prior run
     // on the shared, never-truncated topic.
-    String marker = "DS-TEST-" + System.currentTimeMillis() % 1_000_000;
+    String marker = "DS-TEST-" + uniqueId();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
@@ -52,7 +52,7 @@ class DataStreamCdcTest extends FlinkTestBase {
   void cdcSource_capturesBinlogInsert_afterSnapshotComplete() throws Exception {
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(120));
 
-    String marker = "BINLOG-TEST-" + System.currentTimeMillis() % 1_000_000;
+    String marker = "BINLOG-TEST-" + uniqueId();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(
@@ -79,7 +79,7 @@ class DataStreamCdcTest extends FlinkTestBase {
   void cdcSource_capturesCustomersTable_andPublishesToOrdersTopic() throws Exception {
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(120));
 
-    String name = "CustPass-" + System.currentTimeMillis() % 1_000_000;
+    String name = "CustPass-" + uniqueId();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
       s.executeUpdate(

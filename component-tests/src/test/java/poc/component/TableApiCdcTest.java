@@ -48,7 +48,7 @@ class TableApiCdcTest extends FlinkTestBase {
   void tableApiPipeline_capturesOrderSnapshot_andPublishesValidRowToKafka() throws Exception {
     // Unique customer_id so the predicate reliably selects this test's row, not a stale snapshot
     // row from another test on the same topic (jobs are never cancelled between tests).
-    long cid = System.currentTimeMillis() % 1_000_000;
+    long cid = uniqueId();
     String marker = "TA-SNAP-" + cid;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {
@@ -93,7 +93,7 @@ class TableApiCdcTest extends FlinkTestBase {
     ensureJobRunning(
         JAR, "poc.tableapi.TableApiCdcJob", "Flink Table API CDC Job", Duration.ofSeconds(30));
 
-    long cid = System.currentTimeMillis() % 1_000_000;
+    long cid = uniqueId();
     String marker = "TA-BINLOG-" + cid;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {

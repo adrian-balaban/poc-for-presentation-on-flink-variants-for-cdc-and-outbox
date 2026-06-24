@@ -3,8 +3,11 @@ package poc.component;
 import java.sql.*;
 import java.time.*;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -35,7 +38,7 @@ public abstract class ContainerBase {
   private static final String MYSQL_PASSWORD = "flink";
   private static final String MYSQL_DATABASE = "poc_db";
 
-  private static final String KAFKA_BOOTSTRAP =
+  static final String KAFKA_BOOTSTRAP =
       System.getenv().getOrDefault("KAFKA_BOOTSTRAP", "localhost:9092");
 
   private static volatile boolean schemaInitialized = false;
@@ -97,6 +100,16 @@ public abstract class ContainerBase {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
+  /**
+   * Returns a positive long unique to this call, safe to use as a per-run discriminator in test
+   * data (customer_id, status marker prefix, etc.). Unlike {@code currentTimeMillis() % 1_000_000},
+   * UUID-derived values don't collide when two test runs execute within the same millisecond
+   * window.
+   */
+  protected static long uniqueId() {
+    return Math.abs(UUID.randomUUID().getMostSignificantBits()) % 1_000_000_000L;
+  }
+
   private static Connection createConnection() throws SQLException {
     return DriverManager.getConnection(
         String.format(
@@ -134,11 +147,40 @@ public abstract class ContainerBase {
   }
 
   /**
+   * Waits until the given topic appears in Kafka broker metadata before the caller subscribes.
+   * Prevents the spurious UNKNOWN_TOPIC_OR_PARTITION WARN that fires when a consumer subscribes
+   * before auto-creation has propagated. Returns early once the topic exists; logs a warning and
+   * returns if it never appears within {@code timeout}, letting the caller's own timeout surface
+   * the real failure.
+   */
+  protected static void waitForTopicAvailable(String topic, Duration timeout) {
+    Properties adminProps = new Properties();
+    adminProps.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_BOOTSTRAP);
+    Instant deadline = Instant.now().plus(timeout);
+    try (AdminClient admin = AdminClient.create(adminProps)) {
+      while (Instant.now().isBefore(deadline)) {
+        try {
+          Set<String> topics = admin.listTopics().names().get(5, TimeUnit.SECONDS);
+          if (topics.contains(topic)) {
+            return;
+          }
+        } catch (Exception ignored) {
+        }
+        Thread.sleep(500);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+    log.warn("waitForTopicAvailable: topic '{}' not found within {}", topic, timeout);
+  }
+
+  /**
    * Polls a Kafka topic until {@code minCount} messages arrive or the deadline passes. Uses a fresh
    * consumer group each call so offset resets to earliest.
    */
   protected static List<String> pollKafka(String topic, int minCount, Duration timeout) {
     ensureSchema();
+    waitForTopicAvailable(topic, Duration.ofSeconds(30));
     Properties props = new Properties();
     props.put("bootstrap.servers", KAFKA_BOOTSTRAP);
     props.put("group.id", "test-" + UUID.randomUUID());
@@ -179,6 +221,7 @@ public abstract class ContainerBase {
   protected static String waitForKafkaMessage(
       String topic, Duration timeout, Predicate<String> filter) {
     ensureSchema();
+    waitForTopicAvailable(topic, Duration.ofSeconds(30));
     Properties props = new Properties();
     props.put("bootstrap.servers", KAFKA_BOOTSTRAP);
     props.put("group.id", "test-" + UUID.randomUUID());

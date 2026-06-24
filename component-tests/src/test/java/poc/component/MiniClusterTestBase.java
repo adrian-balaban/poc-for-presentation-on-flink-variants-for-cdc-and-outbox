@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -28,7 +30,9 @@ abstract class MiniClusterTestBase extends ContainerBase {
 
   @BeforeEach
   void setUpMiniClusterEnv() {
-    env = StreamExecutionEnvironment.createLocalEnvironment();
+    Configuration config = new Configuration();
+    config.set(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE, false);
+    env = StreamExecutionEnvironment.createLocalEnvironment(config);
     env.setParallelism(2);
   }
 

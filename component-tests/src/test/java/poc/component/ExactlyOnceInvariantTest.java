@@ -57,7 +57,7 @@ class ExactlyOnceInvariantTest extends FlinkTestBase {
   void dataStreamAppendSink_emitsEachInsertedRowExactlyOnce() throws Exception {
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(120));
 
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     Set<Long> insertedIds = new HashSet<>();
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {

@@ -45,7 +45,7 @@ class ErrorScenarioTest extends FlinkTestBase {
   @Test
   @Timeout(120)
   void jobContinuesAfterQuietPeriod() throws Exception {
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     String before = "BEFORE-DELAY-" + stamp;
     String after = "AFTER-DELAY-" + stamp;
 
@@ -85,7 +85,7 @@ class ErrorScenarioTest extends FlinkTestBase {
   void jobStaysBusyUnderLoadAndKeepsProducing() throws Exception {
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
 
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     String burst = "BURST-" + stamp;
     String afterBurst = "AFTER-BURST-" + stamp;
     int burstCount = 20;
@@ -127,7 +127,7 @@ class ErrorScenarioTest extends FlinkTestBase {
   @Test
   @Timeout(120)
   void largePayload_isProcessedSuccessfully() throws Exception {
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     // ~506 bytes: 6-char prefix + stamp + dash + 500 'X'.
     String largeStatus = "LARGE-" + stamp + "-" + "X".repeat(500);
     try (Connection c = flinkConn();
@@ -150,7 +150,7 @@ class ErrorScenarioTest extends FlinkTestBase {
   @Test
   @Timeout(120)
   void specialCharactersInData_arePreserved() throws Exception {
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     String quotes = "QUOTES-" + stamp;
     String specialStatus = "TEST-WITH-\"" + quotes + "\"-AND-'APOSTROPHES'";
     try (Connection c = flinkConn();
@@ -176,7 +176,7 @@ class ErrorScenarioTest extends FlinkTestBase {
   @Test
   @Timeout(120)
   void consecutiveSnapshots_remainConsistent() throws Exception {
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     String snap1Marker = "SNAP1-" + stamp;
     String snap2Marker = "SNAP2-" + stamp;
     try (Connection c = flinkConn();

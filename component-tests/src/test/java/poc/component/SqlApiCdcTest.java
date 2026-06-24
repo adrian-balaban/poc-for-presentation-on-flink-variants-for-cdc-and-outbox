@@ -44,7 +44,7 @@ class SqlApiCdcTest extends FlinkTestBase {
   @Timeout(120)
   void sqlApiPipeline_capturesBothTables_andPublishesValidRowsToSeparateKafkaTopics()
       throws Exception {
-    long cid = System.currentTimeMillis() % 1_000_000;
+    long cid = uniqueId();
     String orderMarker = "SQL-SNAP-" + cid;
     String customerName = "SqlCust-" + cid;
     try (Connection c = flinkConn();
@@ -109,7 +109,7 @@ class SqlApiCdcTest extends FlinkTestBase {
     ensureJobRunning(
         JAR, "poc.sqlapi.SqlApiCdcJob", "Flink Sql API CDC Job", Duration.ofSeconds(30));
 
-    long cid = System.currentTimeMillis() % 1_000_000;
+    long cid = uniqueId();
     String marker = "SQL-BINLOG-" + cid;
     try (Connection c = flinkConn();
         Statement s = c.createStatement()) {

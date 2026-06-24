@@ -79,7 +79,7 @@ class CdcParityTest extends KafkaConnectBase {
     deployConnector(CONNECTOR_NAME, config);
     waitForConnectorRunning(CONNECTOR_NAME, Duration.ofSeconds(60));
 
-    long stamp = System.currentTimeMillis() % 1_000_000;
+    long stamp = uniqueId();
     String parityMarker = "PARITY-" + stamp;
     long rowId;
     try (Connection c = flinkConn();
