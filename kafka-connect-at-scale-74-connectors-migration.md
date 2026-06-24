@@ -244,7 +244,7 @@ We built **5 variants** and ran them
 
 | # | Variant | Entry-Class Size | Output Format | Java Required |
 |---|---------|-----------|---------------|---------------|
-| 1 | CDC with Flink DataStream API | 50 lines | Debezium envelope + enrichment | Yes |
+| 1 | CDC with Flink DataStream API | 63 lines | Debezium envelope + enrichment | Yes |
 | 2 | CDC with Flink Table API | 99 lines | Flattened projected row (upsert-kafka) | Yes |
 | 3 | CDC with Flink SQL API | 156 lines | Flattened projected row (upsert-kafka) | Minimal |
 | 4 | Outbox with Flink DataStream API | 56 lines | Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC) | Yes |
@@ -271,7 +271,7 @@ We built **5 variants** and ran them
 
 ## Slide 8 — The Java Dev's View: Code Comparison
 
-### DataStream CDC (50-line entry class, most control)
+### DataStream CDC (63-line entry class, most control)
 
 ```java
 MySqlSource<String> source = MySqlSource.<String>builder()
@@ -524,7 +524,7 @@ Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) 
 ```
 flink-cdc-poc/
 ├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~412 lines)
-├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (50 lines, server-ID 5900–5999)
+├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (63 lines, server-ID 5900–5999)
 ├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (99 lines, server-ID 6000–6099)
 ├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (156 lines, server-ID 5800–5899)
 ├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (56 lines, server-ID 5600–5699)

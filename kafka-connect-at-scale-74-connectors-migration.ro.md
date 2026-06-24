@@ -40,7 +40,7 @@ Cinci lucruri pe care le iei de aici:
 > Client real. Scară reală. 95 de conectori, 26 de echipe, un cluster partajat — și
 > întrebarea dacă Flink este calea de ieșire corectă.
 
-Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Flink, cu un proof of concept acoperind toate 5 variantele.
+Migrarea propusă a **74 de conectori MySQL** de la Confluent Kafka Cloud la Flink, cu un proof of concept acoperind toate cele 5 variante.
 
 Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
@@ -242,7 +242,7 @@ Am construit **5 variante** și le-am rulat
 
 | # | Variantă | Dimensiune Clasă Principală | Format Output | Java Necesar |
 |---|---------|-----------|---------------|---------------|
-| 1 | CDC cu Flink DataStream API | 50 linii | envelope Debezium + îmbogățire | Da |
+| 1 | CDC cu Flink DataStream API | 63 de linii | envelope Debezium + îmbogățire | Da |
 | 2 | CDC cu Flink Table API | 99 linii | Rând proiectat aplatizat (upsert-kafka) | Da |
 | 3 | CDC cu Flink SQL API | 156 linii | Rând proiectat aplatizat (upsert-kafka) | Minim |
 | 4 | Outbox cu Flink DataStream API | 56 linii | envelope Debezium al rândului outbox (topic unic; routing per destinație este producție, nu în POC) | Da |
@@ -269,7 +269,7 @@ Am construit **5 variante** și le-am rulat
 
 ## Slide 8 — Perspectiva Dezvoltatorului Java: Comparație de Cod
 
-### DataStream CDC (clasă de intrare 50 linii, control maxim)
+### DataStream CDC (clasă de intrare 63 de linii, control maxim)
 
 ```java
 MySqlSource<String> source = MySqlSource.<String>builder()
@@ -315,7 +315,7 @@ pipeline:
 **O imagine de bază per variantă. 74 de conectori MySQL. Fără fork Java per echipă.**
 
 Echipa Flink Platform deține și menține imagini parametrizabile pentru cele 5 variante.
-Fiecare echipă primește conectorul lor prin suprascrierea exclusivă a valorilor Helm — fără fork, fără pipeline de release per echipă.
+Fiecare echipă primește conectorul ei doar prin suprascrierea valorilor Helm — fără fork, fără pipeline de release per echipă.
 
 ![Topologie Deployment K8s: Modelul Shared-Job](images/k8s-deployment-topology.svg)
 
@@ -398,12 +398,12 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 > Toate cele cinci variante CDC (DataStream, Table API, SQL API, Outbox, YAML Pipeline) active într-un singur
 > cluster Flink. Fiecare are propriul interval server-ID MySQL; zero coliziuni.
 
-### Kafka UI — Cluster poc (32 topics, 109 partiții)
+### Kafka UI — Cluster poc (32 topicuri, 109 partiții)
 
 ![Kafka UI — prezentare generală cluster poc](images/slides/kafka-ui.png)
 
-> Topicurile sunt create automat de conectorii CDC. 32 topics = topics per-tabel pentru toate cele 5 variante
-> plus topics de schema-history. Topic-urile de semnal (`private.debezium.signal.*`) sunt specifice KC;
+> Topicurile sunt create automat de conectorii CDC. 32 topicuri = câte un topic per tabel pentru toate cele 5 variante
+> plus topicuri de schema-history. Topicurile de semnal (`private.debezium.signal.*`) sunt specifice KC;
 > Flink CDC nu le folosește.
 
 ### Kafka Connect REST API — 5 Conectori KC (comparație alăturată)
@@ -522,7 +522,7 @@ Scara de producție (tabel de ~15M rânduri, ~15 destinații, RocksDB, moduri de
 ```
 flink-cdc-poc/
 ├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~412 linii)
-├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (50 linii, server-ID 5900–5999)
+├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (63 de linii, server-ID 5900–5999)
 ├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (99 linii, server-ID 6000–6099)
 ├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (156 linii, server-ID 5800–5899)
 ├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (56 linii, server-ID 5600–5699)
