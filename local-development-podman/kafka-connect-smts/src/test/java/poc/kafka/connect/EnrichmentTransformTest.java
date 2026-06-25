@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.json.JSONObject;
 import org.junit.Before;
@@ -54,5 +55,19 @@ public class EnrichmentTransformTest {
     assertEquals("test-variant", enriched.get("variant"));
     assertTrue(enriched.get("topic").toString().contains("poc.test"));
     assertTrue(enriched.containsKey("transformed_at"));
+  }
+
+  @Test(expected = ConfigException.class)
+  public void configureThrowsWhenVariantNameMissing() {
+    Map<String, Object> config = new HashMap<>();
+    config.put("topic.prefix", "poc.test");
+    new EnrichmentTransform<SourceRecord>().configure(config);
+  }
+
+  @Test(expected = ConfigException.class)
+  public void configureThrowsWhenTopicPrefixMissing() {
+    Map<String, Object> config = new HashMap<>();
+    config.put("variant.name", "test-variant");
+    new EnrichmentTransform<SourceRecord>().configure(config);
   }
 }

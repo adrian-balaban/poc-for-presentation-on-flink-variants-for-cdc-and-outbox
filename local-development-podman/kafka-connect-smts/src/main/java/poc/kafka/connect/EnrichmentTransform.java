@@ -2,6 +2,7 @@ package poc.kafka.connect;
 
 import java.util.Map;
 import org.apache.kafka.common.config.ConfigDef;
+import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.connect.connector.ConnectRecord;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
@@ -33,6 +34,17 @@ public class EnrichmentTransform<R extends ConnectRecord<R>> implements Transfor
   public void configure(Map<String, ?> configs) {
     variantName = (String) configs.get(VARIANT_NAME);
     topicPrefix = (String) configs.get(TOPIC_PREFIX);
+    // Fail fast at task startup rather than silently corrupting data: with a
+    // null/blank config, org.json's put(key, null) drops the field entirely, so
+    // the transform would emit records with NO variant field — the whole point
+    // of the transform — instead of erroring. Both configs are required (no
+    // sensible default); every deployed enrichment connector sets them.
+    if (variantName == null || variantName.isBlank()) {
+      throw new ConfigException(VARIANT_NAME + " must be set to a non-blank value");
+    }
+    if (topicPrefix == null || topicPrefix.isBlank()) {
+      throw new ConfigException(TOPIC_PREFIX + " must be set to a non-blank value");
+    }
   }
 
   @Override
