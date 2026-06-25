@@ -112,7 +112,7 @@ for i in "${!VARIANT_MODULES[@]}"; do
 done
 
 # Variant-5 YAML pipeline submitter image — built from the shared Podman Compose
-# Dockerfile (local-development/flink-cdc-submitter/). Downloads Flink CDC 3.6.0
+# Dockerfile (local-development-podman/flink-cdc-submitter/). Downloads Flink CDC 3.6.0
 # at build time; subsequent builds are cheap (layer cache).
 echo "▶ building flink-cdc-submitter image (YAML pipeline submitter)"
 podman build -t flink-cdc-submitter:latest "$ROOT/local-development-podman/flink-cdc-submitter"

@@ -45,7 +45,7 @@ fi
 # 3. Start services
 echo ""
 echo "Step 3: Starting Podman Compose services..."
-cd "$PROJECT_ROOT/local-development"
+cd "$PROJECT_ROOT/local-development-podman"
 
 podman-compose -f podman-compose.yml up -d mysql kafka
 if [ $? -eq 0 ]; then

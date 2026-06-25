@@ -16,20 +16,13 @@ log
 ll
 
 # Kafka Connect SMTs
-local-development/kafka-connect-smts/target/
-local-development/kafka-connect-smts/.classpath
-local-development/kafka-connect-smts/.project
-local-development/kafka-connect-smts/.settings/
-local-development/kafka-connect-smts/bin/
-
-# Kafka Connect plugins (optional)
-local-development/kafka-connect-plugins/
+local-development-podman/kafka-connect-smts/target/
+local-development-podman/kafka-connect-smts/.classpath
+local-development-podman/kafka-connect-smts/.project
+local-development-podman/kafka-connect-smts/.settings/
+local-development-podman/kafka-connect-smts/bin/
 
 # Terraform — provider cache, state, and plan files (do not commit)
-local-development/terraform/.terraform/
-local-development/terraform/terraform.tfstate
-local-development/terraform/terraform.tfstate.backup
-local-development/terraform/*.tfplan
 local-development-podman/terraform/.terraform/
 local-development-podman/terraform/terraform.tfstate
 local-development-podman/terraform/terraform.tfstate.backup

@@ -29,7 +29,7 @@
 # Server-ID range 5700–5709 matches Podman production defaults (non-overlapping
 # with all other variants and Kafka Connect — see CLAUDE.md).
 #
-# JM/TM: 1 CPU / 2 Gi each, matching the 4 Java variants. 5th variant on the
+# JM/TM: 1 CPU / 1500Mi each, matching the 4 Java variants. 5th variant on the
 # 8-CPU kind node (4 variants × 1 CPU each + yaml 1 CPU = 5 CPUs JM + 5 CPUs TM =
 # 10 CPUs total — just under the 12-CPU kind node default).
 ---

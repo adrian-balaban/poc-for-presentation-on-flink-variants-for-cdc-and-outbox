@@ -3,7 +3,7 @@
 # The submitter Job (job-yaml-submitter.yaml) mounts this at /pipeline.yaml and
 # runs `envsubst < /pipeline.yaml > /tmp/pipeline-resolved.yaml` before calling
 # flink-cdc.sh — identical to the Podman Compose bind-mount pattern where
-# local-development/flink-cdc-submitter/pipeline.yaml is mounted at /pipeline.yaml.
+# local-development-podman/flink-cdc-submitter/pipeline.yaml is mounted at /pipeline.yaml.
 #
 # The ${...} placeholders are the same as in the source file
 # (variant-flink-cdc-yaml-pipeline-cdc-job/src/main/resources/pipeline.yaml).

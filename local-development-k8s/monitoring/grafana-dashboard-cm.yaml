@@ -4,7 +4,7 @@
 # `grafana_dashboard: "1"` in all namespaces (searchNamespace: ALL in
 # kube-prometheus-values.yaml) and auto-imports them into Grafana.
 #
-# Dashboard content is the same as local-development/grafana/provisioning/
+# Dashboard content is the same as local-development-podman/grafana/provisioning/
 # dashboards/flink-cdc-monitoring.json — 3 stat panels (Restart Loop,
 # Checkpoint Duration, Checkpoint Failures), 4 text placeholders (pending
 # Spike S1), 2 timeseries (JVM heap, job restarts).

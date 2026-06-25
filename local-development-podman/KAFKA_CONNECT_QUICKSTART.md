@@ -26,7 +26,7 @@ This builds everything, restarts the Podman stack, deploys all 5 connectors, and
 
 **Step 2: Start services**
 ```bash
-cd local-development
+cd local-development-podman
 podman-compose -f podman-compose.yml up -d mysql kafka kafka-connect
 ```
 

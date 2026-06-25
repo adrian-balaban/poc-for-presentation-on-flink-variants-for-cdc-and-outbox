@@ -48,7 +48,7 @@
 #
 # Checkpoint/state + S3 config lives in spec.flinkConfiguration — the k8s
 # replacement for the `flink-cdc.sh -D` flags in
-# local-development/flink-cdc-submitter/entrypoint.sh. The operator translates
+# local-development-podman/flink-cdc-submitter/entrypoint.sh. The operator translates
 # these keys into the JM/TM execution environment (unlike the Pipeline API's
 # pipeline: section, which ignores them). The DataStream job's
 # CheckpointConfigurer sets interval/mode/timeout/min-pause/retention in code,
@@ -74,10 +74,12 @@
 # and leaves headroom for variant 5 + Kafka Connect + monitoring (see K8S.md
 # Prerequisites).
 #
-# Images are loaded into kind via `kind load docker-image` (imagePullPolicy:
-# Never — never pull a registry). Both flink-with-mysql:latest (the JM/TM runtime
-# image) and flink-cdc-artifact-datastream:latest (the init-container artifact
-# image) must be loaded — see k8s/deploy.sh.
+# Images are loaded into kind via `podman save | kind load image-archive` (avoids
+# the podman storage-root mismatch — see k8s/deploy.sh and CLAUDE.md). With
+# imagePullPolicy: Never the operator never pulls a registry. Both
+# flink-with-mysql:latest (the JM/TM runtime image) and
+# flink-cdc-artifact-datastream:latest (the init-container artifact image) must
+# be loaded.
 ---
 apiVersion: flink.apache.org/v1beta1
 kind: FlinkDeployment
