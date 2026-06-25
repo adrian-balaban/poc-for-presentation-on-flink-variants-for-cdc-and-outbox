@@ -37,7 +37,7 @@ Kafka Topics (poc.kc.*)
 
 ## Component Tests
 
-Five component tests verify each Kafka Connect variant — testing the full pipeline from MySQL CDC to Kafka with SMT transformations applied.
+Two test classes verify the Kafka Connect variants — `KafkaConnectVariantTest` is parameterized over the 4 CDC variants (DataStream, Table API, SQL API, YAML Pipeline) and `KafkaConnectOutboxTest` covers the outbox — testing the full pipeline from MySQL CDC to Kafka with SMT transformations applied.
 
 **Run Kafka Connect component tests:**
 ```bash
@@ -57,11 +57,8 @@ Five component tests verify each Kafka Connect variant — testing the full pipe
 
 | Test class | Tests | Verifies |
 |---|---|---|
-| `KafkaConnectDataStreamTest` | Snapshot capture, enrichment | Variant name, topic prefix, timestamp |
-| `KafkaConnectTableApiTest` | Snapshot capture, enrichment | Variant name, topic prefix, timestamp |
-| `KafkaConnectSqlApiTest` | Snapshot capture, enrichment | Variant name, topic prefix, timestamp |
+| `KafkaConnectVariantTest` (parameterized ×4) | Snapshot capture, enrichment | Variant name, topic prefix, timestamp |
 | **`KafkaConnectOutboxTest`** | **Routing by destination** | **Route destination, route topic, routing timestamp** |
-| `KafkaConnectYamlPipelineTest` | Snapshot capture, enrichment | Variant name, topic prefix, timestamp |
 
 **Example: KafkaConnectOutboxTest**
 - Inserts events to `outbox_events` with different `destination` fields

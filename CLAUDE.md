@@ -46,16 +46,16 @@ Usage:
 
 The task runs all steps sequentially, stopping on any failure. Useful for CI/CD pipelines or full validation before deployment.
 
-## Versions (change in root build.gradle only)
+## Versions (change in `gradle/libs.versions.toml` only)
 
 | Variable | Value |
 |----------|-------|
 | `flinkVersion` | `2.2.0` |
 | `flinkCdcVersion` | `3.6.0-2.2` |
 | `flinkKafkaVersion` | `5.0.0-2.2` |
-| `kafkaVersion` | `3.7.0` |
+| `kafkaVersion` | `3.8.1` |
 
-All subproject `build.gradle` files reference these via `rootProject.ext.*` — never hardcode versions in subprojects.
+All subproject `build.gradle` files pull these from the version catalog (`gradle/libs.versions.toml`) via `libs.<alias>` — never hardcode versions in subprojects. The root `ext { }` block above re-exports the catalog values for any legacy `rootProject.ext.*` consumers.
 
 **Java versions:** Flink job modules target Java 17. `kafka-connect-smts` targets Java 11 — `cp-kafka-connect:7.6.1` ships JDK 11 and refuses class files compiled for 17.
 

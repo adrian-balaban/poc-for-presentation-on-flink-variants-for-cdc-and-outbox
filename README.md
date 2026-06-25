@@ -14,10 +14,10 @@ See also [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-
 
 | # | Module | API | Java | Server-ID range | Best for |
 |---|--------|-----|------|-----------------|----------|
-| 1 | `variant-flink-datastream-api-v1-cdc-job` | DataStream | ~100 lines | 5900–5999 | CDC + custom enrichment/routing |
-| 2 | `variant-flink-table-api-cdc-job` | Table API | ~220 lines | 6000–6099 | CDC with future SQL joins/aggregations |
-| 3 | `variant-flink-sql-api-cdc-job` | SQL API (StatementSet) | ~210 lines | 5800–5899 | Multi-table CDC → single JobGraph |
-| 4 | `variant-flink-datastream-api-v1-outbox-job` | DataStream | ~150 lines | 5600–5699 | Transactional outbox, per-row topic routing |
+| 1 | `variant-flink-datastream-api-v1-cdc-job` | DataStream | 63 lines | 5900–5999 | CDC + custom enrichment/routing |
+| 2 | `variant-flink-table-api-cdc-job` | Table API | 99 lines | 6000–6099 | CDC with future SQL joins/aggregations |
+| 3 | `variant-flink-sql-api-cdc-job` | SQL API (StatementSet) | 156 lines | 5800–5899 | Multi-table CDC → single JobGraph |
+| 4 | `variant-flink-datastream-api-v1-outbox-job` | DataStream | 56 lines | 5600–5699 | Transactional outbox, per-row topic routing |
 | 5 | `variant-flink-cdc-yaml-pipeline-cdc-job` | YAML Pipeline | 0 lines | 5700–5709 | Simple CDC, zero Java |
 
 ---
@@ -258,7 +258,7 @@ flink-cdc-poc/
 ├── build.gradle                        # root — versions + shared config
 ├── settings.gradle
 ├── gradle/wrapper/
-├── common/                             # shared: JobConfig, deserializer, routers, KafkaSinkFactory
+├── common/                             # shared: JobConfig, deserializer, routers, KafkaSinkFactory, CheckpointConfigurer, DdlValidator
 │   └── src/main/java/poc/common/
 │       ├── config/JobConfig.java
 │       ├── deserializer/PocJsonDeserializationSchema.java

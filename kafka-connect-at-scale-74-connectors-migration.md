@@ -401,7 +401,7 @@ pipeline:
 ## Slide 9 — POC Evidence: Live Screenshots
 
 **All 5 Flink variants running simultaneously on localhost — captured during the live POC.**
-*The access URLs for each screenshot are in `kafka-connect-at-scale-appendix.ro.md` → the **Local Monitoring Endpoints** section.*
+*The access URLs for each screenshot are in `kafka-connect-at-scale-appendix.md` → the **Local Monitoring Endpoints** section.*
 
 ### Flink Dashboard — 5/5 Jobs RUNNING
 

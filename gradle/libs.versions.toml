@@ -1,11 +1,11 @@
 # Gradle Version Catalog — single source of truth for dependency & plugin versions.
 #
-# Extracted from the root `build.gradle` `ext { }` block and the per-subproject
-# `build.gradle` files. Not yet wired into the builds — the modules still read
-# `rootProject.ext.*` and hardcoded coordinates. To adopt the catalog, replace
-# those with `libs.<alias>` references (see the README / CLAUDE.md build notes).
+# Wired into the builds: every subproject `build.gradle` references these via
+# `libs.<alias>`, and the root `build.gradle` `ext { }` block re-exports the
+# catalog values (flinkVersion = libs.versions.flink.get(), …) for legacy
+# `rootProject.ext.*` consumers. Bump a version here and it propagates everywhere.
 #
-# Keep this file the ONLY place versions are bumped once wiring is complete.
+# Keep this file the ONLY place versions are bumped.
 
 [versions]
 # ── Core stack (mirror of root build.gradle ext.*) ───────────────────────────
