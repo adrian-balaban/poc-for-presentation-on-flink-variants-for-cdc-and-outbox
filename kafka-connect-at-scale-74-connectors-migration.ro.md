@@ -39,15 +39,15 @@ Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
 *(Slide-urile 0–1d constituie cadrul de deschidere (~6 min); blocul de 45 de minute începe aici.)*
 
-1. **Unde suntem** (2 min) — Contextul clientului + sfera migrării: 95 de conectori pe un singur cluster din care 74 conectori MySQL, 21 rămân pe KC → *Slide-urile 2, 5*
+1. **Unde suntem** (2 min) — Contextul clientului + scopul migrării: 95 de conectori pe un singur cluster din care 74 conectori MySQL, 21 rămân pe KC → *Slide-urile 2, 5*
 2. **De ce este 'painful' și ce cerem** (5 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le indeplinească → *Slide 3*
-3. **Ce este Flink și de ce este remedierea structurală** (4 min) — Flink într-un cadru; pool partajat vs. izolare per-job → *Slide 4*
-4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–7, 10*
+3. **Ce este Flink și de ce este remedierea structurală** (4 min) — Flink descris pe scurt; izolare per-job → *Slide 4*
+4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 1e, 6–7, 10*
 5. **Soluția propusa + îmbunătățiri** (5 min) — Modelul shared-job;îmbunătățiri concrete față de provocările de azi →*Slide-urile 8, 8b*
 6. **Arhitectură și evitarea coliziunilor** (8 min) — eployment K8s, intervale server-ID, monitorizare → *Slide-urile 9, 14*
 7. **Compromisurile** (5 min) — Ce se schimbă, ce rămâne → *Slide 11*
-8. **Costul schimbării** (2 min) — TCO: ce se reduce, ce  se adauga → *Slide 12*
-9. **Întrebări deschise** (4 min) — 8 spike-uri → *Slide 13*
+8. **Costul schimbării** (2 min) — TCO: ce se reduce, ce se adauga → *Slide 12*
+9. **Întrebări deschise** (4 min) — 9 spike-uri → *Slide 13*
 
 **Q&A: 15 minute**
 
