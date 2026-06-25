@@ -37,21 +37,21 @@ Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
 ## Slide 1b — Agendă (45 de minute)
 
-*(Slide-urile 0–1d constituie cadrul de deschidere (~6 min); blocul de 45 de minute începe aici.)*
+*(Slide-urile 0–1e constituie cadrul de deschidere (~6 min); blocul de 45 de minute începe aici.)*
 
 1. **Unde suntem** (2 min) — Contextul clientului + scopul migrării: 95 de conectori pe un singur cluster din care 74 conectori MySQL, 21 rămân pe KC → *Slide-urile 2, 5*
 2. **De ce este 'painful' și ce cerem** (5 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le indeplinească → *Slide 3*
 3. **Ce este Flink și de ce este remedierea structurală** (4 min) — Flink descris pe scurt; izolare per-job → *Slide 4*
-4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 1e, 6–7, 10*
+4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–7, 10*
 5. **Soluția propusa + îmbunătățiri** (5 min) — Modelul shared-job;îmbunătățiri concrete față de provocările de azi →*Slide-urile 8, 8b*
-6. **Arhitectură și evitarea coliziunilor** (8 min) — eployment K8s, intervale server-ID, monitorizare → *Slide-urile 9, 14*
+6. **Arhitectură și evitarea coliziunilor** (8 min) — deployment K8s, intervale server-ID, monitorizare → *Slide-urile 9, 14*
 7. **Compromisurile** (5 min) — Ce se schimbă, ce rămâne → *Slide 11*
 8. **Costul schimbării** (2 min) — TCO: ce se reduce, ce se adauga → *Slide 12*
 9. **Întrebări deschise** (4 min) — 9 spike-uri → *Slide 13*
 
 **Q&A: 15 minute**
 
-*(total agendă: 45 min + 15 min Q&A; cadrul de deschidere Slide-urile 0–1d (~6 min: Slide 1c primer Kafka ~75 s, Slide 1d tiparele CDC-vs-Outbox ~3 min); capturile de ecran live Slide 10b se arată doar dacă timpul permite — niciuna nu e inclusă în cele 45 min.)*
+*(total agendă: 45 min + 15 min Q&A; cadrul de deschidere Slide-urile 0–1e (~6 min: Slide 1c primer Kafka ~75 s, Slide 1d tiparele CDC-vs-Outbox ~3 min, Slide 1e overview POC ~1 min); capturile de ecran live Slide 10b se arată doar dacă timpul permite — niciuna nu e inclusă în cele 45 min.)*
 
 ---
 
