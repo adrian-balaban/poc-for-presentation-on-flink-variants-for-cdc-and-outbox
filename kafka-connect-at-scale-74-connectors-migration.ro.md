@@ -79,36 +79,41 @@ TODO ramane , e ambiguu ?
 > Diferența este *cum* și *unde* rulează procesul de citire.
 
 ---
-TODO de adaugat definitie outbox pattern/table ?
-An outbox table is a database table used in the outbox pattern, where messages to be sent to other services or systems are stored. This approach ensures that the message publication is part of the same transaction as the database update, maintaining data consistency and reliability.
-milanjovanovic.tech microservices.io
-Overview of the Outbox Table
+## Tabela Outbox — Ce Este?
 
-An outbox table is a crucial component in the outbox pattern, primarily used in microservices architectures. It serves as a temporary storage area for messages that need to be sent to other services or systems.
-Purpose of the Outbox Table
+O tabelă outbox este o tabelă de bază de date folosită în *outbox pattern*, în care sunt stocate mesajele ce urmează a fi trimise către alte servicii sau sisteme. Această abordare asigură că publicarea mesajului face parte din aceeași tranzacție cu actualizarea bazei de date, menținând consistența și fiabilitatea datelor.
 
-    Data Consistency: The outbox table ensures that message publication occurs within the same transaction as the database update. This atomicity prevents data inconsistency.
+*Surse: milanjovanovic.tech · microservices.io*
 
-    Reliable Messaging: By storing messages in the outbox table, the system can guarantee that messages are sent at least once, even if the initial attempt fails.
+### Prezentare generală
 
-Structure of the Outbox Table
+O tabelă outbox este o componentă esențială în outbox pattern, folosită cu precădere în arhitecturile de microservicii. Servește drept zonă de stocare temporară pentru mesajele care trebuie trimise către alte servicii sau sisteme.
 
-The outbox table typically includes the following columns:
-Column Name	Data Type	Description
-id	UUID	Unique identifier for each message
-type	VARCHAR(255)	Type of the message (e.g., event type)
-content	JSONB	The actual message content
-occurred_on_utc	TIMESTAMP WITH TIME ZONE	Timestamp when the message was created
-processed_on_utc	TIMESTAMP WITH TIME ZONE	Timestamp when the message was processed
-error	TEXT	Error message if the processing fails
-Benefits of Using an Outbox Table
+### Scopul tabelei outbox
 
-    Atomic Operations: Ensures that both the database update and message publication are treated as a single operation, preventing partial failures.
+- **Consistența datelor:** tabela outbox garantează că publicarea mesajului are loc în aceeași tranzacție cu actualizarea bazei de date. Această atomicitate previne inconsistența datelor.
+- **Mesagerie fiabilă:** prin stocarea mesajelor în tabela outbox, sistemul poate garanta că mesajele sunt trimise cel puțin o dată, chiar dacă încercarea inițială eșuează.
 
-    Decoupling: Allows the message sending process to be handled by a separate service, which can retry sending messages without affecting the main application flow.
+### Structura tabelei outbox
 
-    Eventual Consistency: While the outbox pattern provides at-least-once delivery, it allows for eventual consistency, meaning that while messages may be sent multiple times, the system can handle this gracefully.
+Tabela outbox include de obicei următoarele coloane:
 
+| Coloană | Tip de date | Descriere |
+|---------|-------------|-----------|
+| `id` | UUID | Identificator unic pentru fiecare mesaj |
+| `type` | VARCHAR(255) | Tipul mesajului (ex. tipul evenimentului) |
+| `content` | JSONB | Conținutul efectiv al mesajului |
+| `occurred_on_utc` | TIMESTAMP WITH TIME ZONE | Momentul creării mesajului |
+| `processed_on_utc` | TIMESTAMP WITH TIME ZONE | Momentul procesării mesajului |
+| `error` | TEXT | Mesajul de eroare în caz de eșec al procesării |
+
+### Beneficiile folosirii unei tabele outbox
+
+- **Operații atomice:** garantează că atât actualizarea bazei de date, cât și publicarea mesajului sunt tratate ca o singură operație, prevenind eșecurile parțiale.
+- **Decuplare:** permite ca procesul de trimitere a mesajelor să fie gestionat de un serviciu separat, care poate reîncerca trimiterea fără a afecta fluxul principal al aplicației.
+- **Consistență eventuală:** deși outbox pattern oferă livrare *at-least-once*, permite consistență eventuală — adică, deși mesajele pot fi trimise de mai multe ori, sistemul le poate gestiona elegant.
+
+---
 
 ## Slide 1d — Două Tipare de Conectori: CDC vs Outbox
 
@@ -746,7 +751,7 @@ Stack-ul Podman leagă direct porturile pe host; stack-ul k8s nu leagă niciun p
 
 ## Lista de Infrastructură 3 — Comparație: Client vs. POC Local
 TODO de modificat ca sa fie luate info din k8s POC
-| Zonă | Client (Producție) | POC Local (`flink-cdc-poc`) |
+| Zonă | Client (Producție) | POC Local (k8s) |
 |------|--------------------|-----------------------------|
 | **Orchestrare** | Kubernetes + Flink Operator + Helm (`flink-base-chart`) | La fel |
 | **Unitate deployment Flink** | CR `FlinkDeployment` per job (Application Mode; JM+TM proprii) | La fel |
