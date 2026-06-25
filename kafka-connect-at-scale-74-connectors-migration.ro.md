@@ -401,7 +401,9 @@ TODO verde/verzi=>green/greens
 | Toate cele 8 module compilează | Curat |
 | Formatare (Spotless — Google Java Format) | Conformă |
 | Flink CDC 3.6.0 pe Flink 2.2 | Verificat |
-| Teste de componente per variantă | Trecute (5 variante Flink + 5 KC) |
+| Unit Tests pe fiecare variantă | Passed 100% coverage JaCoCo 100% mutations |
+| Local integration test | Trecute (5 variante Flink + 5 KC) |
+| Component Tests pe fiecare variantă | Passed (5 variante Flink + 5 KC) |
 | StatementSet → 1 JobGraph | Verificat (doar SQL API; Table API folosește un singur INSERT, nu StatementSet) |
 | Toate cele 5 variante ruleaza in paralel | Rulează la scară POC (localhost:8081; stare RocksDB incremental) |
 | Teste de integrare locale (Flink MiniCluster) | Trecute (DataStreamCdc, OutboxRouter) |
