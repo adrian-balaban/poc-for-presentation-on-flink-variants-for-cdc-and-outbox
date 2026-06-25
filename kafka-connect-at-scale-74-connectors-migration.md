@@ -797,7 +797,8 @@ The Podman stack binds host ports directly; the k8s stack binds none on the host
 | MySQL | `localhost:3306` (user: `flink`, password: `flink`, db: `poc_db`) | `localhost:13306` | — |
 | Kafka (external) | `localhost:9092` (topics: `poc.flink.*` for Flink, `poc.kc.*` for Kafka Connect) | `localhost:19092` (Strimzi external nodeport listener; advertisedHost=localhost) | — |
 | Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
-| Grafana | `http://localhost:3001` (dashboard + alerts; admin/admin) | `http://localhost:13001` (admin/admin) | — |
+| Grafana | `http://localhost:3001` (dashboard + alerts; user: `admin`, password: `admin`) | `http://localhost:13001` (user: `admin`, password: `admin`) | — |
+| MinIO | `http://localhost:9001` (user: `minioadmin`, password: `minioadmin`, bucket: `flink-checkpoints`) | `http://localhost:9001` (user: `minioadmin`, password: `minioadmin`, bucket: `flink-checkpoints`) | ![](images/slides/minio-checkpoints.png) |
 
 <!-- /slide -->
 

@@ -77,14 +77,23 @@ cd local-development-podman && podman-compose -f podman-compose.yml up -d --buil
 cd local-development-podman && podman-compose -f podman-compose.yml down -v         # tear down (data lost)
 ```
 
-Services:
+Services (Podman):
 - Flink Dashboard: http://localhost:8081
 - Kafka UI:        http://localhost:8080
 - Kafka Connect:   http://localhost:8083
-- Grafana:         http://localhost:3001 (admin/admin)
+- Grafana:         http://localhost:3001 (user: admin, password: admin)
 - Prometheus:      http://localhost:9090
-- MinIO:           http://localhost:9001 (minioadmin/minioadmin, bucket: flink-checkpoints)
+- MinIO:           http://localhost:9001 (user: minioadmin, password: minioadmin, bucket: flink-checkpoints)
 - MySQL:           localhost:3306  user=flink  password=flink  db=poc_db
+
+Services (k8s — via `port-forward.sh`):
+- Flink Dashboard: http://localhost:18081–18085 (one per variant)
+- Kafka Connect:   http://localhost:18086
+- Grafana:         http://localhost:13001 (user: admin, password: admin)
+- Prometheus:      http://localhost:19090
+- MinIO:           http://localhost:9001 (user: minioadmin, password: minioadmin, bucket: flink-checkpoints)
+- MySQL:           localhost:13306  user=flink  password=flink  db=poc_db
+- Kafka:           localhost:19092
 
 MySQL binlog is enabled via `--log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL`.
 

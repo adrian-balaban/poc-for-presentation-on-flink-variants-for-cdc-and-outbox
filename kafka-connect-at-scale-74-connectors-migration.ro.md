@@ -797,7 +797,8 @@ Stack-ul Podman leagă direct porturile pe host; stack-ul k8s nu leagă niciun p
 | MySQL | `localhost:3306` (user: `flink`, parolă: `flink`, db: `poc_db`) | `localhost:13306` | — |
 | Kafka (extern) | `localhost:9092` (topicuri: `poc.flink.*` pentru Flink, `poc.kc.*` pentru Kafka Connect) | `localhost:19092` (listener Strimzi extern nodeport; advertisedHost=localhost) | — |
 | Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
-| Grafana | `http://localhost:3001` (dashboard + alerte; admin/admin) | `http://localhost:13001` (admin/admin) | — |
+| Grafana | `http://localhost:3001` (dashboard + alerte; user: `admin`, parolă: `admin`) | `http://localhost:13001` (user: `admin`, parolă: `admin`) | — |
+| MinIO | `http://localhost:9001` (user: `minioadmin`, parolă: `minioadmin`, bucket: `flink-checkpoints`) | `http://localhost:9001` (user: `minioadmin`, parolă: `minioadmin`, bucket: `flink-checkpoints`) | ![](images/slides/minio-checkpoints.png) |
 
 <!-- /slide -->
 
