@@ -1,23 +1,23 @@
 # Flink CDC & Outbox Connectors POC — Kafka Connect vs Flink for MySQL
 
 A working proof-of-concept demonstrating:
-- **5 ways to implement MySQL CDC** with with both Apache Flink and with Kafka Connect for side-by-side comparison
+- **5 CDC patterns, each implemented twice** — once with Apache Flink, once with Kafka Connect — running side-by-side on the same MySQL (5 Flink + 5 KC = 10 implementations)
 
 Each variant is an independent Gradle subproject that builds its own fat-jar and connects to the same MySQL + Kafka infra.
 
-See also [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-scale-74-connectors-migration.md), a presentation covering a real-world Kafka Connect @ Scale migration case study (74 connectors).
+This repo contains the **[Flink Presentation and POC](./kafka-connect-at-scale-74-connectors-migration.md)** — a client proposal to migrate tens of connectors from Confluent Kafka Cloud to Flink (74 connectors); Cognizant Java Community presentation (26 June 2026). A [Romanian translation](./kafka-connect-at-scale-74-connectors-migration.ro.md) of the deck is also available.
 
 ---
 
 ## Variants
 
-| # | Module | API | Java | Server-ID range | Best for |
+| # | Module | API | LOC | Server-ID range | Best for |
 |---|--------|-----|------|-----------------|----------|
-| 1 | `variant-flink-datastream-api-v1-cdc-job` | DataStream | 63 lines | 5900–5999 | CDC + custom enrichment/routing |
-| 2 | `variant-flink-table-api-cdc-job` | Table API | 99 lines | 6000–6099 | CDC with future SQL joins/aggregations |
-| 3 | `variant-flink-sql-api-cdc-job` | SQL API (StatementSet) | 156 lines | 5800–5899 | Multi-table CDC → single JobGraph |
-| 4 | `variant-flink-datastream-api-v1-outbox-job` | DataStream | 56 lines | 5600–5699 | Transactional outbox, per-row topic routing |
-| 5 | `variant-flink-cdc-yaml-pipeline-cdc-job` | YAML Pipeline | 0 lines | 5700–5709 | Simple CDC, zero Java |
+| 1 | `variant-flink-datastream-api-v1-cdc-job` | DataStream | 63 | 5900–5999 | CDC + custom enrichment/routing |
+| 2 | `variant-flink-table-api-cdc-job` | Table API | 99 | 6000–6099 | CDC with future SQL joins/aggregations |
+| 3 | `variant-flink-sql-api-cdc-job` | SQL API (StatementSet) | 156 | 5800–5899 | Multi-table CDC → single JobGraph |
+| 4 | `variant-flink-datastream-api-v1-outbox-job` | DataStream | 56 | 5600–5699 | Transactional outbox, per-row topic routing |
+| 5 | `variant-flink-cdc-yaml-pipeline-cdc-job` | YAML Pipeline | 0 | 5700–5709 | Simple CDC, zero Java |
 
 ---
 
@@ -351,7 +351,8 @@ All variants are configured with **exactly-once semantics** and **30-second chec
 - [FLINK_CHECKPOINT_CONFIG.md](./FLINK_CHECKPOINT_CONFIG.md) — checkpoint semantics, monitoring, troubleshooting
 - [FLINK_SAVEPOINT_RUNBOOK.md](./FLINK_SAVEPOINT_RUNBOOK.md) — safe upgrade workflows, state recovery
 - [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, SMTs, comparison
-- Architecture proposal: `../markdown/proposalA/`
+- [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-scale-74-connectors-migration.md) — presentation deck (EN): real-world 74-connector KC→Flink migration case study
+- [kafka-connect-at-scale-74-connectors-migration.ro.md](./kafka-connect-at-scale-74-connectors-migration.ro.md) — Romanian translation of the presentation deck
 
 ### External
 - [Apache Flink CDC documentation](https://nightlies.apache.org/flink/flink-cdc-docs-stable/)

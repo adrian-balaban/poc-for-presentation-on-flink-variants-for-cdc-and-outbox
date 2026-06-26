@@ -204,7 +204,7 @@ The application controls the shape of the event and the destination. The busines
         ║   on 1 shared cluster     ║                       ║   1 isolated K8s deployment ║
         ║   topics:  poc.kc.<x>     ║                       ║ topics: poc.flink.<x>..   ║
         ╚═════════════╤═════════════╝                       ╚═════════════╤═════════════╝
-                      │       the same two versions, two implementations   │
+                      │       the same 5  versions, two implementations   │
                       └───────────────────────────┬───────────────────────┘
                                                   ▼
 ┌───┬──────────────────┬──────────────────────┬──────────────────────────────────┐
