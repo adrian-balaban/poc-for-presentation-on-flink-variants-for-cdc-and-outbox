@@ -1,3 +1,8 @@
+---
+title: "Kafka Connect la Scară Largă: Cazul Migrării a 74 de Conectori"
+author: Adrian Balaban
+layout: docs
+---
 
 # Kafka Connect la Scară Largă: Cazul Migrării a 74 de Conectori
 
@@ -37,7 +42,7 @@ Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
 ## Slide 1b — Agendă (45 de minute)
 
-*(Slide-urile 0–1e constituie cadrul de deschidere (~6 min); blocul de 45 de minute începe aici.)*
+<!-- notes: Cadru de deschidere: Slide-urile 0–1e ~6 min; blocul de 45 de minute începe la agendă. -->
 
 1. **Unde suntem** (2 min) — Contextul clientului + scopul migrării: 95 de conectori pe un singur cluster din care 74 conectori MySQL, 21 rămân pe KC → *Slide-urile 2–3*
 2. **De ce este 'painful' și ce cerem** (5 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le indeplinească → *Slide 4*
@@ -51,7 +56,7 @@ Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
 **Q&A: 15 minute**
 
-*(total agendă: 45 min + 15 min Q&A; cadrul de deschidere Slide-urile 0–1e (~6 min: Slide 1c primer Kafka ~75 s, Slide 1d tiparele CDC-vs-Outbox ~3 min, Slide 1e overview POC ~1 min); capturile de ecran live Slide 9 se arată doar dacă timpul permite — niciuna nu e inclusă în cele 45 min.)*
+<!-- notes: Buget de timp: 45 min agendă + 15 min Q&A. Deschidere 0–1e ~6 min (1c ~75 s, 1d ~3 min, 1e ~1 min). Capturile live (Slide 9) doar dacă timpul permite — nu sunt incluse în cele 45 min. -->
 
 ---
 
@@ -78,7 +83,9 @@ MySQL binlog  →  Debezium  →  Kafka  →  consumatori
 > Diferența este *cum* și *unde* rulează procesul de citire.
 
 ---
-## Tabela Outbox — Ce Este?
+## Slide 1c-bis — Tabela Outbox: Ce Este? (deep-dive opțional)
+
+*Slide de rezervă / deep-dive — nu face parte din cadrul de deschidere de ~6 min (Slide-urile 0–1e); arată-l doar dacă timpul permite.*
 
 O tabelă outbox este o tabelă de bază de date folosită în *outbox pattern*, în care sunt stocate mesajele ce urmează a fi trimise către alte servicii sau sisteme. Această abordare asigură că publicarea mesajului face parte din aceeași tranzacție cu actualizarea bazei de date, menținând consistența și fiabilitatea datelor.
 
@@ -193,6 +200,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 |---|---|
 | ![Flink Dashboard](images/slides/flink-dashboard.png) | ![Kafka Connect](images/slides/kafka-connect.png) |
 
+```
                 ┌──────────────────────── MySQL (poc_db) ─────────────────────────┐
                 │   orders · customers · outbox_events   —   binlog ROW / FULL     │
                 └─────────────────────────────┬───────────────────────────────────┘
@@ -222,6 +230,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
   KC    → poc.kc.<sufix>                 (un singur topic per conector)
   Flink → poc.flink.<sufix>              (job izolat, checkpoint exactly-once)
   Total: 5 tipare × 2 motoare = 10 implementări CDC rulând simultan pe același MySQL.
+```
 
 > Ambele 'motoare' (KC și Flink) rulează în paralel pentru comparație (input și output). Capturile de ecran complete și detaliile in Slide 9.
 
@@ -402,7 +411,7 @@ pipeline:
 ## Slide 9 — Dovezi POC: Capturi de Ecran Live
 
 **Toate cele 5 variante Flink rulând simultan pe localhost — capturate în timpul POC-ului live.**
-*URL-urile de acces pentru fiecare captură de ecran sunt în `kafka-connect-at-scale-appendix.ro.md` → secțiunea **Endpoint-uri de Monitorizare Locale**.*
+<!-- notes: URL-urile de acces pentru fiecare captură sunt în kafka-connect-at-scale-appendix.ro.md → secțiunea „Endpoint-uri de Monitorizare Locale”. -->
 
 ### Flink Dashboard — 5/5 Joburi RUNNING
 
