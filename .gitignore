@@ -5,6 +5,7 @@
 **/build
 .vscode
 **/.remember
+**/.port-forward-pids*
 .idea/
 .gradle
 # orphan directory superseded by variant-flink-cdc-yaml-pipeline-cdc-job
