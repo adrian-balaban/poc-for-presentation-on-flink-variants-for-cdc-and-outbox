@@ -15,9 +15,9 @@ In this session we'll explore Kafka Connect through the real experience of a cli
 Five things you take away from here:
 
 1. **The client** — how a few years ago they started from a **DB-centric** architecture and reached an **event-driven** one by adding just Kafka and a number of Kafka Connect connectors. The context that makes the outcome relevant.
-2. **The real production pain with KC** — cascading rebalances across unrelated teams, lag with no per-team tuning, a shared blast radius on a single cluster, Confluent Cloud licensing.
-3. **Flink, Flink connectors, and Debezium in short** — what they are, where they overlap, where they differ; Debezium as a binlog parser reused internally by Flink CDC (not the same KC connector).
-4. **Flink is fully event-driven** — not just a CDC connector, but a stateful stream-processing engine with event-time and exactly-once checkpoints, each job as an isolated K8s deployment.
+2. **The real production pain with KC** — 'rebalancing storms', 'lag' with no per-team intervention, a shared 'blast radius' on a single cluster, Confluent Cloud licensing.
+3. **Flink, Flink connectors, and Debezium in short** — what they are, where they overlap, where they differ; Debezium as a binlog parser reused internally by Flink CDC (and by the KC connector).
+4. **Flink is fully event-driven** — not just a connector, but a stateful stream-processing engine with event-time and exactly-once checkpoints, each job as an isolated K8s deployment.
 5. **The info + POC code to do CDC at another client** — 5 variants running simultaneously, near-production-version code, reproducible Podman Compose and K8s infrastructure, component-tests that validate the Kafka output.
 
 > Goal: at the end you can choose between KC and Flink with arguments — and you have code to start from, not from zero.
@@ -204,11 +204,11 @@ The application controls the shape of the event and the destination. The busines
         ║   on 1 shared cluster     ║                       ║   1 isolated K8s deployment ║
         ║   topics:  poc.kc.<x>     ║                       ║ topics: poc.flink.<x>..   ║
         ╚═════════════╤═════════════╝                       ╚═════════════╤═════════════╝
-                      │            the same 5 patterns, two implementations    │
+                      │       the same two versions, two implementations   │
                       └───────────────────────────┬───────────────────────┘
                                                   ▼
 ┌───┬──────────────────┬──────────────────────┬──────────────────────────────────┐
-│ # │ Variant (pattern) │ Kafka Connect        │ Apache Flink                     │
+│ # │ Variant          │ Kafka Connect        │ Apache Flink                     │
 ├───┼──────────────────┼──────────────────────┼──────────────────────────────────┤
 │ 1 │ DataStream API   │ 5510 · datastream    │ 5900–5999 · datastream.orders    │
 │ 2 │ Table API        │ 5520 · table-api     │ 6000–6099 · table-api.orders     │
@@ -217,10 +217,10 @@ The application controls the shape of the event and the destination. The busines
 │ 5 │ YAML Pipeline    │ 5540 · yaml-pipeline │ 5700–5709 · yaml-pipeline.orders │
 └───┴──────────────────┴──────────────────────┴──────────────────────────────────┘
 
-  The engine columns show:  server-ID  ·  the Kafka topic suffix
+  The 'engine' columns show:  server-ID  ·  the Kafka topic suffix
   KC    → poc.kc.<suffix>                 (a single topic per connector)
   Flink → poc.flink.<suffix>              (isolated job, exactly-once checkpoint)
-  Total: 5 patterns × 2 engines = 10 CDC implementations running simultaneously on the same MySQL.
+  Total: 5 Flink variants + 5 KC variants  = 10 implementations running simultaneously on the same MySQL.
 
 > Both 'engines' (KC and Flink) run in parallel for comparison (input and output). The complete screenshots and details in Slide 9.
 

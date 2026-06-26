@@ -229,7 +229,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
   Coloanele 'motoarelor' arată:  server-ID  ·  sufixul topicului Kafka
   KC    → poc.kc.<sufix>                 (un singur topic per conector)
   Flink → poc.flink.<sufix>              (job izolat, checkpoint exactly-once)
-  Total: 5 variante Flink + 1 varianta KC  = 6 implementări rulând simultan pe același MySQL.
+  Total: 5 variante Flink + 5 variante KC  = 10 implementări rulând simultan pe același MySQL.
 ```
 
 > Ambele 'motoare' (KC și Flink) rulează în paralel pentru comparație (input și output). Capturile de ecran complete și detaliile in Slide 9.

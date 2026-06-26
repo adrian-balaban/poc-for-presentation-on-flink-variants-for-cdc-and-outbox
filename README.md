@@ -1,8 +1,7 @@
 # Flink CDC & Outbox Connectors POC — Kafka Connect vs Flink for MySQL
 
 A working proof-of-concept demonstrating:
-- **5 ways to implement MySQL CDC** with Apache Flink (vs Kafka Connect)
-- **5 bonus Kafka Connect variants** for side-by-side comparison
+- **5 ways to implement MySQL CDC** with with both Apache Flink and with Kafka Connect for side-by-side comparison
 
 Each variant is an independent Gradle subproject that builds its own fat-jar and connects to the same MySQL + Kafka infra.
 
