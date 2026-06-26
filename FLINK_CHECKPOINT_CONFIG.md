@@ -114,8 +114,11 @@ pipeline:
 ### Why Non-Overlapping Server-ID Ranges Matter
 
 Each parallel reader uses a **distinct server-ID** from the configured range:
-- Variant 1: `5900-5999` (range of 100 for up to 100 parallel readers)
-- Variant 2: `6000-6099` (separate range, no collision)
+- Variant 1 (DataStream): `5900-5999` (range of 100 for up to 100 parallel readers)
+- Variant 2 (Table API): `6000-6099` (separate range, no collision)
+- Variant 3 (SQL API): `5800-5899` (split into `5800-5849` orders + `5850-5899` customers)
+- Variant 4 (Outbox): `5600-5699` (separate range, no collision)
+- Variant 5 (YAML Pipeline): `5700-5709` (narrow range — the submitter runs a single pipeline)
 
 On restart **without savepoint**:
 - Old job's MySQL binlog lease expires (~5 min)
@@ -238,4 +241,4 @@ env.getCheckpointConfig().setCheckpointingMode(
 
 - [FLINK_SAVEPOINT_RUNBOOK.md](./FLINK_SAVEPOINT_RUNBOOK.md) — Manual state management
 - [CLAUDE.md](./CLAUDE.md) — Server-ID range allocation
-- [Flink Checkpoint Docs](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/fault_tolerance/checkpointing/)
+- [Flink Checkpoint Docs](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/datastream/fault_tolerance/checkpointing/)

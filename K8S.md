@@ -18,22 +18,28 @@ non-overlapping MySQL server-ID ranges.
 
 ## Prerequisites
 
-- `kind`, `kubectl`, `helm`, `podman` (all already present on this machine)
+- `kind`, `kubectl`, `helm`, `podman`, `python3` (all already present on this machine)
 - The Flink Kubernetes Operator 1.15.0 (supports Flink 2.2.x) and Strimzi 1.0.1
   are installed **by `deploy.sh`** via Helm — no manual install needed.
-- **CPU is the constraint, not RAM.** The single-node kind cluster has 16 CPU /
-  64 GB allocatable. Each FlinkDeployment is sized at JM `cpu: 1` + TM `cpu: 1`
-  (= 2 CPU/variant) so all 4 Java variants (8 CPU) + infra (~9 CPU) fit at ~57%
-  CPU, leaving headroom for variant 5 + Kafka Connect + monitoring. The earlier
-  2-CPU-per-JM/TM sizing starved the 4th TaskManager (Pending) — see
-  `flinkdeployment-*.yaml` resource comments.
-- **kind node PID cgroup limit.** The single kind node is a rootless-podman
-  container that defaults to `pids_limit=2048`; the full slice sits at ~1950 PIDs
-  at steady state, and the cold-start burst exceeds 2048 — which kills a
-  TaskManager's containerd shim (`failed to create new OS thread … errno=11`)
-  and leaves the job stuck `CREATED`. `deploy.sh` section 1b raises the limit to
-  8192 via `podman update --pids-limit 8192 <kind-node>` on every run (live,
-  idempotent), so no manual step is needed.
+- **Sizing is both CPU- and memory-constrained.** The single-node kind cluster
+  has 16 CPU and ~19.4 Gi allocatable memory (the host has ~20 Gi RAM; when
+  `./gradlew all allK8s` is run the Podman Compose stack keeps consuming ~6 GB
+  side-by-side). Each FlinkDeployment is sized at JM `cpu: 1` + `memory: 1500Mi`
+  and TM `cpu: 1` + `memory: 1500Mi` (2 CPU + 3000 Mi per variant). The CPU figure
+  is deliberately 1 (not the original 2): 4 Java variants × 4 CPU = 16 CPU
+  exhausted the node and starved the 4th TaskManager (`Pending`); at 2 CPU/variant
+  the 4 fit with headroom for variant 5 + Kafka Connect + monitoring. The memory
+  figure is deliberately 1500Mi (not 2Gi): 5 JMs × 2Gi + 5 TMs × 2Gi = 20Gi in
+  k8s requests exceeds the 19.4Gi node capacity — see
+  `flinkdeployment-*.yaml` resource comments and CLAUDE.md.
+- **kind node PID cgroup limit.** The single kind node container defaults to
+  `pids_limit=2048`; the full slice sits at ~1950 PIDs at steady state, and the
+  cold-start burst exceeds 2048 — which kills a TaskManager's containerd shim
+  (`failed to create new OS thread … errno=11`) and leaves the job stuck
+  `CREATED`. `deploy.sh` section 1b auto-detects which runtime manages the kind
+  node (`docker inspect` → running uses `docker update`; otherwise `podman
+  update`) and raises the limit to 8192 via `$CTR_UPDATE --pids-limit 8192
+  <kind-node>` on every run (live, idempotent), so no manual step is needed.
 
 ## Quick start
 
@@ -81,7 +87,7 @@ You do **not** need to stop the Podman stack for deploy.sh.
 
 Runs deploy.sh, opens port-forwards for all services (5 Flink JMs + Kafka Connect + MySQL + Kafka + MinIO + Grafana + Prometheus), executes each of the 5
 Flink variant test classes (each targeting its own JM via `FLINK_REST_URL`) and
-all 5 Kafka Connect test classes, then tears down the tunnels.
+all 5 Kafka Connect test cases, then tears down the tunnels.
 
 ### Manual smoke test
 
@@ -131,21 +137,21 @@ KAFKA_CONNECT_URL=http://localhost:18086 \
 
 | Component | k8s artifact | Notes |
 |-----------|--------------|-------|
-| Namespace | `k8s/namespace.yaml` → `poc` | Isolates the slice; `kubectl delete ns poc` cleans up |
-| Kafka | `k8s/kafka/kafka.yaml` (Strimzi `Kafka` CR) | Single-broker KRaft 4.2.0, txn RF=1 / minISR=1 (preserves exactly-once). Two listeners: `plain` (internal, 9092, in-cluster FQDN) for Flink/KC jobs, and `external` (nodeport, 9094, `advertisedHostTemplate: localhost` / `advertisedPortTemplate: 19092`) so host-side test consumers can resolve the broker the metadata handshake returns |
-| MySQL | `k8s/mysql/mysql.yaml` | `mysql:8.0`, binlog ROW/FULL, same `init.sql` schema as Podman |
-| MinIO | `k8s/minio/minio.yaml` | S3 API `minio:9000`, bucket `flink-checkpoints` created by a one-shot Job |
+| Namespace | `local-development-k8s/namespace.yaml` → `poc` | Isolates the slice; `kubectl delete ns poc` cleans up |
+| Kafka | `local-development-k8s/kafka/kafka.yaml` (Strimzi `Kafka` CR) | Single-broker KRaft 4.2.0, txn RF=1 / minISR=1 (preserves exactly-once). Two listeners: `plain` (internal, 9092, in-cluster FQDN) for Flink/KC jobs, and `external` (nodeport, 9094, `advertisedHostTemplate: localhost` / `advertisedPortTemplate: 19092`) so host-side test consumers can resolve the broker that the metadata handshake returns |
+| MySQL | `local-development-k8s/mysql/mysql.yaml` | `mysql:8.0`, binlog ROW/FULL, same `init.sql` schema as Podman |
+| MinIO | `local-development-k8s/minio/minio.yaml` | S3 API `minio:9000`, bucket `flink-checkpoints` created by a one-shot Job |
 | Flink Operator | Helm `flink-kubernetes-operator` (ns `flink-system`) | 1.15.0, webhook disabled |
 | Strimzi Operator | Helm `strimzi-kafka-operator` (ns `strimzi`) | 1.0.1, `watchAnyNamespace=true` |
-| Flink RBAC | `k8s/flink/flink-rbac.yaml` | `flink` ServiceAccount + Role; shared by all 5 variants |
-| Base image | `flink-with-mysql/Dockerfile` → `flink-with-mysql:latest` | Flink 2.2 + mysql-connector-j + flink-s3-fs-presto + flink-metrics-prometheus; variant-agnostic runtime |
-| Artifact images | `k8s/flink/images/{datastream,table-api,sql-api,outbox}/Dockerfile` | `FROM busybox:1.35` + jar; one per Java variant; init-container copies jar to emptyDir |
-| DataStream job | `k8s/flink/flinkdeployment-datastream.yaml` | server-id 5900-5999; topic `poc.flink.datastream.orders` |
-| Table API job | `k8s/flink/flinkdeployment-table-api.yaml` | server-id 6000-6099 (`MYSQL_TABLE_API_SERVER_ID`); topic `poc.flink.table-api.orders` |
-| SQL API job | `k8s/flink/flinkdeployment-sql-api.yaml` | Two sources → 5800-5849 + 5850-5899; topics `poc.flink.sql-api.orders` + `.customers` |
-| Outbox job | `k8s/flink/flinkdeployment-outbox.yaml` | server-id 5600-5699 (`MYSQL_OUTBOX_SERVER_ID`); topic `poc.flink.outbox.outbox-events` |
-| YAML Pipeline (v5) | `k8s/flink/flinkdeployment-yaml.yaml` (session-cluster, `mode: standalone`) + `job-yaml-submitter.yaml` (Job) | Session-cluster has no `spec.job`; `mode: standalone` makes the operator pre-deploy the `taskManager.replicas` TM (native mode ignores it → no TM until a job is submitted → submitter deadlock); one-shot Job runs `flink-cdc.sh pipeline.yaml` via the `flink-cdc-submitter` image; topic `poc.flink.yaml-pipeline.orders`; server-id 5700-5709 |
-| Kafka Connect | `k8s/kafka-connect/kafka-connect.yaml` (`KafkaConnect` CR + 5 `KafkaConnector` CRs) | Strimzi v1 (`kafka.strimzi.io/v1`); `groupId`/`offsetStorageTopic`/`configStorageTopic`/`statusStorageTopic` are required top-level spec fields; Debezium 3.0.2.Final (Kafka 4.x compatible); custom SMTs baked into `kafka-connect-debezium:local` image |
+| Flink RBAC | `local-development-k8s/flink/flink-rbac.yaml` | `flink` ServiceAccount + Role; shared by all 5 variants |
+| Base image | `local-development-podman/flink-with-mysql/Dockerfile` → `flink-with-mysql:latest` | Flink 2.2 + mysql-connector-j + flink-s3-fs-presto + flink-metrics-prometheus; variant-agnostic runtime |
+| Artifact images | `local-development-k8s/flink/images/{datastream,table-api,sql-api,outbox}/Dockerfile` | `FROM busybox:1.35` + jar; one per Java variant; init-container copies jar to emptyDir |
+| DataStream job | `local-development-k8s/flink/flinkdeployment-datastream.yaml` | server-id 5900-5999; topic `poc.flink.datastream.orders` |
+| Table API job | `local-development-k8s/flink/flinkdeployment-table-api.yaml` | server-id 6000-6099 (`MYSQL_TABLE_API_SERVER_ID`); topic `poc.flink.table-api.orders` |
+| SQL API job | `local-development-k8s/flink/flinkdeployment-sql-api.yaml` | Two sources → 5800-5849 + 5850-5899; topics `poc.flink.sql-api.orders` + `.customers` |
+| Outbox job | `local-development-k8s/flink/flinkdeployment-outbox.yaml` | server-id 5600-5699 (`MYSQL_OUTBOX_SERVER_ID`); topic `poc.flink.outbox.outbox-events` |
+| YAML Pipeline (v5) | `local-development-k8s/flink/flinkdeployment-yaml.yaml` (session-cluster, `mode: standalone`) + `job-yaml-submitter.yaml` (Job) | Session-cluster has no `spec.job`; `mode: standalone` makes the operator pre-deploy the `taskManager.replicas` TM (native mode ignores it → no TM until a job is submitted → submitter deadlock); one-shot Job runs `flink-cdc.sh pipeline.yaml` via the `flink-cdc-submitter` image; topic `poc.flink.yaml-pipeline.orders`; server-id 5700-5709 |
+| Kafka Connect | `local-development-k8s/kafka-connect/kafka-connect.yaml` (`KafkaConnect` CR + 5 `KafkaConnector` CRs) | Strimzi v1 (`kafka.strimzi.io/v1`); `groupId`/`offsetStorageTopic`/`configStorageTopic`/`statusStorageTopic` are required top-level spec fields; Debezium 3.5.2.Final (Kafka 4.x compatible); custom SMTs baked into `kafka-connect-debezium:local` image |
 | Monitoring | Helm `kube-prometheus-stack` (ns `monitoring`) + `pod-monitor.yaml` + `prometheus-rules.yaml` + `grafana-dashboard-cm.yaml` | Grafana at localhost:13001 (admin/admin); Prometheus at localhost:19090; 3 alert rules mirroring Terraform `alerts.tf` |
 
 ## How the fat-jar is mounted (init-container + volume)
@@ -192,10 +198,11 @@ state backend, and S3 credentials are set there.
 
 ## Differences from the Podman stack (intentional)
 
-- **Kafka version**: k8s runs Strimzi Kafka **4.2.0**; Podman runs cp-kafka 7.6.1
-  (= Kafka 3.7.0). Flink's Kafka client is broker-version compatible. The k8s
-  Kafka Connect variants use **Debezium 3.0.2.Final** (the Kafka 4.x-compatible
-  release; Debezium 2.x was Kafka 3.x only).
+- **Kafka version**: k8s runs Strimzi Kafka **4.2.0**; Podman runs cp-kafka 7.8.0
+  (= Kafka 3.8.0). Flink's Kafka client is broker-version compatible. The k8s
+  Kafka Connect variants use **Debezium 3.5.2.Final** (the Kafka 4.x-compatible
+  release; Debezium 2.x was Kafka 3.x only, and 3.0.x still calls the removed
+  `KafkaConsumer.poll(long)` API — see CLAUDE.md).
 - **No shared Flink cluster**: each `FlinkDeployment` is its own JM+TM (the
   production model), unlike Podman's one shared JM+TM.
 - **YAML Pipeline uses session-cluster + submitter Job**: the YAML Pipeline
@@ -206,7 +213,7 @@ state backend, and S3 credentials are set there.
   submission.
 - **Kafka Connect image**: k8s builds `kafka-connect-debezium:local` from the
   Strimzi base image (`quay.io/strimzi/kafka:1.0.1-kafka-4.2.0`) with Debezium
-  3.0.2.Final and the custom SMT jar baked in. Podman uses
+  3.5.2.Final and the custom SMT jar baked in. Podman uses
   `cp-kafka-connect:7.6.1` with a volume-mounted SMT jar.
 
 ## Teardown
@@ -222,6 +229,15 @@ All components are deployed and tested end-to-end:
 
 - ✅ 4 Java Flink variants as `FlinkDeployment` CRs (DataStream, Table API, SQL API, Outbox)
 - ✅ YAML Pipeline variant 5 — session-cluster `FlinkDeployment` + submitter Job
-- ✅ 5 Kafka Connect variants — `KafkaConnect` CR + `KafkaConnector` CRs (Debezium 3.0.2.Final)
+- ✅ 5 Kafka Connect variants — `KafkaConnect` CR + `KafkaConnector` CRs (Debezium 3.5.2.Final)
 - ✅ Monitoring — kube-prometheus-stack + PodMonitor + PrometheusRule + Grafana dashboard ConfigMap
 - ✅ `./gradlew allK8s` — deploy + per-variant port-forward + test + teardown
+
+## See Also
+
+- [CLAUDE.md](./CLAUDE.md) — module map, server-ID ranges, versions, build commands (source-of-truth)
+- [README.md](./README.md) — overview, quick start, env vars
+- [FLINK_CHECKPOINT_CONFIG.md](./FLINK_CHECKPOINT_CONFIG.md) — checkpoint semantics, monitoring, troubleshooting
+- [FLINK_SAVEPOINT_RUNBOOK.md](./FLINK_SAVEPOINT_RUNBOOK.md) — safe upgrade workflows, state recovery
+- [TOPICS.md](./TOPICS.md) — full Kafka topic map (`poc.flink.*` / `poc.kc.*`)
+- [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, SMTs

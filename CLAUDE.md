@@ -125,9 +125,9 @@ Three rules managed by Terraform (`terraform/alerts.tf`):
 
 | Alert | Threshold | Severity |
 |-------|-----------|----------|
-| Flink Restart Loop | `increase(numRestarts[5m])` > 3 | critical |
-| Flink Checkpoint Duration High | `lastCheckpointDuration` > 180 000 ms | warning |
-| Flink Checkpoint Failures | `increase(numberOfFailedCheckpoints[5m])` > 3 | critical |
+| Flink Restart Loop | `increase(flink_jobmanager_job_numRestarts[5m])` > 3 | critical |
+| Flink Checkpoint Duration High | `flink_jobmanager_job_lastCheckpointDuration` > 180 000 ms | warning |
+| Flink Checkpoint Failures | `increase(flink_jobmanager_job_numberOfFailedCheckpoints[5m])` > 3 | critical |
 
 Contact point: `flink-cdc-poc-email`. Notification policy groups by `alertname` + `job_name`.
 
@@ -181,7 +181,7 @@ Per-variant server-ID ranges are also env-overridable (defaults match the [serve
 
 ## What to avoid
 
-- Do not hardcode versions in subproject `build.gradle` files — always use `rootProject.ext.*`
+- Do not hardcode versions in subproject `build.gradle` files — always use the version catalog (`gradle/libs.versions.toml`) via `libs.<alias>`
 - Do not reuse server-ID ranges across variants — MySQL will reject duplicate replica IDs
 - Do not leave `upgradeMode: stateless` permanently in Flink deployments — every restart would re-snapshot the full table
 - Variant 5 (YAML Pipeline) has no Maven shade module — do not add Java sources to it; it is intentionally zero-code
@@ -263,7 +263,7 @@ Tests submit the variant fat-jar to the JM at `FLINK_REST_URL`, wait for RUNNING
 |---|---|---|---|---|
 | `DataStreamCdcTest` | variant-flink-datastream-api-v1-cdc-job | 5900–5999 (`MYSQL_SERVER_ID` default) | `poc.flink.datastream.orders` | ✅ PASS |
 | `TableApiCdcTest` | variant-flink-table-api-cdc-job | 6000–6099 (`MYSQL_TABLE_API_SERVER_ID` default) | `poc.flink.table-api.orders` | ✅ PASS |
-| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (`MYSQL_SQL_API_*_SERVER_ID` defaults) | `poc.flink.sql-api.orders` | ✅ PASS |
+| `SqlApiCdcTest` | variant-flink-sql-api-cdc-job | 5800–5899 (`MYSQL_SQL_API_*_SERVER_ID` defaults) | `poc.flink.sql-api.orders` + `poc.flink.sql-api.customers` | ✅ PASS |
 | `DataStreamOutboxTest` | variant-flink-datastream-api-v1-outbox-job | 5600–5699 (`MYSQL_OUTBOX_SERVER_ID` default) | `poc.flink.outbox.outbox-events` | ✅ PASS |
 | `YamlPipelineCdcTest` | variant-flink-cdc-yaml-pipeline-cdc-job | 5700–5709 (submitter container) | `poc.flink.yaml-pipeline.orders` | ✅ PASS |
 
@@ -332,6 +332,8 @@ To add SpotBugs or OWASP Dependency Check in the future, see the archived config
 - [**FLINK_CHECKPOINT_CONFIG.md**](./FLINK_CHECKPOINT_CONFIG.md) — Flink 2.2 checkpoint semantics, monitoring, troubleshooting
 - [**FLINK_SAVEPOINT_RUNBOOK.md**](./FLINK_SAVEPOINT_RUNBOOK.md) — 5-phase safe upgrade workflow, server-ID management, disaster recovery
 - [**KAFKA_CONNECT.md**](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, custom SMTs, detailed comparison
+- [**K8S.md**](./K8S.md) — Kubernetes deployment path (kind + Flink Operator + Strimzi + monitoring)
+- [**HOW-TO-RUN-THIS-POC.md**](./HOW-TO-RUN-THIS-POC.md) — step-by-step run guide for the full POC
 - [**kafka-connect-at-scale-74-connectors-migration.md**](./kafka-connect-at-scale-74-connectors-migration.md) — presentation: real-world 74-connector migration case study (EN)
 - [**kafka-connect-at-scale-74-connectors-migration.ro.md**](./kafka-connect-at-scale-74-connectors-migration.ro.md) — traducere română a prezentării
 

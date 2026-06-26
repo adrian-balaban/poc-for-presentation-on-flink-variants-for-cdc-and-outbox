@@ -44,7 +44,7 @@ Two test classes verify the Kafka Connect variants — `KafkaConnectVariantTest`
 # Prerequisite: start Kafka Connect (included in podman-compose.yml)
 
 # Run only Kafka Connect tests
-./gradlew :component-tests:test --tests "*KafkaConnect*"
+./gradlew :component-tests:test --tests "poc.component.KafkaConnect*"
 
 # Run all component tests (Flink + Kafka Connect)
 ./gradlew :component-tests:test

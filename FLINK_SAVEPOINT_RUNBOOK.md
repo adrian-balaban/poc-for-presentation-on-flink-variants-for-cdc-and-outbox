@@ -311,5 +311,5 @@ flink run -s hdfs:///flink/production/sp-20260608-143022 \
 ## See Also
 
 - [CLAUDE.md](./CLAUDE.md) — Project structure and server-ID ranges
-- [Flink Savepoint Docs](https://nightlies.apache.org/flink/flink-docs-master/docs/ops/state/savepoints/)
-- [CDC Concepts](https://nightlies.apache.org/flink/flink-cdc-docs-master/)
+- [Flink Savepoint Docs](https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/savepoints/)
+- [CDC Concepts](https://nightlies.apache.org/flink/flink-cdc-docs-stable/)

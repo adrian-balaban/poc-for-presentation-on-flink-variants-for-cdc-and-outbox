@@ -384,7 +384,7 @@ pipeline:
 ## Slide 8 — POC Evidence
 | Check | Result |
 |-------------|--------|
-| Unit tests | 57/57 passed |
+| Unit tests | 58/58 passed |
 | All 8 modules compile | Clean |
 | Formatting (Spotless — Google Java Format) | Compliant |
 | Flink CDC 3.6.0 on Flink 2.2 | Verified |
@@ -470,19 +470,19 @@ applicationJobs:
 
 ## Slide 12 — Collision Avoidance
 
-Each POC variant gets its own dedicated, non-overlapping range on 4 axes, so all can run simultaneously without collisions:
+Each POC variant gets dedicated, non-overlapping allocations so all 5 Flink jobs **and** 5 Kafka Connect connectors can run simultaneously against the same MySQL + Kafka without collisions:
 
-- **MySQL server-ID range** — so parallel Flink CDC readers don't steal each other's binlog lease
-- **MySQL schema** — so each variant has its own source database
-- **Kafka topic prefix** — so topics don't overlap
-- **S3 checkpoint paths** — so checkpoints don't overlap
+- **MySQL server-ID range** — non-overlapping per variant (plus a separate range for the KC connectors), so parallel Flink CDC readers don't steal each other's binlog lease
+- **MySQL schema** — shared `poc_db`; all variants read `poc_db.orders`, `poc_db.customers`, `poc_db.outbox_events`. Isolation comes from server-ID, **not** from per-variant schemas.
+- **Kafka topic prefix** — `poc.flink.<variant>.<table>` for Flink jobs, `poc.kc.<variant>.<table>` for Kafka Connect, so the two engines' outputs never collide
+- **S3 checkpoint paths** — auto-namespaced by `jobId`, shared MinIO bucket, safe
 
 | Axis | Allocation |
 |------|------------|
-| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099 |
-| MySQL schema | `cdc_db`, `sql_api_db`, `table_api_db`, `pipeline_db`, `outbox_db` |
-| Kafka topic prefix | `shared-cdc.cdc-db.*`, `sql-api.sql-api-db.*`, `table-api.table-api-db.*`, `pipeline.pipeline-db.*`, `outbox.destination.*` |
-| S3 checkpoint paths | Auto-namespaced by `jobId` — shared bucket, safe |
+| MySQL server-ID | outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, datastream=5900–5999, table-api=6000–6099; Kafka Connect connectors use 5500–5599 |
+| MySQL schema | shared `poc_db` (`orders`, `customers`, `outbox_events`) — isolation by server-ID, not by schema |
+| Kafka topic prefix | Flink `poc.flink.<variant>.<table>` (e.g. `poc.flink.datastream.orders`); Kafka Connect `poc.kc.<variant>.<table>` (e.g. `poc.kc.datastream.orders`) |
+| S3 checkpoint paths | Auto-namespaced by `jobId` — shared MinIO bucket, safe |
 
 > **Why ranges, not unique IDs?** Flink allocates IDs for 'parallel readers'. A single identifier collides on restart because the previous MySQL binlog lease hasn't expired.
 

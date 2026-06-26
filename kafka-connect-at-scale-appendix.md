@@ -187,7 +187,7 @@ s3.secret-key: minioadmin
 | MySQL | 8.0 |
 | Java (Flink jobs) | 17 |
 | Java (Kafka Connect SMTs) | 11 (cp-kafka-connect 7.6.1 JDK) |
-| mysql-connector-j | 8.0.33 |
+| mysql-connector-j | 8.0.33 (baked into `flink-with-mysql` image) · 9.1.0 (`gradle/libs.versions.toml`, `common` + `component-tests`) |
 | Gradle | 8.7 |
 | Shadow plugin | 8.1.1 |
 
@@ -261,9 +261,9 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **IAM / Security** | RDS IAM tokens, IRSA, binlog lease management | No IAM; plain `flink`/`flink` credentials; rotation testing not possible |
 | **Re-snapshot** | Savepoint + S3 checkpoint deletion + re-run with `--fromSavepoint` via Flink Operator; binlog lease risk; official path in FLINK_SAVEPOINT_RUNBOOK.md (Slide 16, Spike S9) | Cancel job via REST port-forward (`PATCH /jobs/:jid?mode=cancel`) before `delete FlinkDeployment` (cancel-before-delete, `deploy.sh` §9) |
 | **State backend** | RocksDB (production) | Incremental RocksDB, managed memory (same as production; set via `FLINK_PROPERTIES` / `flinkConfiguration`, not in job code) |
-| **Kafka topic naming** | `<team>.<schema>.<table>` with per-variant prefixes for all 26 teams | `poc.flink.<variant>.<table>` (Flink) / `poc.kc.<variant>` (Kafka Connect); single `poc_db` schema |
+| **Kafka topic naming** | `<team>.<schema>.<table>` with per-variant prefixes for all 26 teams | `poc.flink.<variant>.<table>` (Flink) / `poc.kc.<variant>.<table>` (Kafka Connect); single `poc_db` schema |
 | **Observability** | Flink Platform Team / each team (config.tf) | Prometheus + Grafana (kube-prometheus-stack); Flink metrics via `flink-metrics-prometheus` |
-| **Scale** | 74 CDC connectors → 26 teams | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 57 unit tests + CTs per variant |
+| **Scale** | 74 CDC connectors → 26 teams | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 58 unit tests + CTs per variant |
 | **YAML Pipeline submission** | `flink-cdc.sh` via init-container or `kubectl exec`; `FlinkDeployment` starts with an empty JM until wired | `flink-cdc-submitter` in kind; `FlinkDeployment` `mode: standalone` (TM pre-deployed) then submitter runs `flink-cdc.sh` |
 
 ---

@@ -30,7 +30,7 @@ See also [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-
 | Flink CDC | 3.6.0-2.2 |
 | flink-connector-kafka | 5.0.0-2.2 |
 | MySQL | 8.0 |
-| Kafka | KRaft (Confluent 7.6.1) |
+| Kafka | KRaft (Confluent 7.8.0) |
 | Java | 17 (Flink jobs) / 11 (Kafka Connect SMTs) |
 | Gradle | 8.7 |
 
