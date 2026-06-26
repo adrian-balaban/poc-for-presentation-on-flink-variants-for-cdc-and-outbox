@@ -86,14 +86,19 @@ tasks.register('codeQuality') {
 
 tasks.register('fmt') {
     group = 'formatting'
-    description = 'Format all Java code with Spotless (Google Java Format)'
-    dependsOn 'spotlessApply'
+    description = 'Format all Java code with Spotless (Google Java Format) — every subproject'
+    // Depend on EACH subproject's spotlessApply, not the bare 'spotlessApply' string: that
+    // resolves to the root project's own spotless task, which has no sources (root has no src/),
+    // so `./gradlew fmt` was a silent no-op that left subproject test files unformatted. The
+    // real per-subproject tasks are :<subproject>:spotlessApply (applied via the subprojects {
+    // } block below), so fan the dependency out across all of them.
+    dependsOn subprojects.collect { ":${it.name}:spotlessApply" }
 }
 
 tasks.register('fmtCheck') {
     group = 'formatting'
-    description = 'Check Java formatting without applying changes'
-    dependsOn 'spotlessCheck'
+    description = 'Check Java formatting without applying changes — every subproject'
+    dependsOn subprojects.collect { ":${it.name}:spotlessCheck" }
 }
 
 // ── allK8s ───────────────────────────────────────────────────────────────────
