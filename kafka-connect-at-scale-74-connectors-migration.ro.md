@@ -213,11 +213,11 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
         ║   pe 1 cluster partajat   ║                       ║   1 deployment K8s izolat ║
         ║   topicuri:  poc.kc.<x>   ║                       ║ topicuri: poc.flink.<x>.. ║
         ╚═════════════╤═════════════╝                       ╚═════════════╤═════════════╝
-                      │            aceleași 5 tipare, două implementări    │
+                      │                               două implementări    │
                       └───────────────────────────┬───────────────────────┘
                                                   ▼
 ┌───┬──────────────────┬──────────────────────┬──────────────────────────────────┐
-│ # │ Variantă (tipar) │ Kafka Connect        │ Apache Flink                     │
+│ # │ Variantă         │ Kafka Connect        │ Apache Flink                     │
 ├───┼──────────────────┼──────────────────────┼──────────────────────────────────┤
 │ 1 │ DataStream API   │ 5510 · datastream    │ 5900–5999 · datastream.orders    │
 │ 2 │ Table API        │ 5520 · table-api     │ 6000–6099 · table-api.orders     │
@@ -226,10 +226,10 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 │ 5 │ YAML Pipeline    │ 5540 · yaml-pipeline │ 5700–5709 · yaml-pipeline.orders │
 └───┴──────────────────┴──────────────────────┴──────────────────────────────────┘
 
-  Coloanele motoarelor arată:  server-ID  ·  sufixul topicului Kafka
+  Coloanele 'motoarelor' arată:  server-ID  ·  sufixul topicului Kafka
   KC    → poc.kc.<sufix>                 (un singur topic per conector)
   Flink → poc.flink.<sufix>              (job izolat, checkpoint exactly-once)
-  Total: 5 tipare × 2 motoare = 10 implementări CDC rulând simultan pe același MySQL.
+  Total: 5 variante Flink + 1 varianta KC  = 6 implementări rulând simultan pe același MySQL.
 ```
 
 > Ambele 'motoare' (KC și Flink) rulează în paralel pentru comparație (input și output). Capturile de ecran complete și detaliile in Slide 9.

@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Timeout;
  */
 @Slf4j
 @DisplayName("Flink CDC : YAML Pipeline CDC Test")
-class YamlPipelineCdcTest extends ContainerBase {
+class YamlPipelineCdcTest extends FlinkTestBase {
 
   // ── Automated: YAML structural check ─────────────────────────────────────
 

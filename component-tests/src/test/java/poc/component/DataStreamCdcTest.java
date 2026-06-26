@@ -42,8 +42,29 @@ class DataStreamCdcTest extends FlinkTestBase {
     }
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(120));
-    String msg = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains(marker));
-    assertThat(msg).as("expected CDC event containing " + marker).isNotNull();
+    String msg =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(45),
+            m -> {
+              try {
+                JSONObject a = new JSONObject(m).optJSONObject("after");
+                return a != null && marker.equals(a.optString("status"));
+              } catch (Exception e) {
+                return false;
+              }
+            });
+    assertThat(msg).as("expected CDC event with status " + marker).isNotNull();
+    // Validate content, not just presence — mirrors test 3. amount is DECIMAL(10,2), which Debezium
+    // serialises under precise decimal handling as base64 bytes, so assert presence only (as
+    // DataQualityTest does), not the value.
+    JSONObject after = new JSONObject(msg).getJSONObject("after");
+    assertThat(after.optLong("customer_id")).as("customer_id").isEqualTo(1L);
+    assertThat(after.optString("status")).as("status marker").isEqualTo(marker);
+    assertThat(after.has("amount")).as("amount field present").isTrue();
+    assertThat(new JSONObject(msg).optString("variant"))
+        .as("variant annotation")
+        .isEqualTo("datastream-cdc");
     log.info("DataStream CDC: received Kafka message for {}", marker);
   }
 
@@ -61,8 +82,26 @@ class DataStreamCdcTest extends FlinkTestBase {
               marker));
     }
 
-    String msg = waitForKafkaMessage(TOPIC, Duration.ofSeconds(45), m -> m.contains(marker));
-    assertThat(msg).as("expected binlog CDC event containing " + marker).isNotNull();
+    String msg =
+        waitForKafkaMessage(
+            TOPIC,
+            Duration.ofSeconds(45),
+            m -> {
+              try {
+                JSONObject a = new JSONObject(m).optJSONObject("after");
+                return a != null && marker.equals(a.optString("status"));
+              } catch (Exception e) {
+                return false;
+              }
+            });
+    assertThat(msg).as("expected binlog CDC event with status " + marker).isNotNull();
+    JSONObject after = new JSONObject(msg).getJSONObject("after");
+    assertThat(after.optLong("customer_id")).as("customer_id").isEqualTo(2L);
+    assertThat(after.optString("status")).as("status marker").isEqualTo(marker);
+    assertThat(after.has("amount")).as("amount field present").isTrue();
+    assertThat(new JSONObject(msg).optString("variant"))
+        .as("variant annotation")
+        .isEqualTo("datastream-cdc");
     log.info("DataStream CDC binlog test: received Kafka message for {}", marker);
   }
 

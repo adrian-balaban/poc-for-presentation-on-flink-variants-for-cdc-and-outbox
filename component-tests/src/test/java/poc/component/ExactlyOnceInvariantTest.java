@@ -23,13 +23,24 @@ import org.junit.jupiter.api.Timeout;
 /**
  * Exactly-once invariant for the DataStream CDC variant's append Kafka sink.
  *
- * <p>A true exactly-once failure (duplicates or loss) usually requires killing a TaskManager
- * mid-checkpoint — flaky and environment-dependent. Instead this test asserts the <em>observable
- * invariant</em> that exactly-once guarantees downstream: for a batch of inserted rows, each row id
- * appears <strong>exactly once</strong> among the sink's emitted messages within a bounded poll
- * window. A restart-loop that replays a checkpoint would surface as duplicate ids; a dropped
- * checkpoint would surface as missing ids. Both are caught deterministically without inducing a
- * crash.
+ * <p>This test asserts the <em>observable steady-state invariant</em> that the exactly-once sink
+ * delivers downstream in normal operation: for a batch of inserted rows, each row id appears
+ * <strong>exactly once</strong> among the sink's emitted messages within a bounded poll window. A
+ * normal-path double-emission (a sink/source regression) surfaces as a duplicate id; a dropped
+ * record surfaces as a missing id. Either fails the per-id count assertion.
+ *
+ * <p>It does <em>not</em> induce a crash or restart, so it does <em>not</em> exercise the
+ * checkpoint-replay recovery path. A duplicate caused by replaying a checkpoint after a TaskManager
+ * restart can only occur under a failure this test deliberately does not trigger — killing a TM
+ * mid-checkpoint is flaky and environment-dependent (see {@link JobHealthTest} for restart-loop
+ * detection). The value here is a deterministic, hermetic check of the steady-state exactly-once
+ * property that a sink/source regression would break.
+ *
+ * <p>The Kafka consumer uses the default {@code read_uncommitted} isolation, so records are visible
+ * on production rather than at checkpoint commit. In normal operation no transaction aborts, so the
+ * read_uncommitted stream equals the committed stream and the per-id count is a faithful
+ * exactly-once observation. The aborted-transaction case is exactly the crash-recovery path not
+ * covered here.
  *
  * <p>This targets the DataStream append sink ({@code poc.flink.datastream.orders}) because every
  * mutation is a distinct Debezium envelope keyed by row id — the cleanest place to count per-id
@@ -78,11 +89,15 @@ class ExactlyOnceInvariantTest extends FlinkTestBase {
     }
     assertThat(insertedIds).as("inserted " + ROW_COUNT + " distinct rows").hasSize(ROW_COUNT);
 
-    // Poll for a bounded window, counting how many messages carry each inserted id. The window
-    // must be long enough to absorb checkpoint latency (30 s interval) but bounded so the test
-    // terminates. We poll repeatedly, tallying per-id message counts, until every inserted id has
-    // been seen at least once AND a short settle period elapses with no new matching messages —
-    // that settle period is what lets us assert "exactly once" rather than "at least once".
+    // Poll for a bounded window, counting how many messages carry each inserted id. The consumer
+    // uses the default read_uncommitted isolation, so records are visible on production rather than
+    // at checkpoint commit; the 90 s window therefore absorbs only production + processing time,
+    // not
+    // the 30 s checkpoint interval. We poll repeatedly, tallying per-id message counts, until every
+    // inserted id has been seen at least once AND a short settle period elapses with no new
+    // matching
+    // messages — that settle period is what lets us assert "exactly once" rather than "at least
+    // once".
     Map<Long, Integer> counts = new HashMap<>();
     pollUntilSettled(TOPIC, insertedIds, counts, Duration.ofSeconds(90));
 
@@ -99,7 +114,10 @@ class ExactlyOnceInvariantTest extends FlinkTestBase {
   /**
    * Consumes {@code topic} from earliest, tallying per-id message counts for ids in {@code
    * targetIds}. Returns once every target id has been seen at least once and no new target-id
-   * message has arrived for a 10-second settle window, or when {@code deadline} expires.
+   * message has arrived for a 10-second settle window, or when {@code deadline} expires. The
+   * 10-second settle is sufficient here because the read_uncommitted consumer sees a normal-path
+   * duplicate as soon as it is produced; a crash-replay duplicate (which could arrive later, at the
+   * next checkpoint) is outside this test's scope — see the class Javadoc.
    */
   private void pollUntilSettled(
       String topic, Set<Long> targetIds, Map<Long, Integer> counts, Duration deadline) {

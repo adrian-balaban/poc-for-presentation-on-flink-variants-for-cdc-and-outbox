@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Timeout;
  */
 @Slf4j
 @DisplayName("CDC Edge Cases & Continued Operation")
-class ErrorScenarioTest extends FlinkTestBase {
+class EdgeCaseTest extends FlinkTestBase {
 
   private static final Path JAR = jarPath("variant-flink-datastream-api-v1-cdc-job");
   private static final String JOB_NAME = "Flink DataStream API v.1 CDC Job";

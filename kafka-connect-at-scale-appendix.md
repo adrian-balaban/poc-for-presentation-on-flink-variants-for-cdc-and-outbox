@@ -48,7 +48,7 @@ flink-cdc-poc/
 │                                       #   KC: KafkaConnectVariantTest, KafkaConnectOutboxTest
 │                                       #   invariants/quality: CdcOperationsTest, CdcParityTest, DataQualityTest,
 │                                       #     DataStreamCdcMiniClusterTest, OutboxRouterMiniClusterTest,
-│                                       #     ErrorScenarioTest, ExactlyOnceInvariantTest, JobHealthTest,
+│                                       #     EdgeCaseTest, ExactlyOnceInvariantTest, JobHealthTest,
 │                                       #     SchemaEvolutionTest
 ├── local-development-podman/           # Podman Compose stack
 │   ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter

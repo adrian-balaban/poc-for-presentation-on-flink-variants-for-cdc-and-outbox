@@ -6,7 +6,16 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -162,27 +171,81 @@ class DataQualityTest extends FlinkTestBase {
 
     ensureJobRunning(JAR, "poc.datastream.DataStreamCdcJob", JOB_NAME, Duration.ofSeconds(30));
 
-    String firstMsg =
-        waitForKafkaMessage(
-            TOPIC,
-            Duration.ofSeconds(60),
-            m -> first.equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
-    String secondMsg =
-        waitForKafkaMessage(
-            TOPIC,
-            Duration.ofSeconds(60),
-            m -> second.equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
-    String thirdMsg =
-        waitForKafkaMessage(
-            TOPIC,
-            Duration.ofSeconds(60),
-            m -> third.equals(afterOf(m) != null ? afterOf(m).optString("status") : null));
+    // Verify the three inserts reach Kafka in insertion order. poc.flink.datastream.orders has a
+    // single partition, so Kafka offset order equals the sink's production order, which for a CDC
+    // source equals binlog (insertion) order; the MySQL auto-increment after.id must therefore
+    // increase in lockstep with the offset. Both are asserted strictly increasing across
+    // consecutive
+    // markers — that is the ordering invariant the test name promises, which the previous three
+    // independent waitForKafkaMessage calls (each with a fresh consumer group) never checked.
+    assertEmittedInOrder(TOPIC, Duration.ofSeconds(90), first, second, third);
 
-    assertThat(firstMsg).as(first + " message").isNotNull();
-    assertThat(secondMsg).as(second + " message").isNotNull();
-    assertThat(thirdMsg).as(third + " message").isNotNull();
+    log.info("Message ordering verified: 3 inserts produced Kafka messages in order");
+  }
 
-    log.info("Message ordering verified: all 3 inserts produced Kafka messages");
+  /**
+   * Consumes {@code topic} from earliest until every {@code expectedStatuses} marker has been
+   * located, recording each marker's Kafka offset and {@code after.id}. Then asserts the markers
+   * were emitted in the given order. {@code poc.flink.datastream.orders} has a single partition, so
+   * Kafka offset order equals the sink's production order, which for a CDC source equals binlog
+   * (insertion) order; the MySQL auto-increment {@code after.id} must therefore increase in
+   * lockstep with the offset. Both are asserted strictly increasing across consecutive markers.
+   */
+  private void assertEmittedInOrder(String topic, Duration timeout, String... expectedStatuses) {
+    Properties props = new Properties();
+    props.put("bootstrap.servers", KAFKA_BOOTSTRAP);
+    props.put("group.id", "order-" + UUID.randomUUID());
+    props.put("auto.offset.reset", "earliest");
+    props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+    props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+
+    Map<String, Long> markerToOffset = new HashMap<>();
+    Map<String, Long> markerToId = new HashMap<>();
+    Set<String> need = new HashSet<>(Arrays.asList(expectedStatuses));
+    long deadline = System.currentTimeMillis() + timeout.toMillis();
+    try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props)) {
+      consumer.subscribe(List.of(topic));
+      while (!need.isEmpty() && System.currentTimeMillis() < deadline) {
+        for (var record : consumer.poll(Duration.ofMillis(500))) {
+          JSONObject a;
+          try {
+            a = new JSONObject(record.value()).optJSONObject("after");
+          } catch (Exception e) {
+            continue;
+          }
+          if (a == null) {
+            continue;
+          }
+          // optString returns "" for absent/null status, which cannot match a non-empty marker.
+          String status = a.optString("status");
+          if (!status.isEmpty() && need.remove(status)) {
+            markerToOffset.put(status, record.offset());
+            markerToId.put(status, a.optLong("id"));
+          }
+        }
+      }
+    }
+
+    for (String marker : expectedStatuses) {
+      assertThat(markerToOffset.containsKey(marker))
+          .as("located CDC event with status " + marker)
+          .isTrue();
+    }
+    // Single-partition topic → offset order is the sink's production order = binlog order.
+    for (int i = 0; i + 1 < expectedStatuses.length; i++) {
+      String prev = expectedStatuses[i];
+      String next = expectedStatuses[i + 1];
+      long prevOff = markerToOffset.get(prev);
+      long nextOff = markerToOffset.get(next);
+      long prevId = markerToId.get(prev);
+      long nextId = markerToId.get(next);
+      assertThat(nextOff)
+          .as("offset of %s (%d) > offset of %s (%d)", next, nextOff, prev, prevOff)
+          .isGreaterThan(prevOff);
+      assertThat(nextId)
+          .as("after.id of %s (%d) > after.id of %s (%d)", next, nextId, prev, prevId)
+          .isGreaterThan(prevId);
+    }
   }
 
   @Test
