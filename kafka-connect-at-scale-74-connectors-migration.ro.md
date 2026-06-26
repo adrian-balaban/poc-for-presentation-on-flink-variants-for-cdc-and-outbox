@@ -213,7 +213,7 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
         ║   pe 1 cluster partajat   ║                       ║   1 deployment K8s izolat ║
         ║   topicuri:  poc.kc.<x>   ║                       ║ topicuri: poc.flink.<x>.. ║
         ╚═════════════╤═════════════╝                       ╚═════════════╤═════════════╝
-                      │                               două implementări    │
+                      │       aceleasi doua versiuni, două implementări   │
                       └───────────────────────────┬───────────────────────┘
                                                   ▼
 ┌───┬──────────────────┬──────────────────────┬──────────────────────────────────┐
