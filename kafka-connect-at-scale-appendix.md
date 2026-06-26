@@ -263,7 +263,7 @@ Five KC connectors mirror the Flink variants, using server-IDs in the reserved `
 | **State backend** | RocksDB (production) | Incremental RocksDB, managed memory (same as production; set via `FLINK_PROPERTIES` / `flinkConfiguration`, not in job code) |
 | **Kafka topic naming** | `<team>.<schema>.<table>` with per-variant prefixes for all 26 teams | `poc.flink.<variant>.<table>` (Flink) / `poc.kc.<variant>.<table>` (Kafka Connect); single `poc_db` schema |
 | **Observability** | Flink Platform Team / each team (config.tf) | Prometheus + Grafana (kube-prometheus-stack); Flink metrics via `flink-metrics-prometheus` |
-| **Scale** | 74 CDC connectors → 26 teams | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 58 unit tests + CTs per variant |
+| **Scale** | 74 CDC connectors → 26 teams | 1 schema (`poc_db`), 3 tables (`orders`, `customers`, `outbox_events`), 5 variants, 64 unit tests + CTs per variant |
 | **YAML Pipeline submission** | `flink-cdc.sh` via init-container or `kubectl exec`; `FlinkDeployment` starts with an empty JM until wired | `flink-cdc-submitter` in kind; `FlinkDeployment` `mode: standalone` (TM pre-deployed) then submitter runs `flink-cdc.sh` |
 
 ---
