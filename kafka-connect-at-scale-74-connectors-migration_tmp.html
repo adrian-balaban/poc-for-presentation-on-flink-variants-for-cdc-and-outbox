@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>kafka-connect-at-scale-74-connectors-migration.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="kafka-connect--scale-74-connectors-migration-case">Kafka Connect @ Scale: 74 Connectors Migration Case</h1>
+<p><strong>Author:</strong> Adrian Balaban<br>
+<strong>Date:</strong> 2026-06-26</p>
+<p>In this session, we will explore Kafka Connect through real client experience, focusing on a proof of concept and a proposed migration of 74 connectors from Confluent Kafka Cloud to Flink. We will walk through the current challenges, what improvements the new approach aims to address, and the trade-offs involved. The talk also highlights alternative options considered and the reasoning behind the proposed solution.</p>
+<hr>
+<h2 id="slide-0--why-this-talk-is-useful-what-youll-be-able-to-do-after-it">Slide 0 — Why this talk is useful (what you'll be able to do after it)</h2>
+<blockquote>
+<p>Not just a retelling of one client's migration — a <strong>reusable playbook</strong>.
+After this talk you can reproduce CDC with Kafka Connect or with Flink at
+another client.</p>
+</blockquote>
+<p>Five things you take away:</p>
+<ol>
+<li><strong>The client's journey</strong> — how a few years ago they moved from a
+<strong>DB-centric architecture</strong> to an <strong>event-driven</strong> one by adding just Kafka
+and a handful of Kafka Connect connectors. The context that makes the
+outcome relevant.</li>
+<li><strong>The real production pain with KC</strong> — cascading rebalances across unrelated
+teams, lag with no per-team tuning, a shared blast radius on one cluster,
+Confluent Cloud licensing.</li>
+<li><strong>Flink, Flink connectors, and Debezium in short</strong> — what they are, where
+they overlap, where they differ; Debezium as a binlog parser reused
+internally by Flink CDC (not the same KC connector).</li>
+<li><strong>Flink is fully event-driven</strong> — not just a CDC connector, but a stateful
+stream-processing engine with event-time and exactly-once checkpoints,
+each job as an isolated K8s deployment.</li>
+<li><strong>The info + POC code to do CDC at another client</strong> — 5 variants running
+simultaneously, near-production code, reproducible Podman infra, component
+tests that validate the Kafka output.</li>
+</ol>
+<blockquote>
+<p>Goal: at the end you can choose between KC and Flink with arguments — and you
+have code to start from, not from zero.</p>
+</blockquote>
+<hr>
+<h2 id="slide-1--the-problem-in-one-sentence">Slide 1 — The Problem in One Sentence</h2>
+<blockquote>
+<p>Real client. Real scale. 95 connectors, 26 teams, one shared cluster — and the
+question whether Flink is the right way out.</p>
+</blockquote>
+<p>Proposed migration of <strong>74 MySQL connectors</strong> from Confluent Kafka Cloud to Flink, with a proof of concept covering all 5 variants.</p>
+<p>This talk is being prepared for the <strong>Cognizant Java Community Romania</strong>.</p>
+<hr>
+<h2 id="slide-1b--agenda-45-minutes">Slide 1b — Agenda (45 minutes)</h2>
+<p><em>(Slides 0–1d set the opening frame (~6 min); the 45-minute block starts here.)</em></p>
+<ol>
+<li><strong>Where we are</strong> (2 min) — The client context + migration scope: 95 connectors on one cluster, 74 MySQL targets, 21 staying on KC → <em>Slides 2, 5</em></li>
+<li><strong>Why it hurts &amp; what we require</strong> (5 min) — Challenges + the 3 requirements any solution must meet → <em>Slide 3</em></li>
+<li><strong>What is Flink, and why it's the structural fix</strong> (4 min) — Flink in one frame; shared-pool vs per-job isolation → <em>Slide 4</em></li>
+<li><strong>The POC + evidence</strong> (10 min) — 5 Flink variants running simultaneously; one code snippet; POC evidence table → <em>Slides 6–8, 11</em></li>
+<li><strong>The solution + improvements</strong> (5 min) — Shared-job model; concrete improvements vs today's challenges → <em>Slides 9, 12</em></li>
+<li><strong>Architecture &amp; collision avoidance</strong> (8 min) — K8s deployment, server-ID ranges, monitoring → <em>Slides 10, 16</em></li>
+<li><strong>The trade-offs</strong> (5 min) — What changes, what remains, new operational surface → <em>Slide 13</em></li>
+<li><strong>Cost of the change</strong> (2 min) — TCO: what you stop paying, what you add → <em>Slide 14</em></li>
+<li><strong>Open questions</strong> (4 min) — 8 spikes → <em>Slide 15</em></li>
+</ol>
+<p><strong>Q&amp;A: 15 minutes</strong></p>
+<p><em>(agenda total: 45 min + 15 min Q&amp;A; opening frame Slides 0–1d (~6 min: Slide 1c ~75 s Kafka primer, Slide 1d ~3 min CDC-vs-Outbox patterns); Slide 11b live screenshots shown only if time permits — none counted in the 45 min.)</em></p>
+<hr>
+<h2 id="slide-1c--context-in-75-seconds-for-those-new-to-kafka">Slide 1c — Context in ~75 seconds (for those new to Kafka)</h2>
+<pre class="hljs"><code><div>MySQL binlog  →  Debezium  →  Kafka  →  consumers
+               (captures       topics      (other systems,
+                changes)                      databases)
+</div></code></pre>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>What it is (one sentence)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MySQL binlog</strong></td>
+<td>MySQL's internal journal of every INSERT/UPDATE/DELETE — Debezium reads it like a replica</td>
+</tr>
+<tr>
+<td><strong>Debezium</strong></td>
+<td>Open-source CDC platform that tails the MySQL binlog and emits every INSERT/UPDATE/DELETE as a structured JSON event; used internally by Flink CDC as its binlog parser (not the same as the KC Debezium connector)</td>
+</tr>
+<tr>
+<td><strong>Kafka Connect</strong></td>
+<td>The platform that runs Debezium (and other connectors) as managed workers</td>
+</tr>
+<tr>
+<td><strong>SMT</strong></td>
+<td>Single Message Transformer — a KC plugin that modifies each record in-flight (enrichment, routing)</td>
+</tr>
+<tr>
+<td><strong>Confluent Cloud</strong></td>
+<td>Kafka + Kafka Connect as a managed service (you pay for it, you don't operate it)</td>
+</tr>
+<tr>
+<td><strong>Apache Flink</strong></td>
+<td>Stream-processing engine; can do the same job as Debezium + KC, but as an isolated K8s job</td>
+</tr>
+<tr>
+<td><strong>Flink Operator / CR</strong></td>
+<td>K8s operator that runs each Flink job as a <code>FlinkDeployment</code> Custom Resource (own JM + TM)</td>
+</tr>
+<tr>
+<td><strong>StatementSet</strong></td>
+<td>Flink Table API construct that compiles several INSERTs into one JobGraph (one checkpoint)</td>
+</tr>
+<tr>
+<td><strong>IAM</strong></td>
+<td>AWS Identity and Access Management — the permission system that controls which principals can access which AWS resources; here used to grant Flink jobs S3 access for checkpoints</td>
+</tr>
+<tr>
+<td><strong>RDS</strong></td>
+<td>AWS managed relational database — the production MySQL source here (IAM auth)</td>
+</tr>
+<tr>
+<td><strong>Outbox table</strong></td>
+<td>A DB table written in the same transaction as the business record; CDC reads it and routes the event to the right Kafka topic — decouples event publishing from the main business schema</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Key point:</strong> every variant (except outbox type) in this talk reads the same thing — the MySQL binlog — and writes to Kafka.
+The difference is <em>how</em> and <em>where</em> the reading process runs.</p>
+</blockquote>
+<hr>
+<h2 id="slide-1d--two-connector-patterns-cdc-vs-outbox">Slide 1d — Two Connector Patterns: CDC vs Outbox</h2>
+<p>Two fundamentally different ways a connector reads MySQL and writes to Kafka.</p>
+<h3 id="pattern-1--cdc-one-topic-per-business-table">Pattern 1 — CDC: one topic per business table</h3>
+<pre class="hljs"><code><div>┌──────────────────────── MySQL ────────────────────────────┐
+│                                                           │
+│  ┌────────────────┐       ┌──────────────────────────┐   │
+│  │    orders      │       │       customers          │   │
+│  ├────────────────┤       ├──────────────────────────┤   │
+│  │ id │ amount│...│       │ id │ name │ email │  ... │   │
+│  └────────────────┘       └──────────────────────────┘   │
+│                                                           │
+│         binlog — every INSERT / UPDATE / DELETE           │
+└──────────────────────┬────────────────────────────────────┘
+                       │ connector tails binlog
+                       ▼
+              ┌─────────────────┐
+              │  CDC Connector  │
+              │  (Flink / KC)   │
+              └────────┬────────┘
+                       │ one topic per captured table
+          ┌────────────┴────────────┐
+          ▼                         ▼
+   ┌──────────────┐         ┌────────────────┐
+   │ poc.flink    │         │ poc.flink      │
+   │   .orders    │         │   .customers   │
+   └──────────────┘         └────────────────┘
+</div></code></pre>
+<p>The connector captures changes from every table in scope. Consumers receive the raw schema of each business table — any ALTER TABLE propagates downstream.</p>
+<h3 id="pattern-2--outbox-app-writes-intent-connector-routes-by-destination">Pattern 2 — Outbox: app writes intent; connector routes by destination</h3>
+<pre class="hljs"><code><div>┌────────────────────────────── MySQL ──────────────────────────────────────┐
+│                                                                           │
+│  ┌────────────────┐  same TX     ┌───────────────────────────────────┐   │
+│  │    orders      │  ──COMMIT──▶ │         outbox_events             │   │
+│  ├────────────────┤              ├───────────────────────────────────┤   │
+│  │ id │ amount│...│              │ id │ destination │ payload │  ... │   │
+│  └────────────────┘              │    │ &quot;payments&quot;  │ { ... } │       │   │
+│                                  │    │ &quot;fraud&quot;     │ { ... } │       │   │
+│                                  └───────────────────────────────────┘   │
+│                                                                           │
+│              binlog — connector watches outbox_events only                │
+└───────────────────────────────────┬───────────────────────────────────────┘
+                                    │ routes by destination field
+                                    ▼
+                          ┌──────────────────┐
+                          │ Outbox Connector │
+                          │  (Flink / KC)    │
+                          └────────┬─────────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              ▼                    ▼                    ▼
+       ┌────────────┐      ┌─────────────┐      ┌─────────────┐
+       │  payments  │      │    fraud    │      │  analytics  │
+       │   .events  │      │   .alerts   │      │    .feed    │
+       └────────────┘      └─────────────┘      └─────────────┘
+</div></code></pre>
+<p>The application controls the event shape and destination. The business table schema never leaks to consumers — only the curated payload in the outbox row reaches Kafka.</p>
+<blockquote>
+<p><strong>Key difference:</strong> CDC exposes every table change as-is (one topic per table; schema drift propagates).
+Outbox gives the application full control over which event shape reaches which topic —
+one outbox table → many topics, routed by a <code>destination</code> field written at insert time.</p>
+</blockquote>
+<hr>
+<h2 id="slide-2--the-client-context-where-we-are-today">Slide 2 — The Client Context (Where We Are Today)</h2>
+<p><strong>Real client experience: Confluent Kafka Cloud at scale</strong></p>
+<ul>
+<li><strong>95 connectors</strong> on <strong>one shared Kafka Connect cluster</strong> across <strong>26 teams</strong></li>
+<li>Two connector families today:
+<ul>
+<li><strong>Debezium (Kafka Connect)</strong> — reads MySQL binlog via Confluent-managed KC, one event per change per topic</li>
+<li>SFTP + SingleStore sink/source connectors</li>
+</ul>
+</li>
+<li>Everything shares one cluster: one config, one rebalance group, one blast radius</li>
+</ul>
+<blockquote>
+<p>The shared cluster was convenient at 5 connectors. At 95 across 26 teams — and
+growing — it is the single biggest source of cross-team incidents. That scaling
+pressure is why we're looking now.</p>
+</blockquote>
+<hr>
+<h2 id="slide-3--what-we-require-and-what-hurts-today">Slide 3 — What We Require, and What Hurts Today</h2>
+<p><strong>What we require of any solution</strong> <em>(solution-agnostic — the yardstick for the options on the decision matrix, Slide 7):</em></p>
+<ol>
+<li>Base image + security patching stay <strong>centralised</strong> — tribes don't own the runtime.</li>
+<li><strong>Move away from Confluent Platform</strong> — licensing and lock-in.</li>
+<li><strong>Tribe-based clusters don't solve ownership</strong> — they multiply cost 26× without fixing the root cause.</li>
+</ol>
+<p><strong>What hurts today — and what it costs:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pain</th>
+<th>Who</th>
+<th>How often</th>
+<th>Business impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rebalancing storms — one bad connector destabilises all</td>
+<td>All 26 teams</td>
+<td>Multiple×/quarter</td>
+<td>Cross-tribe incidents; consumer downtime during cascade</td>
+</tr>
+<tr>
+<td>Shared blast radius — 95 connectors, one cluster</td>
+<td>All 26 teams</td>
+<td>Every incident</td>
+<td>No isolation between tribes</td>
+</tr>
+<tr>
+<td>Recurring lag — no per-tribe lever</td>
+<td>Team + consumers</td>
+<td>Ongoing</td>
+<td>SLA risk on downstream consumers</td>
+</tr>
+<tr>
+<td>Production-only failures — surface only after deploy</td>
+<td>New-connector teams</td>
+<td>New-connector window</td>
+<td>Defects reach prod undetected</td>
+</tr>
+<tr>
+<td>Confluent Kafka Cloud licensing</td>
+<td>Organisation</td>
+<td>Monthly</td>
+<td><strong>Material monthly licensing cost</strong> (see Slide 14 TCO)</td>
+</tr>
+<tr>
+<td>Centralised security patching</td>
+<td>Maintenance team</td>
+<td>Every release cycle and every vulnerability fix</td>
+<td>Fleet-wide coordination overhead</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>One bad connector restart triggers a <strong>cascade rebalance across unrelated tribes</strong> — and most rows above map to a concrete improvement (see the Improvements slide).</p>
+</blockquote>
+<hr>
+<h2 id="slide-4--what-is-flink-and-why-its-the-structural-fix">Slide 4 — What Is Flink, and Why It's the Structural Fix</h2>
+<p><strong>Apache Flink</strong> is a stateful stream-processing engine: a continuous job that reads events, keeps state, and writes results — with <strong>exactly-once checkpoints</strong> (durable, recoverable) and <strong>event-time</strong> semantics. Each job runs as its <strong>own isolated K8s deployment</strong> (own JobManager + TaskManager) under the Flink Operator.</p>
+<p><strong>Flink + MySQL Connector</strong> or <strong>Flink CDC</strong> does the same job as Debezium-on-Kafka-Connect — reads the MySQL binlog and emits change events to Kafka.</p>
+<p>The structural argument in one frame — this is the bridge from &quot;why it hurts&quot; to &quot;why Flink fixes it&quot;:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Kafka Connect today</th>
+<th>Flink (proposed)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Deployment</td>
+<td>1 shared worker cluster</td>
+<td>N isolated K8s jobs (through Flink Operator)</td>
+</tr>
+<tr>
+<td>Blast radius</td>
+<td>1 — all 95 connectors</td>
+<td>1 per tribe — contained</td>
+</tr>
+<tr>
+<td>Rebalance</td>
+<td>one group → cascade across 26 teams</td>
+<td>none — no shared group</td>
+</tr>
+<tr>
+<td>Offsets / state</td>
+<td>shared offset topic</td>
+<td>per-job exactly-once checkpoints (S3)</td>
+</tr>
+<tr>
+<td>Licensing</td>
+<td>Confluent Cloud (paid)</td>
+<td>Apache 2.0 (free)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>&quot;CDC&quot; means two things — don't confuse them:</strong> (1) <strong>Flink CDC <code>MySqlSource</code></strong> — the connector that reads the MySQL binlog via Flink CDC's own incremental-snapshot algorithm (variants 1–4: DataStream / Table API / SQL API / Outbox; it reuses Debezium's binlog parser internally but does <strong>not</strong> run on the Debezium Kafka Connect connector). (2) <strong>Flink CDC YAML pipeline</strong> — the declarative <em>YAML pipeline framework</em> on top of that same source, no Java (Variant 5). This talk covers both senses.</p>
+</blockquote>
+<hr>
+<h2 id="slide-5--scope-of-the-migration">Slide 5 — Scope of the Migration</h2>
+<p><strong>What we're migrating:</strong> 74 MySQL connectors → Apache Flink MySQL CDC Connector</p>
+<p><strong>What stays on Kafka Connect:</strong> 21 SFTP + SingleStore connectors (Flink has no equivalent)</p>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/migration-before-after.svg" alt="Migration Pattern: Before and After"></p>
+<hr>
+<h2 id="slide-6--the-poc-five-flink-variants">Slide 6 — The POC: Five Flink Variants</h2>
+<p>We built <strong>5 variants</strong> and ran them
+<strong>simultaneously</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Variant</th>
+<th>Entry-Class Size</th>
+<th>Output Format</th>
+<th>Java Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>CDC with Flink DataStream API</td>
+<td>63 lines</td>
+<td>Debezium envelope + enrichment</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>2</td>
+<td>CDC with Flink Table API</td>
+<td>99 lines</td>
+<td>Flattened projected row (upsert-kafka)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>3</td>
+<td>CDC with Flink SQL API</td>
+<td>156 lines</td>
+<td>Flattened projected row (upsert-kafka)</td>
+<td>Minimal</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Outbox with Flink DataStream API</td>
+<td>56 lines</td>
+<td>Debezium envelope of outbox row (single topic; per-destination routing is production, not in POC)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>5</td>
+<td>CDC with Flink CDC (YAML Pipeline)</td>
+<td>52 lines YAML</td>
+<td>Native Debezium envelope</td>
+<td><strong>No</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>All four Java variants additionally share ~412 lines of <code>common/</code> infrastructure
+(<code>JobConfig</code>, <code>CheckpointConfigurer</code>, deserializer, routers, <code>KafkaSinkFactory</code>) —
+entry classes contain only variant-specific wiring.</p>
+</blockquote>
+<hr>
+<h2 id="slide-7--decision-matrix-which-variant-for-which-connector">Slide 7 — Decision Matrix: Which Variant for Which Connector?</h2>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/connector-decision-tree.svg" alt="Connector Decision Tree: Which Variant for Which Connector?"></p>
+<table>
+<thead>
+<tr>
+<th>Connector Shape</th>
+<th>Recommended Variant</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Outbox (transactional, per-row routing)</td>
+<td>DataStream</td>
+<td>Table/SQL API can't do per-row routing</td>
+</tr>
+<tr>
+<td>CDC with custom enrichment/transformation</td>
+<td>DataStream CDC</td>
+<td>Java access to <code>CdcEventRouter</code> + custom <code>MapFunction</code></td>
+</tr>
+<tr>
+<td>Simple CDC (table → topic, no transform)</td>
+<td>YAML Pipeline/SQL API</td>
+<td>Zero Java; SQL API produces a fat JAR / shadow JAR via the Gradle shadow plugin</td>
+</tr>
+<tr>
+<td>CDC with future SQL joins/aggregation</td>
+<td>Table API</td>
+<td>Unlocks Flink's Table API ecosystem (type-safe Java)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="slide-8--the-java-devs-view-code-comparison">Slide 8 — The Java Dev's View: Code Comparison</h2>
+<h3 id="datastream-cdc-63-line-entry-class-most-control">DataStream CDC (63-line entry class, most control)</h3>
+<pre class="hljs"><code><div>MySqlSource&lt;String&gt; source = MySqlSource.&lt;String&gt;builder()
+    .hostname(config.mysqlHost).port(config.mysqlPort)
+    .databaseList(config.mysqlDatabase).tableList(config.mysqlTables)
+    .username(config.mysqlUser).password(config.mysqlPassword)
+    .serverTimeZone(<span class="hljs-string">&quot;UTC&quot;</span>)
+    .serverId(config.serverId)
+    .deserializer(<span class="hljs-keyword">new</span> <span class="hljs-title class_">PocJsonDeserializationSchema</span>())
+    .build();
+
+env.fromSource(source, WatermarkStrategy.noWatermarks(), <span class="hljs-string">&quot;MySQL CDC Source&quot;</span>)
+   .process(<span class="hljs-keyword">new</span> <span class="hljs-title class_">CdcEventRouter</span>(config))
+   .sinkTo(KafkaSinkFactory.create(config, <span class="hljs-string">&quot;datastream&quot;</span>));
+</div></code></pre>
+<blockquote>
+<p>All connection details come from <code>JobConfig.fromEnv()</code> — nothing is hardcoded;
+this is the same parametrisation the shared-job model relies on (see the Shared Job Model slide).</p>
+</blockquote>
+<h3 id="yaml-pipeline-52-lines-zero-java">YAML Pipeline (52 lines, zero Java)</h3>
+<pre class="hljs"><code><div><span class="hljs-attr">source:</span>
+  <span class="hljs-attr">type:</span> <span class="hljs-string">mysql</span>
+  <span class="hljs-attr">hostname:</span> <span class="hljs-string">${MYSQL_HOST}</span>
+  <span class="hljs-attr">port:</span> <span class="hljs-string">${MYSQL_PORT}</span>
+  <span class="hljs-attr">username:</span> <span class="hljs-string">${MYSQL_USER}</span>
+  <span class="hljs-attr">password:</span> <span class="hljs-string">${MYSQL_PASSWORD}</span>
+  <span class="hljs-attr">tables:</span> <span class="hljs-string">${MYSQL_DATABASE}.orders</span>
+  <span class="hljs-attr">server-id:</span> <span class="hljs-number">5700</span><span class="hljs-number">-5709</span>
+<span class="hljs-attr">sink:</span>
+  <span class="hljs-attr">type:</span> <span class="hljs-string">kafka</span>
+  <span class="hljs-attr">properties.bootstrap.servers:</span> <span class="hljs-string">${KAFKA_BOOTSTRAP}</span>
+  <span class="hljs-attr">topic:</span> <span class="hljs-string">${KAFKA_TOPIC_PREFIX}.yaml-pipeline.orders</span>
+<span class="hljs-attr">pipeline:</span>
+  <span class="hljs-attr">name:</span> <span class="hljs-string">Flink</span> <span class="hljs-string">CDC</span> <span class="hljs-string">YAML</span> <span class="hljs-string">Pipeline</span> <span class="hljs-string">CDC</span> <span class="hljs-string">Job</span>
+</div></code></pre>
+<hr>
+<h2 id="slide-9--recommended-architecture-shared-job-model">Slide 9 — Recommended Architecture: Shared Job Model</h2>
+<p><strong>One base image per variant. 74 MySQL connectors. No per-tribe Java fork.</strong></p>
+<p>Flink Platform Team owns and maintains parametrisable images for the 5 variants.
+Each tribe gets their connector by overriding Helm values only — no fork, no per-tribe release pipeline.</p>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/k8s-deployment-topology.svg" alt="K8s Deployment Topology: Shared Job Model"></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># All a tribe needs</span>
+<span class="hljs-attr">applicationJobs:</span>
+  <span class="hljs-attr">my-tribe-cdc:</span>
+    <span class="hljs-attr">image:</span> <span class="hljs-string">flink-stream-api-base-image:1.0.0</span>
+    <span class="hljs-attr">extraEnvs:</span>
+      <span class="hljs-attr">MYSQL_HOST:</span> <span class="hljs-string">my-db.internal</span>
+      <span class="hljs-attr">MYSQL_DATABASE:</span> <span class="hljs-string">my_schema</span>
+      <span class="hljs-attr">KAFKA_TOPIC_PREFIX:</span> <span class="hljs-string">my-tribe.cdc</span>
+</div></code></pre>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MYSQL_HOST/PORT/USER/PASSWORD</code></td>
+<td>CDC source</td>
+</tr>
+<tr>
+<td><code>MYSQL_DATABASE</code> / <code>MYSQL_TABLES</code></td>
+<td>Scope of capture</td>
+</tr>
+<tr>
+<td><code>MYSQL_SERVER_ID</code></td>
+<td>Binlog replica range (non-overlapping)</td>
+</tr>
+<tr>
+<td><code>KAFKA_BOOTSTRAP</code> / <code>KAFKA_TOPIC_PREFIX</code></td>
+<td>Sink config</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="slide-10--k8s-deployment-model">Slide 10 — K8s Deployment Model</h2>
+<p><strong>One repo, five variants, one Jenkins pipeline definition — one execution per variant.</strong></p>
+<p>The <code>flink-base-chart</code> <code>applicationJobs</code> map emits per key:</p>
+<ul>
+<li><code>FlinkDeployment</code> CR (its own JobManager + TaskManager)</li>
+<li><code>&lt;jobName&gt;-rest</code> ClusterIP Service</li>
+<li><code>FlinkStateSnapshot</code> CR</li>
+</ul>
+<h3 id="collision-avoidance--each-variant-gets-its-own-lane">Collision Avoidance — Each Variant Gets Its Own Lane</h3>
+<p>Each POC variant gets its own dedicated, non-overlapping range on four axes so they can all run simultaneously without collision:</p>
+<ul>
+<li><strong>MySQL server-ID range</strong> — so Flink CDC's parallel readers don't steal each other's binlog lease</li>
+<li><strong>MySQL schema</strong> — so each variant has its own source database</li>
+<li><strong>Kafka topic prefix</strong> — so topics don't overlap</li>
+<li><strong>S3 checkpoint paths</strong> — so checkpoints don't overlap</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Axis</th>
+<th>Allocation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MySQL server-ID</td>
+<td>outbox=5600–5699, pipeline=5700–5709, sql-api=5800–5899, cdc=5900–5999, table-api=6000–6099</td>
+</tr>
+<tr>
+<td>MySQL schema</td>
+<td><code>cdc_db</code>, <code>sql_api_db</code>, <code>table_api_db</code>, <code>pipeline_db</code>, <code>outbox_db</code></td>
+</tr>
+<tr>
+<td>Kafka topic prefix</td>
+<td><code>shared-cdc.cdc-db.*</code>, <code>sql-api.sql-api-db.*</code>, <code>table-api.table-api-db.*</code>, <code>pipeline.pipeline-db.*</code>, <code>outbox.destination.*</code></td>
+</tr>
+<tr>
+<td>S3 checkpoint paths</td>
+<td>Auto-namespaced by <code>jobId</code> — shared bucket, safe</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Why ranges, not single IDs?</strong> Flink CDC 3.x incremental snapshot allocates IDs for
+parallel readers + restart attempts. A single int collides on restart because the
+previous MySQL binlog lease hasn't timed out.</p>
+</blockquote>
+<hr>
+<h2 id="slide-11--poc-evidence">Slide 11 — POC Evidence</h2>
+<table>
+<thead>
+<tr>
+<th>Verification</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unit tests</td>
+<td>57/57 passing</td>
+</tr>
+<tr>
+<td>All 8 modules compile</td>
+<td>Clean</td>
+</tr>
+<tr>
+<td>Format (Spotless — Google Java Format)</td>
+<td>Compliant</td>
+</tr>
+<tr>
+<td>Flink CDC 3.6.0 on Flink 2.2</td>
+<td>Verified</td>
+</tr>
+<tr>
+<td>Per-variant component tests</td>
+<td>Passing (5 Flink + 5 KC variants)</td>
+</tr>
+<tr>
+<td>StatementSet → 1 JobGraph</td>
+<td>Verified (SQL API only; Table API uses single INSERT, not StatementSet)</td>
+</tr>
+<tr>
+<td>All 5 variants running simultaneously</td>
+<td>Runs at POC scale (localhost:8081; 3 tables, 2 outbox destinations, RocksDB incremental state)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>The POC validates the mechanism at POC scale — 5 variants, 57 unit tests, all green; outbox routing is logged to a single topic in the POC (per-destination side-output fan-out is production, Spike S3).
+Production scale (15M-row table, ~15 destinations, RocksDB, prod failure modes) is the open spike work (S2/S3/S5).</p>
+</blockquote>
+<hr>
+<h2 id="slide-11b--poc-evidence-live-screenshots">Slide 11b — POC Evidence: Live Screenshots</h2>
+<p><strong>All 5 Flink variants running simultaneously on localhost — captured during the live POC.</strong></p>
+<h3 id="flink-dashboard--55-jobs-running">Flink Dashboard — 5/5 Jobs RUNNING</h3>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/flink-dashboard.png" alt="Flink Dashboard — 5 variants running simultaneously"></p>
+<blockquote>
+<p>All five CDC variants (DataStream, Table API, SQL API, Outbox, YAML Pipeline) live in one
+Flink cluster. Each has its own MySQL server-ID range; zero collisions.</p>
+</blockquote>
+<h3 id="kafka-ui--poc-cluster-32-topics-109-partitions">Kafka UI — poc Cluster (32 topics, 109 partitions)</h3>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/kafka-ui.png" alt="Kafka UI — poc cluster overview"></p>
+<blockquote>
+<p>Topics auto-created by CDC connectors. 32 topics = per-table topics for all 5 variants
+plus schema-history topics. Signal topics (<code>private.debezium.signal.*</code>) are KC-only;
+Flink CDC does not use them.</p>
+</blockquote>
+<h3 id="kafka-connect-rest-api--5-kc-connectors-side-by-side-comparison">Kafka Connect REST API — 5 KC Connectors (side-by-side comparison)</h3>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/kafka-connect.png" alt="Kafka Connect — 5 connectors list"></p>
+<blockquote>
+<p>KC connectors run in parallel for output comparison only. Server-IDs in the reserved
+<code>5500–5599</code> range to avoid collision with the Flink variants.</p>
+</blockquote>
+<h3 id="grafana-dashboard--flink-cdc-poc-monitoring">Grafana Dashboard — Flink CDC POC Monitoring</h3>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/grafana-dashboard.png" alt="Grafana — Flink CDC POC Monitoring dashboard"></p>
+<blockquote>
+<p>3 monitors shipped (mirroring Datadog): Restart Loop, Checkpoint Duration, Checkpoint Failures — all 5 variants green. Monitors #4–#7 (connector lag, snapshot status, binlog position) pending Spike S1.</p>
+</blockquote>
+<hr>
+<h2 id="slide-12--improvements-addressed">Slide 12 — Improvements Addressed</h2>
+<table>
+<thead>
+<tr>
+<th>Challenge (Slide 3)</th>
+<th>Improvement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rebalancing storms — one bad connector destabilises all</td>
+<td><strong>Isolated blast radius</strong> — each tribe's Flink job is isolated; failure stays per-tribe</td>
+</tr>
+<tr>
+<td>Shared blast radius — 95 connectors, one cluster</td>
+<td><strong>Clear ownership</strong> — tribe owns their connector repo and deploy cadence</td>
+</tr>
+<tr>
+<td>Recurring lag — no per-tribe lever</td>
+<td><strong>Lag is managed per-team and per-job</strong></td>
+</tr>
+<tr>
+<td>Production-only failures</td>
+<td><strong>Native Kubernetes lifecycle</strong> — Flink Operator; local component tests catch issues before deploy</td>
+</tr>
+<tr>
+<td>Confluent licensing</td>
+<td><strong>Partial licensing savings</strong> — 74 connectors moved off the KC cluster, so it can be downsized to fewer billable cluster nodes; 21 SFTP/SingleStore connectors retained on KC</td>
+</tr>
+<tr>
+<td>Fleet-wide coordinated upgrades</td>
+<td><strong>Independent upgrades</strong> — per-job versioning; no fleet-wide coordination</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> Exactly-once sink requires Kafka transactions (<code>DeliveryGuarantee.EXACTLY_ONCE</code> + transactional ID prefix in <code>KafkaSinkFactory</code>); Kafka broker must have transactions enabled.</p>
+</blockquote>
+<hr>
+<h2 id="slide-13--the-trade-offs-risk-register">Slide 13 — The Trade-offs (Risk Register)</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Status / Mitigation</th>
+<th>Where addressed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>KC remains for 21 SFTP/SingleStore connectors — two systems to operate</td>
+<td>Accepted; SFTP/SingleStore have no Flink equivalent</td>
+<td>Slide 5 (scope), Slide 14 (TCO)</td>
+</tr>
+<tr>
+<td>Learning curve — Flink Operator, checkpoints, savepoints</td>
+<td>Mitigated for most tribes by shared-job model</td>
+<td>Slide 7 (decision tree), Slide 9 (shared-job)</td>
+</tr>
+<tr>
+<td>Cutover sequencing — no wave plan, dual-run, parity gate, or rollback runbook yet</td>
+<td><strong>Not yet mitigated</strong> — S6 must deliver: wave plan, dual-run period, byte-for-byte parity gate, binlog server-ID overlap coordination, rollback runbook</td>
+<td>Slide 15, Spike S6</td>
+</tr>
+<tr>
+<td>New operational surface — Flink Operator, checkpoints, savepoints</td>
+<td>Mitigated by Flink Platform Team ownership of base image and monitoring module</td>
+<td>Slide 16, Spike S1</td>
+</tr>
+<tr>
+<td>Observability regression — Debezium JMX metrics (lag, snapshot status, binlog position) have no direct Flink equivalent</td>
+<td><strong>Not yet mitigated</strong> — interim: Flink restart/backlog metrics + MySQL-side binlog-position checks as lag proxy; full resolution pending Spike S1</td>
+<td>Slide 16, Spike S1</td>
+</tr>
+<tr>
+<td>Schema evolution (ALTER TABLE) — behavior differs by variant; downstream Kafka schema compatibility not validated</td>
+<td><strong>Not yet mitigated</strong> — no dbhistory.* equivalent; validate per tribe + schema-registry compat policy</td>
+<td>Slide 15, Spike S8 (new)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="slide-14--total-cost-of-ownership-high-level">Slide 14 — Total Cost of Ownership (High-Level)</h2>
+<p><strong>Current state (Confluent KC):</strong> one shared cluster bill covers all 95 connectors.</p>
+<p><strong>Proposed state (Flink):</strong> Confluent bill reduced — only 21 connectors remain on KC, so its cluster can run on fewer nodes; Flink runs on existing K8s compute with no additional licensing.</p>
+<table>
+<thead>
+<tr>
+<th>Cost axis</th>
+<th>KC today (95 connectors)</th>
+<th>Flink proposal (74 CDC → Flink; 21 KC retained)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Confluent licensing</td>
+<td>Full 95-connector bill</td>
+<td>~22% of connectors retained (21/95); fewer connectors → smaller cluster → fewer billable cluster nodes — see caveat</td>
+</tr>
+<tr>
+<td>Compute (K8s CPU/RAM)</td>
+<td>KC managed by Confluent (included in license)</td>
+<td>One JM + TM pod pair per tribe; size per tribe against peak change rate (POC estimate: ~0.5 vCPU + 1 GB RAM at low binlog throughput; production sizing pending Spike S2)</td>
+</tr>
+<tr>
+<td>Operational overhead</td>
+<td>Shared cluster ops centralised</td>
+<td>Per-tribe isolation; Flink Platform Team owns base image</td>
+</tr>
+<tr>
+<td>Per-tribe migration cost</td>
+<td>Zero (status quo)</td>
+<td>S5/S6 spike deliverables (cutover automation)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Caveat:</strong> exact Confluent per-cluster-node pricing depends on contract tier.
+The directional saving (74 connectors moved off the KC cluster, letting it run on fewer nodes) is certain;
+the K8s compute uplift should be sized against the existing KC worker fleet.</p>
+</blockquote>
+<hr>
+<h2 id="slide-15--open-spikes">Slide 15 — Open Spikes</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Topic</th>
+<th>Why It Matters</th>
+<th>Phase</th>
+<th>Timebox</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1</td>
+<td>Flink metric parity — Debezium JMX metrics via Flink?</td>
+<td>Determines monitoring module design; blocks #4–#7 KC monitor mapping</td>
+<td>Phase 0</td>
+<td>3 days</td>
+</tr>
+<tr>
+<td>S2</td>
+<td>Initial snapshot memory pressure on largest table (~15M rows)</td>
+<td>Prevents surprise in Phase 1/2</td>
+<td>Phase 0</td>
+<td>2 days</td>
+</tr>
+<tr>
+<td>S3</td>
+<td>Outbox multi-topic routing at scale (POC tests at 2; production outbox uses ~15 destinations)</td>
+<td>Phase 1 go-live blocker</td>
+<td>Phase 0</td>
+<td>2 days</td>
+</tr>
+<tr>
+<td>S4</td>
+<td><code>snapshot.aborted</code>/<code>snapshot.running</code> Flink equivalent</td>
+<td>outbox-connector migration (Phase 3)</td>
+<td>Phase 0</td>
+<td>2 days</td>
+</tr>
+<tr>
+<td>S5</td>
+<td>Production failure modes (RDS IAM, binlog leases, IRSA rotation)</td>
+<td>POC can't surface these; staging soak needed</td>
+<td>Phase 1</td>
+<td>≥7-day soak</td>
+</tr>
+<tr>
+<td>S6</td>
+<td>Cutover automation (KC → Flink): wave plan, dual-run period, byte-for-byte parity gate, binlog server-ID overlap coordination, rollback runbook</td>
+<td>No cutover plan exists yet; manual switches won't scale to 26 tribes</td>
+<td>Phase 2</td>
+<td>~5 days</td>
+</tr>
+<tr>
+<td>S7</td>
+<td>Self-service Claude migration tooling for tribes</td>
+<td>Tribes can't wait for Flink Platform Team hand-holding</td>
+<td>Phase 1</td>
+<td>3 days</td>
+</tr>
+<tr>
+<td>S8</td>
+<td>Schema evolution — ALTER TABLE behavior per Flink variant; no dbhistory.* equivalent; downstream schema-registry compat policy</td>
+<td>Per-tribe blast radius for schema changes; daily production reality</td>
+<td>Phase 0</td>
+<td>2 days</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Phase 0 total (S1–S4, S8): ~11 engineering days — parallelisable within 1 sprint.</strong></p>
+<p><strong>Phase legend:</strong> 0 = spikes (pre-pilot) · 1 = first-tribe pilot go-live · 2 = expansion across tribes · 3 = outbox cutover</p>
+<hr>
+<h2 id="slide-16--centralised-monitoring-kc-and-flink">Slide 16 — Centralised Monitoring: KC and Flink</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Now (KC / Debezium JMX)</th>
+<th>Gap</th>
+<th>Target (Flink, post-S1)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Connector lag</strong></td>
+<td>Debezium JMX <code>debezium.mysql:type=connector-metrics</code> → <code>MillisSinceLastEvent</code></td>
+<td>No direct Flink CDC equivalent</td>
+<td>Flink source backlog metric (S1 investigation)</td>
+</tr>
+<tr>
+<td><strong>Snapshot status</strong></td>
+<td>Debezium JMX <code>snapshot.running</code> / <code>snapshot.aborted</code></td>
+<td>No equivalent yet (Spike S4)</td>
+<td>Flink job status + custom metric via S1/S4</td>
+</tr>
+<tr>
+<td><strong>Binlog position</strong></td>
+<td>Debezium JMX <code>source.pos</code></td>
+<td>No direct equivalent</td>
+<td>MySQL-side binlog position check or Flink offset metric (S1)</td>
+</tr>
+<tr>
+<td><strong>Restarts</strong></td>
+<td>Kafka Connect worker restarts</td>
+<td>✅ Available — Flink <code>numRestarts</code> (Prometheus + Datadog)</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><strong>Checkpoint health</strong></td>
+<td>N/A (KC stateless)</td>
+<td>✅ Improvement — Flink <code>lastCheckpointDuration</code>, <code>numberOfFailedCheckpoints</code></td>
+<td>Same</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Datadog monitors #4–#7</strong> (connector lag, snapshot status, binlog position, snapshot abort) cannot be directly mapped until Spike S1 resolves Flink metric equivalents.</p>
+<p><strong>Interim mitigation (pre-S1):</strong></p>
+<ul>
+<li>Monitor <code>numRestarts</code> as a lag proxy (repeated restarts → binlog position stale)</li>
+<li>MySQL-side: query <code>SHOW MASTER STATUS</code> + compare against last known Flink binlog offset from checkpoint metadata</li>
+<li>Datadog alert on Flink source <code>records.consumed.rate</code> dropping to 0</li>
+</ul>
+<p><strong>Target state:</strong> One shared Terraform module per platform (KC module owned by Module Owner; Flink module by Flink Platform Team), consumed by each tribe's <code>config.tf</code> — ~600 monitors across 26 teams at end-state.</p>
+<hr>
+<h2 id="appendix--backup-slides-not-part-of-the-45-minute-talk">APPENDIX — Backup Slides (Not Part of the 45-Minute Talk)</h2>
+<blockquote>
+<p>The three lists below are reference material for Q&amp;A only. Do not present them live —
+they are here so you can jump to a specific table if asked a detailed infra question.</p>
+</blockquote>
+<hr>
+<h2 id="detailed-reference--poc-module-structure">Detailed Reference — POC Module Structure</h2>
+<h3 id="poc-module-structure-flink-cdc-poc">POC Module Structure (<code>flink-cdc-poc</code>)</h3>
+<pre class="hljs"><code><div>flink-cdc-poc/
+├── common/                             # JobConfig, CheckpointConfigurer, PocJsonDeserializationSchema, CdcEventRouter, OutboxRouter, KafkaSinkFactory, DdlValidator (~412 lines)
+├── variant-flink-datastream-api-v1-cdc-job/   # DataStreamCdcJob.java  (63 lines, server-ID 5900–5999)
+├── variant-flink-table-api-cdc-job/           # TableApiCdcJob.java    (99 lines, server-ID 6000–6099)
+├── variant-flink-sql-api-cdc-job/             # SqlApiCdcJob.java      (156 lines, server-ID 5800–5899)
+├── variant-flink-datastream-api-v1-outbox-job/ # OutboxJob.java        (56 lines, server-ID 5600–5699)
+├── variant-flink-cdc-yaml-pipeline-cdc-job/   # pipeline.yaml         (52 lines, canonical: src/main/resources/pipeline.yaml, server-ID 5700–5709)
+├── component-tests/                    # 16 test classes + 5 base helpers:
+│                                       #   Flink variants: DataStreamCdcTest, TableApiCdcTest, SqlApiCdcTest,
+│                                       #     DataStreamOutboxTest, YamlPipelineCdcTest
+│                                       #   KC: KafkaConnectVariantTest, KafkaConnectOutboxTest
+│                                       #   invariants/quality: CdcOperationsTest, CdcParityTest, DataQualityTest,
+│                                       #     DataStreamCdcMiniClusterTest, OutboxRouterMiniClusterTest,
+│                                       #     ErrorScenarioTest, ExactlyOnceInvariantTest, JobHealthTest,
+│                                       #     SchemaEvolutionTest
+├── local-development-podman/           # Podman Compose stack
+│   ├── podman-compose.yml              # MySQL + Kafka + Flink JM/TM + KC + kafka-ui + flink-cdc-submitter
+│   ├── flink-with-mysql/Dockerfile     # Flink 2.2 + mysql-connector-j
+│   ├── flink-cdc-submitter/            # runs flink-cdc.sh for YAML Pipeline variant
+│   ├── kafka-connect/                  # Debezium + custom SMTs; 5 connector JSON configs
+│   └── kafka-connect-smts/             # EnrichmentTransform + OutboxRoutingTransform (Java 11)
+└── local-development-k8s/              # Kubernetes stack (kind + Flink Operator + Strimzi)
+    ├── deploy.sh / teardown.sh
+    └── flink/  kafka/  kafka-connect/  mysql/  minio/  monitoring/
+</div></code></pre>
+<h2 id="backup--checkpoint-configuration-production-ready">Backup — Checkpoint Configuration (production-ready)</h2>
+<p>All five variants share one extraction point — <code>CheckpointConfigurer.applyExactlyOnce(env)</code> —
+rather than repeating the five calls below in every entry class:</p>
+<pre class="hljs"><code><div><span class="hljs-comment">// common/src/main/java/poc/common/checkpoint/CheckpointConfigurer.java</span>
+<span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">applyExactlyOnce</span><span class="hljs-params">(StreamExecutionEnvironment env)</span> {
+    env.enableCheckpointing(<span class="hljs-number">30_000</span>);
+    env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    env.getCheckpointConfig().setMaxConcurrentCheckpoints(<span class="hljs-number">1</span>);
+    env.getCheckpointConfig().setCheckpointTimeout(<span class="hljs-number">60_000</span>);
+    env.getCheckpointConfig().setMinPauseBetweenCheckpoints(<span class="hljs-number">5_000</span>);
+    env.getCheckpointConfig()
+        .setExternalizedCheckpointRetention(
+            ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
+    <span class="hljs-comment">// State backend (RocksDB + incremental) configured at cluster level via</span>
+    <span class="hljs-comment">// FLINK_PROPERTIES: state.backend=rocksdb, state.backend.incremental=true</span>
+    <span class="hljs-comment">// This keeps job code independent of the backend choice (operational flexibility).</span>
+}
+</div></code></pre>
+<p>Checkpoint state is persisted to S3-compatible storage (MinIO locally, AWS S3 in production),
+configured in <code>flink-conf.yaml</code>:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Local POC: state.backend: rocksdb (+ incremental) set via FLINK_PROPERTIES — same as production</span>
+<span class="hljs-comment"># Production: state.backend: rocksdb via cluster config / FLINK_PROPERTIES</span>
+<span class="hljs-attr">state.checkpoints.dir:</span> <span class="hljs-string">s3://flink-checkpoints/checkpoints</span>
+<span class="hljs-attr">state.savepoints.dir:</span>  <span class="hljs-string">s3://flink-checkpoints/savepoints</span>
+<span class="hljs-attr">s3.endpoint:</span> <span class="hljs-string">http://minio:9000</span>
+<span class="hljs-attr">s3.path.style.access:</span> <span class="hljs-string">&quot;true&quot;</span>
+<span class="hljs-attr">s3.access-key:</span> <span class="hljs-string">minioadmin</span>
+<span class="hljs-attr">s3.secret-key:</span> <span class="hljs-string">minioadmin</span>
+</div></code></pre>
+<p><strong>POC evidence — MinIO <code>flink-checkpoints</code> bucket after all 5 variants running:</strong></p>
+<p><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/minio-checkpoints.png" alt="MinIO flink-checkpoints bucket — checkpoints and yaml-pipeline-checkpoints folders"></p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enableCheckpointing</code></td>
+<td>30,000 ms</td>
+<td>Balances durability vs performance</td>
+</tr>
+<tr>
+<td><code>CheckpointingMode</code></td>
+<td>EXACTLY_ONCE</td>
+<td>Prevents duplicate Kafka messages on recovery</td>
+</tr>
+<tr>
+<td><code>MaxConcurrentCheckpoints</code></td>
+<td>1</td>
+<td>CDC jobs snapshot during checkpoint; one at a time</td>
+</tr>
+<tr>
+<td><code>CheckpointTimeout</code></td>
+<td>60,000 ms</td>
+<td>2× the interval; gives headroom for large-state jobs under load</td>
+</tr>
+<tr>
+<td><code>MinPauseBetweenCheckpoints</code></td>
+<td>5,000 ms</td>
+<td>Prevents checkpoint storms after one finishes</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="infrastructure-list-1--client-production-infrastructure">Infrastructure List 1 — Client (Production) Infrastructure</h2>
+<h3 id="kubernetes">Kubernetes</h3>
+<ul>
+<li><strong>Flink Operator</strong> — manages <code>FlinkDeployment</code> CRs; under pressure with 4 deployments in preview; TaskManager slot capacity must be watched</li>
+<li><strong><code>FlinkDeployment</code> CRs</strong> — one per job/variant; each with its own JobManager + TaskManager pod pair (Application Mode)</li>
+<li><strong><code>FlinkStateSnapshot</code> CRs</strong> — one per job, managed by chart</li>
+<li><strong>ClusterIP Services</strong> — <code>&lt;jobName&gt;-rest</code> per job, port 8081</li>
+<li><strong>Helm chart: <code>flink-base-chart</code></strong> — <code>applicationJobs</code> map, init-container delivery, topology spread, probes, graceful shutdown, restart strategy</li>
+<li><strong>Namespace isolation</strong> — per-variant schema + server-ID ranges enforced by values, not by chart</li>
+</ul>
+<h3 id="apache-flink">Apache Flink</h3>
+<ul>
+<li><strong>Flink runtime 2.2</strong> — base image <code>flink-base-image</code> (Flink Platform Team)</li>
+<li><strong>Flink CDC 3.6.0</strong> (suffix <code>3.6.0-2.2</code>) — bundled in variant images; version must match runtime</li>
+<li><strong>Built-in plugins</strong> — <code>flink-s3-fs-presto-2.2.1.jar</code> (version-stamped, must match base image)</li>
+<li><strong>Built-in plugins</strong> — <code>flink-metrics-prometheus-2.2.1.jar</code> (enables Prometheus scraping on port 9249)</li>
+<li><strong><code>mysql-connector-j</code></strong> — mounted into both JobManager and TaskManager; classloader parent-first pattern required (<code>com.mysql.</code>)</li>
+<li><strong>Checkpointing</strong> — per-job unique <code>checkpointing.dir</code>; exactly-once; S3-backed</li>
+</ul>
+<h3 id="mysql--databases">MySQL / Databases</h3>
+<ul>
+<li><strong>MySQL binlog access</strong> — Flink CDC reads binlog directly; requires <code>log-bin</code>, <code>binlog-format=ROW</code>, <code>binlog-row-image=FULL</code></li>
+<li><strong>Per-variant schemas</strong>: <code>cdc_db</code>, <code>sql_api_db</code>, <code>table_api_db</code>, <code>pipeline_db</code>, <code>outbox_db</code></li>
+<li><strong>Non-overlapping <code>server-id</code> ranges</strong>: outbox 5600–5699, pipeline 5700–5709, sql-api 5800–5899, shared-cdc 5900–5999, table-api 6000–6099; KC reserved 5500–5599</li>
+<li><strong>RDS IAM token rotation</strong> — production-only failure mode (S5); IAM pattern captured in base image template</li>
+<li><strong>IRSA</strong> — for checkpoint-store S3 permissions; rotation tested in ≥7-day Phase 1 soak</li>
+<li><strong>MySQL privileges</strong> — <code>RELOAD</code> + <code>LOCK TABLES</code> required for initial snapshot</li>
+</ul>
+<h3 id="kafka">Kafka</h3>
+<ul>
+<li><strong>Kafka topics</strong> (per-variant prefixes): <code>shared-cdc.cdc-db.*</code>, <code>sql-api.sql-api-db.*</code>, <code>table-api.table-api-db.*</code>, <code>pipeline.pipeline-db.*</code>, <code>outbox.destination.*</code></li>
+<li><strong>Schema history topics</strong> (KC/Debezium): <code>dbhistory.&lt;variant&gt;</code> — one per connector</li>
+<li><strong>Signal topic</strong> (pre-migration only, dropped after): <code>private.debezium.signal.&lt;connector&gt;.v1</code></li>
+<li><strong>Kafka Connect (Confluent)</strong> — retained for SFTP (20) and SingleStore (1); 74 Debezium MySQL connectors migrated to Flink</li>
+<li><strong>Heartbeat topic</strong> — KC monitor #1; Flink equivalent: Restart Loop + TM heartbeat</li>
+</ul>
+<h3 id="container-registry--images">Container Registry / Images</h3>
+<ul>
+<li><code>flink-base-image</code> — Flink runtime (existing)</li>
+<li>Proposed new base images (Shared Job / Platform Architect):
+<ul>
+<li><code>flink-cdc-base-image</code></li>
+<li><code>flink-stream-api-base-image</code></li>
+<li><code>flink-table-api-base-image</code></li>
+<li><code>flink-sql-api-base-image</code></li>
+</ul>
+</li>
+<li>Per-variant fat-jar images: 4 Flink fat-jars + 1 KC SMT shadow JAR; Shadow plugin</li>
+</ul>
+<h3 id="object-storage-s3">Object Storage (S3)</h3>
+<ul>
+<li>Shared S3 bucket for checkpoints/savepoints — auto-namespaced by <code>jobId</code></li>
+<li>Per-job <code>checkpointing.dir</code> paths must not overlap</li>
+</ul>
+<h3 id="iam--security">IAM / Security</h3>
+<ul>
+<li><strong>IRSA</strong> — S3 checkpoint access; rotation must be tested</li>
+<li><strong>RDS IAM tokens</strong> — short-lived; expiry surfaces only in production</li>
+<li><strong>Binlog leases</strong> — MySQL binlog replica; server-ID lease timeout must be managed on restart</li>
+</ul>
+<hr>
+<h2 id="infrastructure-list-2--local-poc-infrastructure">Infrastructure List 2 — Local POC Infrastructure</h2>
+<p><em>Source: <code>flink-cdc-poc/</code> folder (<code>podman-compose.yml</code>, <code>build.gradle</code>, <code>README.md</code>, <code>KAFKA_CONNECT.md</code>, <code>FLINK_CHECKPOINT_CONFIG.md</code>)</em></p>
+<h3 id="software-versions">Software Versions</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Apache Flink</td>
+<td>2.2.0</td>
+</tr>
+<tr>
+<td>Flink CDC</td>
+<td>3.6.0-2.2</td>
+</tr>
+<tr>
+<td>flink-connector-kafka</td>
+<td>5.0.0-2.2</td>
+</tr>
+<tr>
+<td>Kafka (Confluent)</td>
+<td>KRaft mode, cp-kafka 7.8.0 (broker upgraded 7.6.1→7.8.0, CVE-2024-27309 / CVE-2024-31141)</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td>8.0</td>
+</tr>
+<tr>
+<td>Java (Flink jobs)</td>
+<td>17</td>
+</tr>
+<tr>
+<td>Java (Kafka Connect SMTs)</td>
+<td>11 (cp-kafka-connect 7.6.1 JDK)</td>
+</tr>
+<tr>
+<td>mysql-connector-j</td>
+<td>8.0.33</td>
+</tr>
+<tr>
+<td>Gradle</td>
+<td>8.7</td>
+</tr>
+<tr>
+<td>Shadow plugin</td>
+<td>8.1.1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="podman-compose-services">Podman-Compose Services</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Image</th>
+<th>Port(s)</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mysql</code></td>
+<td><code>mysql:8.0</code></td>
+<td>3306</td>
+<td>CDC source; <code>log-bin</code>, <code>binlog-format=ROW</code>, <code>binlog-row-image=FULL</code>, <code>server-id=1</code></td>
+</tr>
+<tr>
+<td><code>kafka</code></td>
+<td><code>cp-kafka:7.8.0</code></td>
+<td>9092 (ext), 29092 (int), 9093 (controller)</td>
+<td>KRaft broker + controller; <code>auto.create.topics.enable=true</code></td>
+</tr>
+<tr>
+<td><code>flink-jobmanager</code></td>
+<td>custom (Flink 2.2 + mysql-connector-j)</td>
+<td>8081 (REST), 6123 (RPC)</td>
+<td>JobManager; 8 task slots; <code>taskmanager.slot.timeout=60000</code></td>
+</tr>
+<tr>
+<td><code>flink-taskmanager</code></td>
+<td>custom (same image)</td>
+<td>8082, 6124</td>
+<td>TaskManager; 8 task slots</td>
+</tr>
+<tr>
+<td><code>flink-cdc-submitter</code></td>
+<td>custom</td>
+<td>—</td>
+<td>Runs <code>flink-cdc.sh</code> for YAML Pipeline variant on JM ready; <code>restart: on-failure</code></td>
+</tr>
+<tr>
+<td><code>kafka-connect</code></td>
+<td>custom (Debezium + SMT JARs)</td>
+<td>8083</td>
+<td>KC REST API; side-by-side comparison; <code>restart: on-failure</code></td>
+</tr>
+<tr>
+<td><code>kafka-ui</code></td>
+<td><code>provectuslabs/kafka-ui:latest</code></td>
+<td>8080</td>
+<td>Kafka topic browser</td>
+</tr>
+<tr>
+<td><code>minio</code></td>
+<td><code>minio/minio:latest</code></td>
+<td>9000 (API), 9001 (console)</td>
+<td>S3-compatible checkpoint storage; <code>flink-checkpoints</code> bucket</td>
+</tr>
+<tr>
+<td><code>minio-init</code></td>
+<td><code>minio/mc</code></td>
+<td>—</td>
+<td>One-shot: creates <code>flink-checkpoints</code> bucket on startup</td>
+</tr>
+<tr>
+<td><code>prometheus</code></td>
+<td><code>prom/prometheus:v2.52.0</code></td>
+<td>9090</td>
+<td>Scrapes Flink JM/TM metrics every 15 s; local only</td>
+</tr>
+<tr>
+<td><code>grafana</code></td>
+<td><code>grafana/grafana:10.4.3</code></td>
+<td>3001</td>
+<td>Dashboard + alert rules (managed by Terraform); admin/admin</td>
+</tr>
+</tbody>
+</table>
+<h3 id="gradle-modules">Gradle Modules</h3>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>common</code></td>
+<td><code>JobConfig</code>, <code>CheckpointConfigurer</code>, <code>PocJsonDeserializationSchema</code>, <code>CdcEventRouter</code>, <code>OutboxRouter</code>, <code>KafkaSinkFactory</code>, <code>DdlValidator</code></td>
+</tr>
+<tr>
+<td><code>variant-flink-datastream-api-v1-cdc-job</code></td>
+<td>DataStream CDC; server-ID 5900–5999</td>
+</tr>
+<tr>
+<td><code>variant-flink-table-api-cdc-job</code></td>
+<td>Table API CDC; server-ID 6000–6099</td>
+</tr>
+<tr>
+<td><code>variant-flink-sql-api-cdc-job</code></td>
+<td>SQL API CDC; server-ID 5800–5899</td>
+</tr>
+<tr>
+<td><code>variant-flink-datastream-api-v1-outbox-job</code></td>
+<td>Outbox; server-ID 5600–5699</td>
+</tr>
+<tr>
+<td><code>variant-flink-cdc-yaml-pipeline-cdc-job</code></td>
+<td>YAML Pipeline; server-ID 5700–5709</td>
+</tr>
+<tr>
+<td><code>component-tests</code></td>
+<td>End-to-end: submits fat-jars to JM REST; polls Kafka; covers all 5 Flink + 5 KC variants</td>
+</tr>
+<tr>
+<td><code>kafka-connect-smts</code></td>
+<td><code>EnrichmentTransform</code> + <code>OutboxRoutingTransform</code> (Java 11, shadow JAR)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="build--test-commands">Build &amp; Test Commands</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>./gradlew shadowJar</code></td>
+<td>Builds all 4 Flink fat-jars + KC SMT shadow JAR</td>
+</tr>
+<tr>
+<td><code>./gradlew :component-tests:test</code></td>
+<td>Runs all component tests (Flink + KC)</td>
+</tr>
+<tr>
+<td><code>./gradlew all</code></td>
+<td>Full cycle: build → podman-compose restart → wait for services (180 s) → deploy KC connectors → run CTs</td>
+</tr>
+<tr>
+<td><code>podman-compose -f podman-compose.yml up -d</code></td>
+<td>Starts the full 11-service stack</td>
+</tr>
+<tr>
+<td><code>podman exec flink-jm flink run /tmp/&lt;jar&gt;</code></td>
+<td>Submits a variant to the running JM</td>
+</tr>
+</tbody>
+</table>
+<h3 id="kafka-connect-side-by-side-poc-only">Kafka Connect Side-by-Side (POC only)</h3>
+<p>Five KC connectors mirror the Flink variants, using server-IDs in the reserved <code>5500–5599</code> range:</p>
+<table>
+<thead>
+<tr>
+<th>KC Connector</th>
+<th>Server-ID</th>
+<th>SMT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kc-datastream-cdc</code></td>
+<td>5510</td>
+<td><code>EnrichmentTransform</code></td>
+</tr>
+<tr>
+<td><code>kc-table-api-cdc</code></td>
+<td>5520</td>
+<td><code>EnrichmentTransform</code></td>
+</tr>
+<tr>
+<td><code>kc-sql-api-cdc</code></td>
+<td>5530</td>
+<td><code>EnrichmentTransform</code></td>
+</tr>
+<tr>
+<td><code>kc-yaml-pipeline-cdc</code></td>
+<td>5540</td>
+<td><code>EnrichmentTransform</code></td>
+</tr>
+<tr>
+<td><code>kc-outbox-cdc</code></td>
+<td>5550</td>
+<td><code>OutboxRoutingTransform</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="local-monitoring-endpoints">Local Monitoring Endpoints</h3>
+<p>The Podman stack binds host ports directly; the k8s stack binds none on the host — access is via <code>kubectl port-forward</code> to non-conflicting high ports (see <a href="./K8S.md"><code>K8S.md</code></a>). Both stacks run the same 5 Flink jobs and Kafka Connect connectors; the difference is the deployment unit (Podman: one shared JM; k8s: one JM per variant, Application Mode).</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Podman URL</th>
+<th>k8s URL (port-forward)</th>
+<th>Screenshot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flink Dashboard</td>
+<td><code>http://localhost:8081</code> (shared JM; all 5 jobs)</td>
+<td><code>http://localhost:18081</code>–<code>18085</code> (per-variant JM: DataStream / Table API / SQL API / Outbox / YAML)</td>
+<td><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/flink-dashboard.png" alt=""></td>
+</tr>
+<tr>
+<td>Kafka UI</td>
+<td><code>http://localhost:8080</code></td>
+<td>— (not deployed in the k8s slice)</td>
+<td><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/kafka-ui.png" alt=""></td>
+</tr>
+<tr>
+<td>Kafka Connect REST</td>
+<td><code>http://localhost:8083</code></td>
+<td><code>http://localhost:18086</code></td>
+<td><img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/slides/kafka-connect.png" alt=""></td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td><code>localhost:3306</code> (user: <code>flink</code>, password: <code>flink</code>, db: <code>poc_db</code>)</td>
+<td><code>localhost:13306</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Kafka (external)</td>
+<td><code>localhost:9092</code> (topics: <code>poc.flink.*</code> for Flink, <code>poc.kc.*</code> for Kafka Connect)</td>
+<td><code>localhost:19092</code> (Strimzi external nodeport listener; advertisedHost=localhost)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Prometheus</td>
+<td><code>http://localhost:9090</code></td>
+<td><code>http://localhost:19090</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Grafana</td>
+<td><code>http://localhost:3001</code> (dashboard + alerts; admin/admin)</td>
+<td><code>http://localhost:13001</code> (admin/admin)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="infrastructure-list-3--comparison-client-vs-local-poc">Infrastructure List 3 — Comparison: Client vs Local POC</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Client (Production)</th>
+<th>Local POC (<code>flink-cdc-poc</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Orchestration</strong></td>
+<td>Kubernetes + Flink Operator + Helm (<code>flink-base-chart</code>)</td>
+<td>Podman-compose (11 containers, bridge network)</td>
+</tr>
+<tr>
+<td><strong>Flink deployment unit</strong></td>
+<td><code>FlinkDeployment</code> CR per job (Application Mode; own JM+TM)</td>
+<td>Single shared JM + TM containers; all 5 variants submitted as jobs</td>
+</tr>
+<tr>
+<td><strong>Flink version</strong></td>
+<td>2.2 (via <code>flink-base-image</code>)</td>
+<td>2.2.0 (custom Dockerfile: <code>flink-with-mysql</code>)</td>
+</tr>
+<tr>
+<td><strong>Flink CDC version</strong></td>
+<td>3.6.0-2.2 (bundled in variant images)</td>
+<td>3.6.0-2.2 (Gradle dep in <code>build.gradle</code>)</td>
+</tr>
+<tr>
+<td><strong>MySQL</strong></td>
+<td>RDS (AWS); IAM auth; IRSA for S3; production data</td>
+<td><code>mysql:8.0</code> container; user <code>flink</code>/<code>flink</code>; <code>poc_db</code>; seed data via <code>init.sql</code></td>
+</tr>
+<tr>
+<td><strong>MySQL binlog server-ID</strong></td>
+<td>Non-overlapping ranges 5600–6099 enforced by CI lint + base image template</td>
+<td>Same ranges enforced by <code>JobConfig</code>; KC uses reserved 5500–5599</td>
+</tr>
+<tr>
+<td><strong>Kafka</strong></td>
+<td>Confluent Kafka Cloud (managed)</td>
+<td><code>cp-kafka:7.8.0</code> KRaft container; single broker; <code>localhost:9092</code></td>
+</tr>
+<tr>
+<td><strong>Kafka Connect</strong></td>
+<td>Confluent managed KC for SFTP (20) + SingleStore (1); being replaced for 74 CDC connectors</td>
+<td>Local KC container + Debezium + custom SMTs; side-by-side comparison only</td>
+</tr>
+<tr>
+<td><strong>Checkpointing</strong></td>
+<td>S3 bucket (per-job <code>checkpointing.dir</code>); IRSA permissions</td>
+<td>S3-compatible (MinIO) via <code>s3://flink-checkpoints</code>; RocksDB incremental backend, checkpoints persisted to MinIO; same code config (30 s interval, EXACTLY_ONCE)</td>
+</tr>
+<tr>
+<td><strong>CI/CD</strong></td>
+<td>Jenkins (image build, <code>yq</code> delete, variant select) + ArgoCD (deploy/restart)</td>
+<td><code>./gradlew all</code> (build → compose restart → deploy connectors → CTs)</td>
+</tr>
+<tr>
+<td><strong>Monitoring</strong></td>
+<td>Datadog</td>
+<td>Flink Dashboard <code>:8081</code> + Kafka UI <code>:8080</code> + KC REST <code>:8083</code> + Prometheus <code>:9090</code> + Grafana <code>:3001</code></td>
+</tr>
+<tr>
+<td><strong>Java version</strong></td>
+<td>17 (Flink jobs); SMT not applicable (no KC in production Flink path)</td>
+<td>17 (Flink jobs); 11 (KC SMTs — cp-kafka-connect 7.6.1 constraint)</td>
+</tr>
+<tr>
+<td><strong>IAM / Security</strong></td>
+<td>RDS IAM tokens, IRSA, binlog lease management</td>
+<td>No IAM; plain <code>flink</code>/<code>flink</code> credentials; no rotation testing possible</td>
+</tr>
+<tr>
+<td><strong>Re-snapshot</strong></td>
+<td><code>upgradeMode: stateless</code> + <code>restartNonce</code> in ArgoCD — <strong>one-shot only</strong>, revert to <code>last-state</code> immediately after</td>
+<td>Cancel job, delete state, re-submit (<code>flink cancel &lt;JOB_ID&gt;</code> + <code>flink run</code>)</td>
+</tr>
+<tr>
+<td><strong>State backend</strong></td>
+<td>RocksDB (production recommendation; configured via cluster config)</td>
+<td>RocksDB incremental, managed memory (same as production; set via <code>FLINK_PROPERTIES</code> / <code>flinkConfiguration</code>, not in job code)</td>
+</tr>
+<tr>
+<td><strong>Kafka topic naming</strong></td>
+<td><code>&lt;tribe&gt;.&lt;schema&gt;.&lt;table&gt;</code> with per-variant prefixes across all 26 teams</td>
+<td><code>poc.flink.&lt;variant&gt;.&lt;table&gt;</code> (Flink) / <code>poc.kc.&lt;variant&gt;</code> (Kafka Connect); single <code>poc_db</code> schema</td>
+</tr>
+<tr>
+<td><strong>Observability ownership</strong></td>
+<td>Three-way: Module Owner (KC module) / Flink Platform Team (Flink module) / each tribe (config.tf)</td>
+<td>Single developer; no ownership model needed</td>
+</tr>
+<tr>
+<td><strong>Scale</strong></td>
+<td>74 CDC connectors → 26 teams → ~600 monitors at end-state</td>
+<td>1 schema (<code>poc_db</code>), 3 tables (<code>orders</code>, <code>customers</code>, <code>outbox_events</code>), 5 variants, 57 unit tests + CT per variant</td>
+</tr>
+<tr>
+<td><strong>YAML Pipeline submission</strong></td>
+<td><code>flink-cdc.sh</code> via init-container or <code>kubectl exec</code>; <code>FlinkDeployment</code> comes up with empty JM until wired</td>
+<td><code>flink-cdc-submitter</code> container runs <code>flink-cdc.sh</code> automatically on JM ready</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://nightlies.apache.org/flink/flink-docs-release-2.2/">Apache Flink 2.2.0 documentation</a></li>
+<li><a href="https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/">Apache Flink CDC 3.6 documentation</a></li>
+<li><a href="https://github.com/apache/flink-cdc">Apache Flink CDC project home (GitHub)</a></li>
+<li><a href="https://debezium.io/documentation/reference/stable/connectors/mysql.html">Debezium MySQL Connector documentation</a></li>
+<li><a href="https://kafka.apache.org/documentation/#connect">Kafka Connect overview (Apache Kafka docs)</a></li>
+<li><a href="https://docs.confluent.io/platform/current/connect/index.html">Confluent Kafka Connect documentation</a></li>
+<li><a href="https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/">Flink Kubernetes Operator documentation</a></li>
+<li><a href="https://nightlies.apache.org/flink/flink-docs-stable/">Apache Flink documentation (stable)</a></li>
+<li><a href="https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-stable/">Flink Kubernetes Operator documentation (stable)</a></li>
+<li><a href="https://nightlies.apache.org/flink/flink-cdc-docs-stable/">Apache Flink CDC documentation (stable)</a> <img src="file:///home/user/poc-for-presentation-on-flink-variants-for-cdc-and-outbox/images/flink-cdc-logo.png" alt="Apache Flink CDC"></li>
+<li><a href="https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/docs/connectors/flink-sources/mysql-cdc/">Flink CDC MySQL Connector documentation</a></li>
+<li><code>flink-cdc-poc/FLINK_CHECKPOINT_CONFIG.md</code> — checkpoint semantics, monitoring, troubleshooting</li>
+<li><code>flink-cdc-poc/FLINK_SAVEPOINT_RUNBOOK.md</code> — safe upgrade workflows, state recovery</li>
+<li><code>flink-cdc-poc/KAFKA_CONNECT.md</code> — KC CDC variants, SMTs, Flink vs KC comparison</li>
+</ul>
+
+</body>
+</html>

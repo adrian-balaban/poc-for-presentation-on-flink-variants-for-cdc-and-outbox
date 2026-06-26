@@ -21,9 +21,9 @@ layout: docs
 Cinci lucruri pe care le iei de aici:
 
 1. **Clientul** — cum s-a plecat acum câțiva ani de la o arhitectură **centrată pe DB** și s-a ajuns la una **event-driven** adăugând doar Kafka și un număr de conectori Kafka Connect. Contextul care face rezultatul relevant.
-2. **Problemele reale de producție cu KC** — rebalancing în cascadă între echipe fără legătură, lag fără reglaj per echipă, blast radius partajată pe un singur cluster, licențiere Confluent Cloud.
-3. **Flink, conectorii Flink și Debezium pe scurt** — ce sunt, unde se suprapun, unde diferă; Debezium ca parser de binlog reutilizat intern de Flink CDC (nu același conector KC).
-4. **Flink este complet event-driven** — nu doar un conector CDC, ci un motor de stream processing cu stare, event-time și checkpoint-uri exactly-once, fiecare job ca deployment K8s izolat.
+2. **Problemele reale de producție cu KC** — 'rebalancing storms', 'lag' fără posibilitate de interventie per echipă, 'blast radius' partajată pe un singur cluster, licențiere Confluent Cloud.
+3. **Flink, conectorii Flink și Debezium pe scurt** — ce sunt, unde se suprapun, unde diferă; Debezium ca parser de binlog reutilizat intern de Flink CDC (si de conector KC).
+4. **Flink este complet event-driven** — nu doar un conector, ci un motor de stream processing cu stare, event-time și checkpoint-uri exactly-once, fiecare job ca deployment K8s izolat.
 5. **Informațiile + codul POC pentru a face CDC la un alt client** — 5 variante rulând simultan, cod aproape de versiune de producție, infrastructură Podman Compose și K8s reproductibilă, component-tests care validează output-ul Kafka.
 
 > Ținta: la final poți alege între KC și Flink cu argumente — și ai codul de la care pornești, nu de la zero.
