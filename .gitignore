@@ -4,6 +4,7 @@
 !gradle/wrapper/gradle-wrapper.jar
 **/build
 .vscode
+**/.remember
 .idea/
 .gradle
 # orphan directory superseded by variant-flink-cdc-yaml-pipeline-cdc-job
