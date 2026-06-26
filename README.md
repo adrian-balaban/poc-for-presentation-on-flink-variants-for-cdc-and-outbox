@@ -1,11 +1,11 @@
 # Flink CDC & Outbox Connectors POC — Kafka Connect vs Flink for MySQL
 
+This repo contains the **[Flink Presentation and POC](./kafka-connect-at-scale-74-connectors-migration.md)** — a client proposal to migrate tens of connectors from Confluent Kafka Cloud to Flink (74 connectors); Cognizant Java Community presentation (26 June 2026). A [Romanian translation](./kafka-connect-at-scale-74-connectors-migration.ro.md) of the deck is also available.
+
 A working proof-of-concept demonstrating:
 - **5 CDC patterns, each implemented twice** — once with Apache Flink, once with Kafka Connect — running side-by-side on the same MySQL (5 Flink + 5 KC = 10 implementations)
 
 Each variant is an independent Gradle subproject that builds its own fat-jar and connects to the same MySQL + Kafka infra.
-
-This repo contains the **[Flink Presentation and POC](./kafka-connect-at-scale-74-connectors-migration.md)** — a client proposal to migrate tens of connectors from Confluent Kafka Cloud to Flink (74 connectors); Cognizant Java Community presentation (26 June 2026). A [Romanian translation](./kafka-connect-at-scale-74-connectors-migration.ro.md) of the deck is also available.
 
 ---
 
