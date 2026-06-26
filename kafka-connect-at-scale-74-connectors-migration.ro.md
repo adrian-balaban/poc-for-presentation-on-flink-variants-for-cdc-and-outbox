@@ -40,23 +40,23 @@ Prezentarea este pregătită pentru **Comunitatea Java Cognizant România**.
 
 ---
 
-## Slide 1b — Agendă (45 de minute)
+## Slide 1b — Agendă (~42 de minute)
 
-<!-- notes: Cadru de deschidere: Slide-urile 0–1e ~6 min; blocul de 45 de minute începe la agendă. -->
+<!-- notes: Slot total: ~50 min prezentare + 15 min Q&A = ~65 min. Deschidere (Slide 0–1e) ~8 min; blocul de conținut (~42 min) începe la Slide 2 ("Unde suntem"). -->
 
 1. **Unde suntem** (2 min) — Contextul clientului + scopul migrării: 95 de conectori pe un singur cluster din care 74 conectori MySQL, 21 rămân pe KC → *Slide-urile 2–3*
 2. **De ce este 'painful' și ce cerem** (5 min) — Provocări + cele 3 cerințe pe care orice soluție trebuie să le indeplinească → *Slide 4*
 3. **Ce este Flink și de ce este remedierea structurală** (4 min) — Flink descris pe scurt; izolare per-job → *Slide 5*
-4. **POC-ul + dovezi** (10 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8*
+4. **POC-ul + dovezi** (8 min) — 5 variante Flink rulând simultan; un snippet de cod; tabelul cu dovezi POC → *Slide-urile 6–8*
 5. **Soluția propusă + îmbunătățiri** (5 min) — Modelul shared-job; îmbunătățiri concrete față de provocările de azi → *Slide-urile 10–11*
-6. **Arhitectură și evitarea coliziunilor** (8 min) — deployment K8s, intervale server-ID, monitorizare → *Slide-urile 12–13*
+6. **Arhitectură și evitarea coliziunilor** (7 min) — deployment K8s, intervale server-ID, monitorizare → *Slide-urile 12–13*
 7. **Compromisurile** (5 min) — Ce se schimbă, ce rămâne → *Slide 14*
 8. **Costul schimbării** (2 min) — TCO: ce se reduce, ce se adaugă → *Slide 15*
 9. **Întrebări deschise** (4 min) — 9 spike-uri → *Slide 16*
 
 **Q&A: 15 minute**
 
-<!-- notes: Buget de timp: 45 min agendă + 15 min Q&A. Deschidere 0–1e ~6 min (1c ~75 s, 1d ~3 min, 1e ~1 min). Capturile live (Slide 9) doar dacă timpul permite — nu sunt incluse în cele 45 min. -->
+<!-- notes: Buget de timp: ~8 min deschidere + ~42 min conținut + 15 min Q&A. Deschiderea pe slide-uri: 0 ~1,5 min · 1 ~1 min · 1b ~0,5 min · 1c ~1,5 min · 1d ~2,5 min · 1e ~1 min. Cele ~3 min tăiate din conținut (item 4: 10→8, item 6: 8→7) sunt buffer implicit contra depășirii deschiderii. Capturile live (Slide 9) nu au slot dedicat — se arată doar dacă timpul permite, după Slide 8; `flink-dashboard.png`/`kafka-connect.png` sunt deja în Slide 1e, deci evită dublarea. -->
 
 ---
 
@@ -284,15 +284,9 @@ Aplicația controlează forma evenimentului și destinația. Schema tabelei de b
 | Licențiere Confluent Kafka Cloud | Organizația | Lunar | **Cost lunar de licențiere semnificativ** (este pe numar de noduri, vezi Slide 15 TCO) |
 | Patch-uri de securitate Confluent doar la 3 luni | Echipa de mentenanță KC | La fiecare ciclu de release și la fiecare vulnerabilitate fixată | Risc de erori la patch-urile făcute de Echipa de mentenanță KC |
 
-**Ce e un „rebalancing" în Kafka Connect**
-Un cluster Kafka Connect e un grup de workeri care își împart între ei conectorii și task-urile lor. Distribuția asta o coordonează protocolul de group membership al Kafka. De câte ori se schimbă ceva — un worker intră/iese, adaugi/modifici/ștergi un conector, un task pică — clusterul declanșează un rebalance: recalculează „cine ce task rulează" și redistribuie sarcinile peste toți workerii.
+> **Ce e un „rebalancing"?** Un cluster KC = un grup de workeri care își împart conectorii/task-urile, coordonat de protocolul de group membership al Kafka. Cu protocolul clasic („eager"/stop-the-world), orice schimbare (worker intră/iese, conector adăugat/șters, task pică) declanșează un rebalance care **oprește și reasignează temporar TOATE task-urile din cluster**. Pe un cluster partajat de 95 de conectori / 26 de echipe → o singură schimbare a unei echipe pune pe pauză conectorii tuturor. (Detalii în note.)
 
-De ce e „1 grup":
-Pentru că toți cei 95 de conectori ai celor 26 de echipe stau pe un singur cluster partajat, ei fac parte din același grup de rebalancing — un singur grup de coordonare. Nu există izolare: nu poți „rebalansa" doar conectorii echipei A fără să atingi restul.
-
-De ce contează (asta e poanta slide-ului):
-Cu protocolul clasic de rebalance („eager" / stop-the-world), un rebalance oprește temporar TOATE task-urile din tot clusterul și le reasignează. Deci o singură schimbare/un singur conector defect al unei echipe → declanșează un rebalance care pune pe pauză conectorii tuturor celor 26 de echipe în același timp.
-
+<!-- notes: Detalii "rebalancing" (nu se citesc verbatim): Un cluster Kafka Connect e un grup de workeri care își împart între ei conectorii și task-urile lor; distribuția o coordonează protocolul de group membership al Kafka. De câte ori se schimbă ceva — un worker intră/iese, adaugi/modifici/ștergi un conector, un task pică — clusterul declanșează un rebalance: recalculează "cine ce task rulează" și redistribuie sarcinile peste toți workerii. De ce e "1 grup": toți cei 95 de conectori ai celor 26 echipe stau pe un singur cluster partajat → același grup de rebalancing, fără izolare — nu poți rebalansa doar conectorii echipei A fără să atingi restul. De ce contează: cu protocolul clasic (eager/stop-the-world), un rebalance oprește temporar TOATE task-urile și le reasignează → o singură schimbare a unei echipe pune pe pauză conectorii tuturor celor 26 de echipe simultan. -->
 
 **Ce cerem de la orice soluție** *(agnostic față de soluție — etalonul pentru opțiunile de pe Decision Matrix de mai jos):*
 
@@ -410,15 +404,8 @@ pipeline:
 
 ## Slide 9 — Dovezi POC: Capturi de Ecran Live
 
-**Toate cele 5 variante Flink rulând simultan pe localhost — capturate în timpul POC-ului live.**
-<!-- notes: URL-urile de acces pentru fiecare captură sunt în kafka-connect-at-scale-appendix.ro.md → secțiunea „Endpoint-uri de Monitorizare Locale”. -->
-
-### Flink Dashboard — 5/5 Joburi RUNNING
-
-![Flink Dashboard — 5 variante rulând simultan](images/slides/flink-dashboard.png)
-
-> Toate cele cinci variante CDC (DataStream, Table API, SQL API, Outbox, YAML Pipeline) active într-un singur
-> cluster Flink. Fiecare are propriul interval server-ID MySQL; zero coliziuni.
+**Capturi din timpul POC-ului live. Se arată doar dacă timpul permite, după Slide 8.**
+<!-- notes: URL-urile de acces pentru fiecare captură sunt în kafka-connect-at-scale-appendix.ro.md → secțiunea „Endpoint-uri de Monitorizare Locale”. Capturile de Flink Dashboard și Kafka Connect (5 conectori) sunt deja în Slide 1e — nu le repetați aici. -->
 
 ### Kafka UI — Cluster poc (32 topicuri, 109 partiții)
 
@@ -427,13 +414,6 @@ pipeline:
 > Topicurile sunt create automat de conectorii CDC. 32 topicuri = câte un topic per tabel pentru toate cele 5 variante
 > plus topicuri de schema-history. Topicurile de semnal (`private.debezium.signal.*`) sunt specifice KC;
 > Flink CDC nu le folosește.
-
-### Kafka Connect REST API — 5 Conectori KC (comparație alăturată)
-
-![Kafka Connect — lista a 5 conectori](images/slides/kafka-connect.png)
-
-> Conectorii KC rulează în paralel doar pentru compararea output-ului. Server-ID-uri în intervalul rezervat
-> `5500–5599` pentru a evita coliziunea cu variantele Flink.
 
 ### Grafana Dashboard — Monitorizare Flink CDC POC
 

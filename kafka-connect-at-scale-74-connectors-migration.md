@@ -34,23 +34,23 @@ This talk is prepared for the **Cognizant Java Community Romania**.
 
 ---
 
-## Slide 1b — Agenda (45 minutes)
+## Slide 1b — Agenda (~42 minutes)
 
-*(Slides 0–1e form the opening frame (~6 min); the 45-minute block starts here.)*
+<!-- notes: Total slot: ~50 min talk + 15 min Q&A = ~65 min. Opening (Slides 0–1e) ~8 min; the content block (~42 min) starts at Slide 2 ("Where we are"). -->
 
 1. **Where we are** (2 min) — The client context + migration goal: 95 connectors on a single cluster, of which 74 MySQL connectors, 21 stay on KC → *Slides 2–3*
 2. **Why it's 'painful' and what we require** (5 min) — Challenges + the 3 requirements any solution must meet → *Slide 4*
 3. **What Flink is and why it's the structural fix** (4 min) — Flink described in short; per-job isolation → *Slide 5*
-4. **The POC + evidence** (10 min) — 5 Flink variants running simultaneously; a code snippet; the POC evidence table → *Slides 6–8*
+4. **The POC + evidence** (8 min) — 5 Flink variants running simultaneously; a code snippet; the POC evidence table → *Slides 6–8*
 5. **The proposed solution + improvements** (5 min) — The shared-job model; concrete improvements over today's challenges → *Slides 10–11*
-6. **Architecture and collision avoidance** (8 min) — K8s deployment, server-ID ranges, monitoring → *Slides 12–13*
+6. **Architecture and collision avoidance** (7 min) — K8s deployment, server-ID ranges, monitoring → *Slides 12–13*
 7. **The trade-offs** (5 min) — What changes, what stays → *Slide 14*
 8. **The cost of change** (2 min) — TCO: what shrinks, what's added → *Slide 15*
 9. **Open questions** (4 min) — 9 spikes → *Slide 16*
 
 **Q&A: 15 minutes**
 
-*(total agenda: 45 min + 15 min Q&A; the opening frame Slides 0–1e (~6 min: Slide 1c Kafka primer ~75 s, Slide 1d the CDC-vs-Outbox patterns ~3 min, Slide 1e POC overview ~1 min); the live screenshots in Slide 9 are shown only if time allows — none is included in the 45 min.)*
+<!-- notes: Time budget: ~8 min opening + ~42 min content + 15 min Q&A. Opening per slide: 0 ~1.5 min · 1 ~1 min · 1b ~0.5 min · 1c ~1.5 min · 1d ~2.5 min · 1e ~1 min. The ~3 min trimmed from content (item 4: 10→8, item 6: 8→7) is implicit buffer against the opening running over. The live screenshots (Slide 9) have no dedicated slot — shown only if time allows, after Slide 8; `flink-dashboard.png`/`kafka-connect.png` are already in Slide 1e, so don't repeat them. -->
 
 ---
 
@@ -274,15 +274,9 @@ The application controls the shape of the event and the destination. The busines
 | Confluent Kafka Cloud licensing | The organization | Monthly | **Significant monthly licensing cost** (it's per cluster node, see Slide 15 TCO) |
 | Confluent security patches only every 3 months | The KC maintenance team | On every release cycle and every fixed vulnerability | Risk of errors in patches made by the KC maintenance team |
 
-**What a "rebalancing" is in Kafka Connect**
-A Kafka Connect cluster is a group of workers that share connectors and their tasks among themselves. This distribution is coordinated by Kafka's group membership protocol. Whenever something changes — a worker joins/leaves, you add/modify/delete a connector, a task crashes — the cluster triggers a rebalance: it recalculates "who runs which task" and redistributes the work across all workers.
+> **What's a "rebalancing"?** A KC cluster = a group of workers that share connectors/tasks, coordinated by Kafka's group membership protocol. With the classic protocol ("eager"/stop-the-world), any change (worker joins/leaves, connector added/deleted, task crashes) triggers a rebalance that **temporarily stops and reassignes ALL tasks across the cluster**. On a shared cluster of 95 connectors / 26 teams → one team's single change pauses everyone's connectors. (Details in notes.)
 
-Why it's "1 group":
-Because all 95 connectors of the 26 teams sit on a single shared cluster, they belong to the same rebalancing group — a single coordination group. There is no isolation: you can't "rebalance" only team A's connectors without touching the rest.
-
-Why it matters (this is the point of the slide):
-With the classic rebalance protocol ("eager" / stop-the-world), a rebalance temporarily stops ALL tasks across the entire cluster and reassigns them. So a single change/a single defective connector from one team → triggers a rebalance that pauses the connectors of all 26 teams at the same time.
-
+<!-- notes: "Rebalancing" details (don't read verbatim): A Kafka Connect cluster is a group of workers that share connectors and their tasks; the distribution is coordinated by Kafka's group membership protocol. Whenever something changes — a worker joins/leaves, you add/modify/delete a connector, a task crashes — the cluster triggers a rebalance: it recalculates "who runs which task" and redistributes the work across all workers. Why it's "1 group": all 95 connectors of the 26 teams sit on a single shared cluster → the same rebalancing group, no isolation — you can't rebalance only team A's connectors without touching the rest. Why it matters: with the classic protocol (eager/stop-the-world), a rebalance temporarily stops ALL tasks and reassigns them → one team's single change pauses the connectors of all 26 teams simultaneously. -->
 
 **What we require of any solution** *(solution-agnostic — the benchmark for the options on the Decision Matrix below):*
 
@@ -400,15 +394,8 @@ pipeline:
 
 ## Slide 9 — POC Evidence: Live Screenshots
 
-**All 5 Flink variants running simultaneously on localhost — captured during the live POC.**
-*The access URLs for each screenshot are in `kafka-connect-at-scale-appendix.md` → the **Local Monitoring Endpoints** section.*
-
-### Flink Dashboard — 5/5 Jobs RUNNING
-
-![Flink Dashboard — 5 variants running simultaneously](images/slides/flink-dashboard.png)
-
-> All five CDC variants (DataStream, Table API, SQL API, Outbox, YAML Pipeline) active in a single
-> Flink cluster. Each has its own MySQL server-ID range; zero collisions.
+**Captured during the live POC. Shown only if time allows, after Slide 8.**
+<!-- notes: The access URLs for each screenshot are in `kafka-connect-at-scale-appendix.md` → the **Local Monitoring Endpoints** section. The Flink Dashboard and Kafka Connect (5 connectors) screenshots are already in Slide 1e — don't repeat them here. -->
 
 ### Kafka UI — poc cluster (32 topics, 109 partitions)
 
@@ -417,13 +404,6 @@ pipeline:
 > Topics are created automatically by the CDC connectors. 32 topics = one topic per table for all 5 variants
 > plus schema-history topics. The signal topics (`private.debezium.signal.*`) are specific to KC;
 > Flink CDC doesn't use them.
-
-### Kafka Connect REST API — 5 KC Connectors (side-by-side comparison)
-
-![Kafka Connect — list of 5 connectors](images/slides/kafka-connect.png)
-
-> The KC connectors run in parallel only to compare the output. Server-IDs in the reserved range
-> `5500–5599` to avoid collision with the Flink variants.
 
 ### Grafana Dashboard — Flink CDC POC Monitoring
 
