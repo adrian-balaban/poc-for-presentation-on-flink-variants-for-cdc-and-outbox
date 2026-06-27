@@ -555,7 +555,7 @@ Fiecare variantă POC primește alocări dedicate, fără suprapunere, astfel î
 
 ## Referințe
 
-- [Documentația Apache Flink 2.2.0](https://nightlies.apache.org/flink/flink-docs-release-2.2/)
+- [Documentația Apache Flink 2.2.1](https://nightlies.apache.org/flink/flink-docs-release-2.2/)
 - [Documentația Apache Flink CDC 3.6](https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/)
 - [Pagina principală a proiectului Apache Flink CDC (GitHub)](https://github.com/apache/flink-cdc)
 - [Documentația Conector Debezium MySQL](https://debezium.io/documentation/reference/stable/connectors/mysql.html)

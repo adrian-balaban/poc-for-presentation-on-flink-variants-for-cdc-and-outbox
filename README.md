@@ -25,7 +25,7 @@ Each variant is an independent Gradle subproject that builds its own fat-jar and
 
 | Component | Version |
 |-----------|---------|
-| Apache Flink | 2.2.0 |
+| Apache Flink | 2.2.1 |
 | Flink CDC | 3.6.0-2.2 |
 | flink-connector-kafka | 5.0.0-2.2 |
 | MySQL | 8.0 |

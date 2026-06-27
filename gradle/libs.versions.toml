@@ -9,7 +9,7 @@
 
 [versions]
 # ── Core stack (mirror of root build.gradle ext.*) ───────────────────────────
-flink            = "2.2.0"        # ext.flinkVersion       — Flink runtime artifacts
+flink            = "2.2.1"        # ext.flinkVersion       — Flink runtime artifacts (kept in sync with flink-with-mysql/Dockerfile FROM tag and downloaded plugin versions)
 flinkCdc         = "3.6.0-2.2"    # ext.flinkCdcVersion    — flink-sql-connector-mysql-cdc
 flinkKafka       = "5.0.0-2.2"    # ext.flinkKafkaVersion  — flink-connector-kafka
 kafka            = "3.8.1"        # ext.kafkaVersion       — kafka-clients (3.7.0 had CVE-2024-31141)

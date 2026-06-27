@@ -544,7 +544,7 @@ Each POC variant gets dedicated, non-overlapping allocations so all 5 Flink jobs
 
 ## References
 
-- [Apache Flink 2.2.0 documentation](https://nightlies.apache.org/flink/flink-docs-release-2.2/)
+- [Apache Flink 2.2.1 documentation](https://nightlies.apache.org/flink/flink-docs-release-2.2/)
 - [Apache Flink CDC 3.6 documentation](https://nightlies.apache.org/flink/flink-cdc-docs-release-3.6/)
 - [Apache Flink CDC project homepage (GitHub)](https://github.com/apache/flink-cdc)
 - [Debezium MySQL Connector documentation](https://debezium.io/documentation/reference/stable/connectors/mysql.html)

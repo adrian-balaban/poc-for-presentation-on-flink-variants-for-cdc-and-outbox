@@ -12,6 +12,7 @@ dependencies {
     implementation libs.kafka.clients
     implementation libs.flink.sql.connector.mysql.cdc
     implementation libs.mysql.connector.j
+    implementation libs.json
     testImplementation libs.flink.streaming.java
     testImplementation libs.flink.clients
     testImplementation libs.slf4j.simple

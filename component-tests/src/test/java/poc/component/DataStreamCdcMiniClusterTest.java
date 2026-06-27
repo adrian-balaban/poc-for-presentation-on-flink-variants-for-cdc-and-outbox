@@ -104,16 +104,19 @@ class DataStreamCdcMiniClusterTest extends MiniClusterTestBase {
     CdcEventRouter router = new CdcEventRouter(testJobConfig("test"));
     ListCollector<String> collector = new ListCollector<>();
 
-    // Valid empty object
+    // Valid empty object — org.json accepts and emits a fully enriched event
     router.processElement("{}", null, collector);
-    // Edge case: brace at start (lastIndexOf finds it)
+    // Malformed lone "}" — org.json throws, router passes through unchanged
+    // (previous StringBuilder hack happened to produce a substring-match for
+    // "variant":… because it appended text after the lone brace, but the
+    // resulting payload was not valid JSON. Pass-through is the safer contract.)
     router.processElement("}", null, collector);
     // Malformed: no closing brace (passed through unchanged)
     router.processElement("{\"x\":1", null, collector);
 
     assertThat(collector.out).hasSize(3);
     assertThat(collector.out.get(0)).contains("\"variant\":\"datastream-cdc\"");
-    assertThat(collector.out.get(1)).contains("\"variant\":\"datastream-cdc\"");
+    assertThat(collector.out.get(1)).isEqualTo("}");
     assertThat(collector.out.get(2)).isEqualTo("{\"x\":1");
     log.info("Processed {} messages with edge cases", collector.out.size());
   }

@@ -50,7 +50,7 @@ The task runs all steps sequentially, stopping on any failure. Useful for CI/CD 
 
 | Variable | Value |
 |----------|-------|
-| `flinkVersion` | `2.2.0` |
+| `flinkVersion` | `2.2.1` |
 | `flinkCdcVersion` | `3.6.0-2.2` |
 | `flinkKafkaVersion` | `5.0.0-2.2` |
 | `kafkaVersion` | `3.8.1` |
@@ -182,6 +182,7 @@ Per-variant server-ID ranges are also env-overridable (defaults match the [serve
 ## What to avoid
 
 - Do not hardcode versions in subproject `build.gradle` files — always use the version catalog (`gradle/libs.versions.toml`) via `libs.<alias>`
+- When bumping `flink` in `gradle/libs.versions.toml`, sync **every** Dockerfile `FROM flink:<tag>` in lockstep — `local-development-podman/flink-with-mysql/Dockerfile` (JM/TM base + its hardcoded `flink-metrics-prometheus-<ver>.jar` / `flink-s3-fs-presto-<ver>.jar` download URLs) **and** `local-development-podman/flink-cdc-submitter/Dockerfile` (YAML-pipeline submitter base). A stale `FROM flink:2.2` on the submitter while the JM/TM run `2.2.1` lets the `flink-cdc.sh` CLI / submitted pipeline diverge from the JM runtime. The k8s path is covered automatically because its FlinkDeployments use `image: flink-with-mysql:latest` (rebuilt from the bumped Dockerfile) with `flinkVersion: v2_2` (operator enum covering the whole 2.2.x series)
 - Do not reuse server-ID ranges across variants — MySQL will reject duplicate replica IDs
 - Do not leave `upgradeMode: stateless` permanently in Flink deployments — every restart would re-snapshot the full table
 - Variant 5 (YAML Pipeline) has no Maven shade module — do not add Java sources to it; it is intentionally zero-code

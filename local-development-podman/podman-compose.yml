@@ -189,6 +189,17 @@ services:
     depends_on:
       - flink-jobmanager
       - minio
+    healthcheck:
+      # The TM does not serve the JM's REST /overview endpoint (that is
+      # Dispatcher-only). Probe the Prometheus metrics reporter port instead — it
+      # is bound by the TM process itself (metrics.reporter.prom.port: 9249), so a
+      # 200 confirms the TM process is up. "Registered with JM" is observable
+      # separately via the JM's /taskmanagers endpoint; this check is for "TM process
+      # alive", not "TM registered".
+      test: curl -sf http://localhost:9249/metrics
+      interval: 10s
+      retries: 5
+      start_period: 30s
 
   flink-cdc-submitter:
     build:
@@ -226,6 +237,18 @@ services:
       flink-jobmanager:
         condition: service_healthy
     restart: on-failure
+    healthcheck:
+      # The submitter runs `flink-cdc.sh pipeline.yaml` once and then stays alive.
+      # After the submit completes the pipeline job is registered with the JM at
+      # /jobs/overview as RUNNING. We probe that endpoint and accept either the
+      # submitter still being alive (process check) or the job having reached a
+      # terminal state. start_period is generous: mc-bucket-create + TM wait +
+      # flink-cdc.sh submission can take 60-90s on a cold stack.
+      test: >
+        sh -c "pgrep -f 'flink-cdc.sh' >/dev/null || curl -sf http://flink-jobmanager:8081/jobs/overview | grep -q 'state.*RUNNING'"
+      interval: 15s
+      retries: 8
+      start_period: 120s
 
   kafka-connect:
     build:
@@ -314,6 +337,13 @@ services:
     depends_on:
       flink-jobmanager:
         condition: service_healthy
+    healthcheck:
+      # Prometheus exposes /-/healthy once the TSDB is open and the web server is
+      # serving. Cheaper than /-/ready (which also checks rule/config load).
+      test: wget --spider -q http://localhost:9090/-/healthy
+      interval: 10s
+      retries: 5
+      start_period: 10s
 
   grafana:
     image: docker.io/grafana/grafana:10.4.3

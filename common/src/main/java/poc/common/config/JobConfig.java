@@ -177,31 +177,29 @@ public class JobConfig implements java.io.Serializable {
     }
 
     public JobConfig build() {
-      if (mysqlHost == null || mysqlHost.isBlank())
-        throw new IllegalStateException("mysqlHost is required");
-      if (mysqlUser == null || mysqlUser.isBlank())
-        throw new IllegalStateException("mysqlUser is required");
-      if (mysqlPassword == null || mysqlPassword.isBlank())
-        throw new IllegalStateException("mysqlPassword is required");
-      if (mysqlDatabase == null || mysqlDatabase.isBlank())
-        throw new IllegalStateException("mysqlDatabase is required");
-      if (mysqlTables == null || mysqlTables.isBlank())
-        throw new IllegalStateException("mysqlTables is required");
-      if (kafkaBootstrap == null || kafkaBootstrap.isBlank())
-        throw new IllegalStateException("kafkaBootstrap is required");
-      if (kafkaTopicPrefix == null || kafkaTopicPrefix.isBlank())
-        throw new IllegalStateException("kafkaTopicPrefix is required");
-      if (serverId == null || serverId.isBlank())
-        throw new IllegalStateException("serverId is required");
-      if (outboxServerId == null || outboxServerId.isBlank())
-        throw new IllegalStateException("outboxServerId is required");
-      if (tableApiServerId == null || tableApiServerId.isBlank())
-        throw new IllegalStateException("tableApiServerId is required");
-      if (sqlApiOrdersServerId == null || sqlApiOrdersServerId.isBlank())
-        throw new IllegalStateException("sqlApiOrdersServerId is required");
-      if (sqlApiCustomersServerId == null || sqlApiCustomersServerId.isBlank())
-        throw new IllegalStateException("sqlApiCustomersServerId is required");
+      // The default initialisers above ensure every field is non-blank when the
+      // Builder is constructed via fromEnv(); the per-field checks below catch
+      // the case where a caller overrides a field with null/"" via a Builder setter
+      // (e.g. a test that forgets to populate a required value).
+      requireNonBlank(mysqlHost, "mysqlHost");
+      requireNonBlank(mysqlUser, "mysqlUser");
+      requireNonBlank(mysqlPassword, "mysqlPassword");
+      requireNonBlank(mysqlDatabase, "mysqlDatabase");
+      requireNonBlank(mysqlTables, "mysqlTables");
+      requireNonBlank(kafkaBootstrap, "kafkaBootstrap");
+      requireNonBlank(kafkaTopicPrefix, "kafkaTopicPrefix");
+      requireNonBlank(serverId, "serverId");
+      requireNonBlank(outboxServerId, "outboxServerId");
+      requireNonBlank(tableApiServerId, "tableApiServerId");
+      requireNonBlank(sqlApiOrdersServerId, "sqlApiOrdersServerId");
+      requireNonBlank(sqlApiCustomersServerId, "sqlApiCustomersServerId");
       return new JobConfig(this);
+    }
+
+    private static void requireNonBlank(String value, String name) {
+      if (value == null || value.isBlank()) {
+        throw new IllegalStateException(name + " is required");
+      }
     }
   }
 }

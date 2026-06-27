@@ -180,7 +180,7 @@ s3.secret-key: minioadmin
 
 | Component | Version |
 |-----------|---------|
-| Apache Flink | 2.2.0 |
+| Apache Flink | 2.2.1 |
 | Flink CDC | 3.6.0-2.2 |
 | flink-connector-kafka | 5.0.0-2.2 |
 | Kafka (Confluent) | KRaft mode, cp-kafka 7.8.0 (broker upgrade 7.6.1→7.8.0, CVE-2024-27309 / CVE-2024-31141) |

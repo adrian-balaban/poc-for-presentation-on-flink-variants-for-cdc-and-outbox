@@ -15,6 +15,8 @@ import poc.common.config.JobConfig;
  */
 public class OutboxRouter extends ProcessFunction<String, String> {
 
+  private static final long serialVersionUID = 1L;
+
   private static final Logger LOG = LoggerFactory.getLogger(OutboxRouter.class);
 
   private final JobConfig config;
@@ -29,7 +31,9 @@ public class OutboxRouter extends ProcessFunction<String, String> {
     String topic = config.kafkaTopicPrefix + ".outbox." + destination;
     // In production: use side outputs (one per destination) for per-topic exactly-once routing.
     // ctx.output(sideOutputTag(destination), event)
-    LOG.info("event → topic={}  payload={}", topic, event);
+    // DEBUG: this fires once per row — INFO floods the TM logs at any reasonable CDC rate
+    // and is the dominant log volume of the outbox variant.
+    LOG.debug("event → topic={}  payload={}", topic, event);
     out.collect(event);
   }
 

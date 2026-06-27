@@ -1,4 +1,4 @@
-FROM docker.io/library/flink:2.2
+FROM docker.io/library/flink:2.2.1
 
 USER root
 

@@ -212,7 +212,13 @@ tasks.register('allK8s') {
 tasks.register('all') { // buildAndTest
     group = 'flink-cdc-poc'
     description = 'Build all, restart the container stack (Podman), and run component tests'
-    dependsOn ':common:spotlessApply', spotlessCheck
+    // Fan the dependency out across every subproject, mirroring the pattern in fmt/fmtCheck.
+    // The previous `dependsOn ':common:spotlessApply', spotlessCheck` was a typo: the
+    // unqualified spotlessCheck resolves to the root project's task (root has no src/),
+    // so it silently no-op'd and only `:common` got formatted, never the variant or
+    // component-tests modules.
+    dependsOn subprojects.collect { ":${it.name}:spotlessApply" }
+    dependsOn subprojects.collect { ":${it.name}:spotlessCheck" }
 
     doLast {
         // Require podman-compose — no Docker fallback
@@ -255,16 +261,21 @@ tasks.register('all') { // buildAndTest
 
         // Wait for MySQL, Kafka, Kafka Connect, Flink, Prometheus, and Grafana to be ready.
         // Engine health status is unreliable under podman-compose, so probe services directly.
-        // 180s timeout: Kafka Connect plugin scanning + Debezium download on first build
-        // can take 90s+, especially on cold starts.
-        println 'Waiting for services to start (up to 180 seconds)...'
-        int maxWait = 180
+        // 240s timeout: Kafka Connect plugin scanning + Debezium download on first build
+        // can take 90s+, especially on cold starts. The YAML-pipeline submitter
+        // (flink-cdc-submitter) additionally waits for a TM to register and then runs
+        // flink-cdc.sh — a successful submission needs the variant-5 pipeline job to
+        // appear in /jobs/overview as RUNNING, otherwise YamlPipelineCdcTest will
+        // time out 5 min later with no actionable error.
+        println 'Waiting for services to start (up to 240 seconds)...'
+        int maxWait = 240
         int elapsed = 0
         boolean mysqlKafkaReady = false
         boolean kafkaConnectReady = false
         boolean flinkReady = false
         boolean prometheusReady = false
         boolean grafanaReady = false
+        boolean yamlPipelineReady = false
         while (elapsed < maxWait) {
             try {
                 if (!mysqlKafkaReady) {
@@ -294,13 +305,22 @@ tasks.register('all') { // buildAndTest
                         .execute().waitFor() == 0
                     if (grafanaReady) println "✓ Grafana is ready!"
                 }
-                if (mysqlKafkaReady && kafkaConnectReady && flinkReady && prometheusReady && grafanaReady) break
+                if (flinkReady && !yamlPipelineReady) {
+                    // After flinkReady we know the JM responds. Poll for at least one
+                    // RUNNING job — the 4 Java variants submit during component-tests
+                    // (after this poll), so any RUNNING job here is the YAML pipeline.
+                    yamlPipelineReady = ['bash', '-c',
+                        "curl -sf http://localhost:8081/jobs/overview 2>/dev/null | grep -q 'state.*RUNNING'"]
+                        .execute().waitFor() == 0
+                    if (yamlPipelineReady) println "✓ YAML pipeline (variant 5) submitted and RUNNING!"
+                }
+                if (mysqlKafkaReady && kafkaConnectReady && flinkReady && prometheusReady && grafanaReady && yamlPipelineReady) break
             } catch (Exception e) {
                 // Continue waiting, services might still be starting
             }
             elapsed += 5
             if (elapsed < maxWait) {
-                println "Waiting... (${elapsed}s elapsed, MySQL+Kafka=${mysqlKafkaReady}, KC=${kafkaConnectReady}, Flink=${flinkReady}, Prometheus=${prometheusReady}, Grafana=${grafanaReady})"
+                println "Waiting... (${elapsed}s elapsed, MySQL+Kafka=${mysqlKafkaReady}, KC=${kafkaConnectReady}, Flink=${flinkReady}, Prometheus=${prometheusReady}, Grafana=${grafanaReady}, YAML=${yamlPipelineReady})"
                 Thread.sleep(5000)
             }
         }

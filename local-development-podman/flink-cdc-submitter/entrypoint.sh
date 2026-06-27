@@ -29,7 +29,11 @@ S3_ENDPOINT="${S3_ENDPOINT:-http://minio:9000}"
 S3_BUCKET="${S3_BUCKET:-flink-checkpoints}"
 echo "Ensuring S3 bucket '${S3_BUCKET}' exists at ${S3_ENDPOINT}..."
 mc alias set s3 "${S3_ENDPOINT}" "${S3_ACCESS_KEY:-minioadmin}" "${S3_SECRET_KEY:-minioadmin}" --insecure 2>/dev/null
-mc mb --ignore-existing "s3/${S3_BUCKET}" 2>/dev/null && echo "Bucket '${S3_BUCKET}' ready." || echo "Warning: could not create bucket (will retry on checkpoint)."
+if mc mb --ignore-existing "s3/${S3_BUCKET}" 2>/dev/null; then
+  echo "Bucket '${S3_BUCKET}' ready."
+else
+  echo "Warning: could not create bucket (will retry on checkpoint)."
+fi
 
 # Wait for at least one TaskManager with available slots to register with the
 # JobManager before submitting — the JM healthcheck passes before TM registration
