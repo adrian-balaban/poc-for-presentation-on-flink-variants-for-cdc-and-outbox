@@ -337,6 +337,7 @@ To add SpotBugs or OWASP Dependency Check in the future, see the archived config
 - [**HOW-TO-RUN-THIS-POC.md**](./HOW-TO-RUN-THIS-POC.md) — step-by-step run guide for the full POC
 - [**kafka-connect-at-scale-74-connectors-migration.md**](./kafka-connect-at-scale-74-connectors-migration.md) — presentation: real-world 74-connector migration case study (EN)
 - [**kafka-connect-at-scale-74-connectors-migration.ro.md**](./kafka-connect-at-scale-74-connectors-migration.ro.md) — traducere română a prezentării
+- [**KAFKA-CONNECT-AT-SCALE-APPENDIX.md**](./KAFKA-CONNECT-AT-SCALE-APPENDIX.md) — backup Q&A slides: local monitoring endpoints + infra reference tables
 
 ## Context
 

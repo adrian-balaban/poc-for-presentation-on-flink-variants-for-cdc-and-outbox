@@ -2,6 +2,7 @@
 
 > Reference material for Q&A — not part of the 45-minute presentation.
 > Main file: `kafka-connect-at-scale-74-connectors-migration.md`.
+> This appendix: `KAFKA-CONNECT-AT-SCALE-APPENDIX.md` (reference / Q&A only — not part of the 45-min deck).
 
 ---
 
@@ -26,6 +27,8 @@ The Podman stack binds ports directly on the host; the k8s stack binds no ports 
 | Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
 | Grafana | `http://localhost:3001` (dashboard + alerts; user: `admin`, password: `admin`) | `http://localhost:13001` (user: `admin`, password: `admin`) | ![Podman](images/slides/grafana-dashboard.png) ![k8s](images/slides/k8s-grafana-dashboard.png) |
 | MinIO | `http://localhost:9001` (user: `minioadmin`, password: `minioadmin`, bucket: `flink-checkpoints`) | `http://localhost:9001` (user: `minioadmin`, password: `minioadmin`, bucket: `flink-checkpoints`) | ![](images/slides/minio-checkpoints.png) |
+| Kafka UI — topics | `http://localhost:8080` (Kafka UI topic browser: `poc.flink.*` + `poc.kc.*`) | — | ![](images/slides/kafka-ui-topics.png) |
+| Host terminal — stack running | `podman ps` shows all 11 Podman services healthy (mysql, kafka, flink-jobmanager, flink-taskmanager, flink-cdc-submitter, kafka-connect, kafka-ui, minio, minio-init, prometheus, grafana) | `kubectl get pods -n poc` shows all 5 FlinkDeployment pods (jm + tm) in `Running` state across 5 FlinkDeployments | ![Podman stack](images/slides/podman-stack-running.png) ![k8s stack](images/slides/k8s-stack-running.png) |
 
 
 ---

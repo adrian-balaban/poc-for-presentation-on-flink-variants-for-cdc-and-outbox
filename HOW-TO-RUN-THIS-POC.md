@@ -8,99 +8,18 @@
 
 ## 0. One-shot install script (all prerequisites)
 
-If you'd rather not step through sections 1–5 manually, run the script below. It is **idempotent** (safe to re-run) and targets **Ubuntu 24.04/22.04**. It installs the Podman-path prerequisites by default; pass `--with-k8s` to also install the Kubernetes toolchain (Docker, kind, kubectl, Helm, Terraform) used only by `./gradlew allK8s`.
+If you'd rather not step through sections 1–5 manually, run the standalone script below. It is **idempotent** (safe to re-run) and targets **Ubuntu 24.04/22.04**. It installs the Podman-path prerequisites by default; pass `--with-k8s` to also install the Kubernetes toolchain (Docker, kind, kubectl, Helm, Terraform) used only by `./gradlew allK8s`.
 
 It also installs **Podman Desktop** via Flatpak — a GUI for containers / pods / compose, useful for inspecting the POC stack visually. The CLI `podman` / `podman-compose` it relies on are installed first.
 
 ```bash
-#!/usr/bin/env bash
-# install-prerequisites.sh — Ubuntu 24.04/22.04, idempotent.
-# Usage: ./install-prerequisites.sh [--with-k8s]
-set -euo pipefail
-
-WITH_K8S=0
-[ "${1:-}" = "--with-k8s" ] && WITH_K8S=1
-
-echo "==> apt update / core packages"
-sudo apt update
-sudo apt install -y \
-  openjdk-17-jdk \
-  podman podman-compose \
-  curl jq bash iproute2 \
-  ca-certificates gnupg uidmap flatpak
-
-echo "==> Verify Java 17"
-java -version
-
-echo "==> Pin Podman storage (fixes the snap-VS-Code split-storage bug — see CLAUDE.md)"
-mkdir -p ~/.config/containers
-if ! grep -q '^graphroot' ~/.config/containers/storage.conf 2>/dev/null; then
-  cat >> ~/.config/containers/storage.conf <<EOF
-[storage]
-graphroot = "/home/$USER/.local/share/containers/storage"
-EOF
-fi
-
-echo "==> Podman Desktop (Flatpak)"
-if ! flatpak remote-list 2>/dev/null | grep -q '^flathub'; then
-  flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-fi
-flatpak install --user -y flathub io.podman_desktop.PodmanDesktop
-
-if [ "$WITH_K8S" = "1" ]; then
-  echo "==> Terraform (HashiCorp APT repo)"
-  if ! command -v terraform >/dev/null 2>&1; then
-    wget -O- https://apt.releases.hashicorp.com/gpg \
-      | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(. /etc/os-release; echo "$VERSION_CODENAME") main" \
-      | sudo tee /etc/apt/sources.list.d/hashicorp.list
-    sudo apt update && sudo apt install -y terraform
-  fi
-  terraform version
-
-  echo "==> Docker (required by kind)"
-  if ! command -v docker >/dev/null 2>&1; then
-    sudo apt install -y docker.io
-    sudo usermod -aG docker "$USER"
-  fi
-  docker --version
-
-  echo "==> kind"
-  if ! command -v kind >/dev/null 2>&1; then
-    [ "$(uname -m)" = "aarch64" ] && ARCH=arm64 || ARCH=amd64
-    sudo curl -fsSL -o /usr/local/bin/kind "https://kind.sigs.k8s.io/dl/latest/kind-linux-$ARCH"
-    sudo chmod +x /usr/local/bin/kind
-  fi
-  kind version
-
-  echo "==> kubectl"
-  if ! command -v kubectl >/dev/null 2>&1; then
-    [ "$(uname -m)" = "aarch64" ] && ARCH=arm64 || ARCH=amd64
-    sudo curl -fsSL -o /usr/local/bin/kubectl \
-      "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/$ARCH/kubectl"
-    sudo chmod +x /usr/local/bin/kubectl
-  fi
-  kubectl version --client
-
-  echo "==> Helm 3"
-  if ! command -v helm >/dev/null 2>&1; then
-    curl -fsSL https://baltocdn.com/helm/signing.asc | sudo gpg --dearmor -o /usr/share/keyrings/helm.gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" \
-      | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
-    sudo apt update && sudo apt install -y helm
-  fi
-  helm version
-
-  echo "==> Python 3 (k8s deploy script)"
-  sudo apt install -y python3
-  python3 --version
-fi
-
-echo "==> Done. Re-login (or 'newgrp docker' if --with-k8s) for group changes to take effect."
-echo "==> Then verify with section 6 ('Verify Everything')."
+./scripts/install-prereqs.sh           # Podman path only
+./scripts/install-prereqs.sh --with-k8s # Podman + k8s toolchain
 ```
 
 > The script installs everything with `sudo` to system paths; Podman Desktop is installed per-user under `~/.local/share/flatpak`. After it finishes, continue to [section 6](#6-verify-everything) to confirm the toolchain, then run the POC via [Quick Start](#quick-start-after-installation).
+
+Sections 1–5 below document the same steps in copy-pasteable form for users who want to install prereqs by hand. The script is the source of truth — it is generated from these steps and is the recommended path.
 
 ---
 

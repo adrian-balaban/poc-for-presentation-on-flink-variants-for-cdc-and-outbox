@@ -353,6 +353,7 @@ All variants are configured with **exactly-once semantics** and **30-second chec
 - [KAFKA_CONNECT.md](./KAFKA_CONNECT.md) — Kafka Connect CDC variants, SMTs, comparison
 - [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-scale-74-connectors-migration.md) — presentation deck (EN): real-world 74-connector KC→Flink migration case study
 - [kafka-connect-at-scale-74-connectors-migration.ro.md](./kafka-connect-at-scale-74-connectors-migration.ro.md) — Romanian translation of the presentation deck
+- [KAFKA-CONNECT-AT-SCALE-APPENDIX.md](./KAFKA-CONNECT-AT-SCALE-APPENDIX.md) — backup Q&A slides: local monitoring endpoints, infrastructure tables (reference material — not part of the 45-min deck)
 
 ### External
 - [Apache Flink CDC documentation](https://nightlies.apache.org/flink/flink-cdc-docs-stable/)

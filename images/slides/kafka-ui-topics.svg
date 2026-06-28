@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="640" font-family="monospace" font-size="13">
+  <rect width="100%" height="100%" fill="#1e1e2e"/>
+  <!-- Title bar -->
+  <rect x="0" y="0" width="900" height="36" fill="#313244"/>
+  <text x="14" y="24" fill="#cdd6f4" font-weight="bold">Kafka UI — Topics</text>
+  <text x="780" y="24" fill="#a6adc8">http://localhost:8080</text>
+  <!-- Search bar -->
+  <rect x="14" y="46" width="280" height="26" fill="#45475a" rx="3"/>
+  <text x="22" y="64" fill="#6c7086">Filter topics… (poc.*)</text>
+  <!-- Header -->
+  <rect x="0" y="84" width="900" height="28" fill="#313244"/>
+  <text x="14" y="103" fill="#cdd6f4" font-weight="bold">Topic</text>
+  <text x="380" y="103" fill="#cdd6f4" font-weight="bold">Partitions</text>
+  <text x="500" y="103" fill="#cdd6f4" font-weight="bold">Messages</text>
+  <text x="650" y="103" fill="#cdd6f4" font-weight="bold">Consumer Groups</text>
+  <line x1="0" y1="112" x2="900" y2="112" stroke="#45475a"/>
+  <!-- Flink topics (green) -->
+  <text x="14" y="132" fill="#a6e3a1">poc.flink.datastream.orders</text>
+  <text x="14" y="150" fill="#a6e3a1">poc.flink.outbox.outbox-events</text>
+  <text x="14" y="168" fill="#a6e3a1">poc.flink.sql-api.customers</text>
+  <text x="14" y="186" fill="#a6e3a1">poc.flink.sql-api.orders</text>
+  <text x="14" y="204" fill="#a6e3a1">poc.flink.table-api.orders</text>
+  <text x="14" y="222" fill="#a6e3a1">poc.flink.yaml-pipeline.orders</text>
+  <text x="380" y="132" fill="#a6adc8">1</text>
+  <text x="380" y="150" fill="#a6adc8">1</text>
+  <text x="380" y="168" fill="#a6adc8">1</text>
+  <text x="380" y="186" fill="#a6adc8">1</text>
+  <text x="380" y="204" fill="#a6adc8">1</text>
+  <text x="380" y="222" fill="#a6adc8">1</text>
+  <text x="500" y="132" fill="#a6adc8">~120</text>
+  <text x="500" y="150" fill="#a6adc8">~40</text>
+  <text x="500" y="168" fill="#a6adc8">~30</text>
+  <text x="500" y="186" fill="#a6adc8">~90</text>
+  <text x="500" y="204" fill="#a6adc8">~30</text>
+  <text x="500" y="222" fill="#a6adc8">~50</text>
+  <text x="650" y="132" fill="#a6adc8">—</text>
+  <text x="650" y="150" fill="#a6adc8">—</text>
+  <text x="650" y="168" fill="#a6adc8">—</text>
+  <text x="650" y="186" fill="#a6adc8">—</text>
+  <text x="650" y="204" fill="#a6adc8">—</text>
+  <text x="650" y="222" fill="#a6adc8">—</text>
+  <line x1="0" y1="232" x2="900" y2="232" stroke="#45475a"/>
+  <!-- KC topics (yellow/amber) -->
+  <text x="14" y="252" fill="#f9e2af">poc.kc.datastream.orders</text>
+  <text x="14" y="270" fill="#f9e2af">poc.kc.datastream.customers</text>
+  <text x="14" y="288" fill="#f9e2af">poc.kc.datastream.outbox_events</text>
+  <text x="14" y="306" fill="#f9e2af">poc.kc.table-api.orders</text>
+  <text x="14" y="324" fill="#f9e2af">poc.kc.table-api.customers</text>
+  <text x="14" y="342" fill="#f9e2af">poc.kc.sql-api.orders</text>
+  <text x="14" y="360" fill="#f9e2af">poc.kc.sql-api.customers</text>
+  <text x="14" y="378" fill="#f9e2af">poc.kc.yaml-pipeline.orders</text>
+  <text x="14" y="396" fill="#f9e2af">poc.kc.outbox.audit</text>
+  <text x="14" y="414" fill="#f9e2af">poc.kc.outbox.notifications</text>
+  <text x="14" y="432" fill="#f9e2af">poc.kc.outbox.payments</text>
+  <text x="14" y="450" fill="#f9e2af">poc.kc.outbox.orders-svc</text>
+  <text x="14" y="468" fill="#f9e2af">poc.kc.outbox.payment-svc</text>
+  <text x="14" y="486" fill="#f9e2af">poc.kc.schema-evo.schema_evo</text>
+  <text x="380" y="252" fill="#a6adc8">1</text>
+  <text x="380" y="270" fill="#a6adc8">1</text>
+  <text x="380" y="288" fill="#a6adc8">1</text>
+  <text x="380" y="306" fill="#a6adc8">1</text>
+  <text x="380" y="324" fill="#a6adc8">1</text>
+  <text x="380" y="342" fill="#a6adc8">1</text>
+  <text x="380" y="360" fill="#a6adc8">1</text>
+  <text x="380" y="378" fill="#a6adc8">1</text>
+  <text x="380" y="396" fill="#a6adc8">1</text>
+  <text x="380" y="414" fill="#a6adc8">1</text>
+  <text x="380" y="432" fill="#a6adc8">1</text>
+  <text x="380" y="450" fill="#a6adc8">1</text>
+  <text x="380" y="468" fill="#a6adc8">1</text>
+  <text x="380" y="486" fill="#a6adc8">1</text>
+  <text x="500" y="252" fill="#a6adc8">~100</text>
+  <text x="500" y="270" fill="#a6adc8">~30</text>
+  <text x="500" y="288" fill="#a6adc8">~30</text>
+  <text x="500" y="306" fill="#a6adc8">~30</text>
+  <text x="500" y="324" fill="#a6adc8">~20</text>
+  <text x="500" y="342" fill="#a6adc8">~80</text>
+  <text x="500" y="360" fill="#a6adc8">~20</text>
+  <text x="500" y="378" fill="#a6adc8">~40</text>
+  <text x="500" y="396" fill="#a6adc8">~10</text>
+  <text x="500" y="414" fill="#a6adc8">~5</text>
+  <text x="500" y="432" fill="#a6adc8">~15</text>
+  <text x="500" y="450" fill="#a6adc8">~10</text>
+  <text x="500" y="468" fill="#a6adc8">~8</text>
+  <text x="500" y="486" fill="#a6adc8">~12</text>
+  <line x1="0" y1="496" x2="900" y2="496" stroke="#45475a"/>
+  <!-- Footer summary -->
+  <rect x="0" y="510" width="900" height="40" fill="#313244"/>
+  <text x="14" y="535" fill="#cdd6f4">Showing 20 of 29 poc.* topics · 6 Flink + 14 KC + 9 internal (Debezium schema history, signals)</text>
+  <text x="14" y="600" fill="#585b70">Namespace rule: poc.flink.* for Flink variants · poc.kc.* for Kafka Connect · server-ID ranges 5500–6099 keep CDC streams isolated.</text>
+  <text x="14" y="620" fill="#585b70">See TOPICS.md for the full topic map.</text>
+</svg>
