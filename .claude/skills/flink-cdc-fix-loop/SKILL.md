@@ -1,5 +1,5 @@
 ---
-name: flink-cdc-fix-loop
+name: review-fix-ship
 description: >
   Fix loop for this project. Use whenever the user wants to drive the project to a clean passing state. Loops until ALL are true: (1) `./gradlew all allK8s` exits with code 0
   (BUILD SUCCESSFUL, no test failures), (2) Podman — http://localhost:8081/jobs/overview shows 5 RUNNING jobs, AND (3) k8s — after `./local-development-k8s/port-forward.sh start`, each of the 5 variant JMs (18081-18085) shows 1 RUNNING job (5 total).
