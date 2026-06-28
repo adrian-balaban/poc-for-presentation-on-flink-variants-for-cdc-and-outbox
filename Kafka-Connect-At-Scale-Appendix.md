@@ -18,13 +18,13 @@ The Podman stack binds ports directly on the host; the k8s stack binds no ports 
 
 | Service | Podman URL | k8s URL (port-forward) | Screenshot |
 |---------|------------|------------------------|------------|
-| Flink Dashboard | `http://localhost:8081` (shared JM; all 5 jobs) | `http://localhost:18081`–`18085` (JM per variant: DataStream / Table API / SQL API / Outbox / YAML) | ![](images/slides/flink-dashboard.png) |
+| Flink Dashboard | `http://localhost:8081` (shared JM; all 5 jobs) | `http://localhost:18081`–`18085` (JM per variant: DataStream / Table API / SQL API / Outbox / YAML) | ![Podman — shared JM, all 5 jobs](images/slides/flink-dashboard.png) ![k8s — one JM per variant](images/slides/k8s-flink-dashboard.png) |
 | Kafka UI | `http://localhost:8080` | — (not deployed in the k8s slice) | ![](images/slides/kafka-ui.png) |
-| Kafka Connect REST | `http://localhost:8083` | `http://localhost:18086` | ![](images/slides/kafka-connect.png) |
+| Kafka Connect REST | `http://localhost:8083` | `http://localhost:18086` | ![Podman — 5 connectors](images/slides/kafka-connect.png) ![k8s — 5 connectors](images/slides/k8s-kafka-connect.png) |
 | MySQL | `localhost:3306` (user: `flink`, password: `flink`, db: `poc_db`) | `localhost:13306` | — |
 | Kafka (external) | `localhost:9092` (topics: `poc.flink.*` for Flink, `poc.kc.*` for Kafka Connect) | `localhost:19092` (Strimzi external nodeport listener; advertisedHost=localhost) | — |
 | Prometheus | `http://localhost:9090` | `http://localhost:19090` | — |
-| Grafana | `http://localhost:3001` (dashboard + alerts; user: `admin`, password: `admin`) | `http://localhost:13001` (user: `admin`, password: `admin`) | — |
+| Grafana | `http://localhost:3001` (dashboard + alerts; user: `admin`, password: `admin`) | `http://localhost:13001` (user: `admin`, password: `admin`) | ![Podman](images/slides/grafana-dashboard.png) ![k8s](images/slides/k8s-grafana-dashboard.png) |
 | MinIO | `http://localhost:9001` (user: `minioadmin`, password: `minioadmin`, bucket: `flink-checkpoints`) | `http://localhost:9001` (user: `minioadmin`, password: `minioadmin`, bucket: `flink-checkpoints`) | ![](images/slides/minio-checkpoints.png) |
 
 

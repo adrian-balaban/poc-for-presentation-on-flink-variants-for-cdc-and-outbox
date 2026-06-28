@@ -395,7 +395,7 @@ pipeline:
 ## Slide 9 — POC Evidence: Live Screenshots
 
 **Captured during the live POC. Shown only if time allows, after Slide 8.**
-<!-- notes: The access URLs for each screenshot are in `kafka-connect-at-scale-appendix.md` → the **Local Monitoring Endpoints** section. The Flink Dashboard and Kafka Connect (5 connectors) screenshots are already in Slide 1e — don't repeat them here. -->
+<!-- notes: The access URLs for each screenshot are in `Kafka-Connect-At-Scale-Appendix.md` → the **Local Monitoring Endpoints** section. The Flink Dashboard and Kafka Connect (5 connectors) screenshots are already in Slide 1e — don't repeat them here. -->
 
 ### Kafka UI — poc cluster (32 topics, 109 partitions)
 

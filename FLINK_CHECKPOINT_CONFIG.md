@@ -31,7 +31,7 @@ env.getCheckpointConfig().setCheckpointTimeout(60_000);
 env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 
 // State backend is configured in FLINK_PROPERTIES (cluster config), not code.
-// Checkpoints automatically persist to the configured state.checkpoints.dir (MinIO locally, S3 in prod)
+// Checkpoints automatically persist to the configured execution.checkpointing.dir (MinIO locally, S3 in prod)
 ```
 
 ### Why This Configuration?
@@ -53,8 +53,8 @@ env.getCheckpointConfig().setMinPauseBetweenCheckpoints(5_000);
 The local Podman Compose stack includes **MinIO** for S3-compatible checkpoint storage (http://localhost:9000). Flink JobManager and TaskManager are configured with:
 
 ```yaml
-state.checkpoints.dir: s3://flink-checkpoints/checkpoints
-state.savepoints.dir: s3://flink-checkpoints/savepoints
+execution.checkpointing.dir: s3://flink-checkpoints/checkpoints
+execution.checkpointing.savepoint-dir: s3://flink-checkpoints/savepoints
 s3.endpoint: http://minio:9000
 s3.path.style.access: "true"
 s3.access-key: minioadmin
@@ -70,8 +70,8 @@ This matches production (AWS S3 with IRSA) and allows local testing of checkpoin
 Replace the MinIO config with:
 
 ```yaml
-state.checkpoints.dir: s3://<your-checkpoint-bucket>/checkpoints/<job-id>
-state.savepoints.dir: s3://<your-checkpoint-bucket>/savepoints/<job-id>
+execution.checkpointing.dir: s3://<your-checkpoint-bucket>/checkpoints/<job-id>
+execution.checkpointing.savepoint-dir: s3://<your-checkpoint-bucket>/savepoints/<job-id>
 s3.endpoint: https://s3.amazonaws.com
 s3.path.style.access: "false"
 # Credentials via IRSA — no hardcoded keys
@@ -83,22 +83,31 @@ See [kafka-connect-at-scale-74-connectors-migration.md](./kafka-connect-at-scale
 
 ## For YAML Pipeline
 
-```yaml
-pipeline:
-  name: Flink CDC YAML Pipeline CDC Job
-  parallelism: 1
-  schema.change.behavior: evolve
-  
-  # Checkpoint/recovery configuration
-  checkpoint:
-    interval: 30000                  # 30 seconds
-    timeout: 60000                   # 60 seconds — must exceed the interval
-    mode: EXACTLY_ONCE
-    max_concurrent_checkpoints: 1    # One snapshot at a time
-    min_pause: 5000                  # 5 seconds between checkpoints
+The Flink CDC Pipeline API does **not** propagate `execution.checkpointing.*` / `state.*`
+keys placed in the `pipeline:` section of `pipeline.yaml` — they are silently ignored.
+The submitter's `FLINK_PROPERTIES` only configures the `flink-cdc.sh` client process,
+not the submitted job's execution environment. Checkpoint/state config must instead be
+passed via `flink-cdc.sh -D` flags (the documented mechanism — see `flink-cdc.sh --help`).
+
+This is exactly what `local-development-podman/flink-cdc-submitter/entrypoint.sh` does:
+
+```bash
+exec flink-cdc.sh /tmp/pipeline-resolved.yaml \
+  -D execution.checkpointing.interval=30000 \
+  -D execution.checkpointing.timeout=60000 \
+  -D execution.checkpointing.mode=EXACTLY_ONCE \
+  -D execution.checkpointing.max-concurrent-checkpoints=1 \
+  -D execution.checkpointing.min-pause=5000 \
+  -D execution.checkpointing.externalized-checkpoint-retention=RETAIN_ON_CANCELLATION \
+  -D execution.checkpointing.dir=s3://flink-checkpoints/checkpoints \
+  -D execution.checkpointing.savepoint-dir=s3://flink-checkpoints/savepoints \
+  -D state.backend=rocksdb
 ```
 
-**Note:** Not all Flink CDC Pipeline YAML keys may be recognized in Flink CDC 3.6.0-2.2. Test thoroughly in your environment.
+The `pipeline.yaml` itself therefore carries only the source/sink/route definitions —
+no `checkpoint:` block. The settings above mirror the four Java variants
+(`CheckpointConfigurer.applyExactlyOnce`), so the YAML job writes
+`checkpoints/<job-id>/` alongside them.
 
 ---
 
