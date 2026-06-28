@@ -61,6 +61,7 @@ slf4j-simple                 = { module = "org.slf4j:slf4j-simple",             
 
 # ── Testing ──────────────────────────────────────────────────────────────────
 junit-jupiter                = { module = "org.junit.jupiter:junit-jupiter",               version.ref = "junitJupiter" }
+junit-vintage-engine         = { module = "org.junit.vintage:junit-vintage-engine",        version.ref = "junitJupiter" }
 junit4                       = { module = "junit:junit",                                   version.ref = "junit4" }
 assertj-core                 = { module = "org.assertj:assertj-core",                      version.ref = "assertj" }
 lombok                       = { module = "org.projectlombok:lombok",                      version.ref = "lombok" }

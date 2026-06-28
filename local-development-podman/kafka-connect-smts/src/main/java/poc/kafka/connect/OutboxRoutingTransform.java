@@ -88,13 +88,18 @@ public class OutboxRoutingTransform<R extends ConnectRecord<R>> implements Trans
       Map<String, Object> map = (Map<String, Object>) value;
       Object afterObj = map.get("after");
       if (afterObj instanceof Map) {
-        return ((Map<String, Object>) afterObj)
-            .getOrDefault(destinationField, DEFAULT_DESTINATION)
-            .toString();
+        return destinationToString(((Map<String, Object>) afterObj).get(destinationField));
       }
-      return map.getOrDefault(destinationField, DEFAULT_DESTINATION).toString();
+      return destinationToString(map.get(destinationField));
     }
     return DEFAULT_DESTINATION;
+  }
+
+  // Map.getOrDefault returns the default only when the key is ABSENT; if the key is present
+  // but mapped to null (a Debezium tombstone / null destination), it returns null and the
+  // subsequent .toString() would NPE. Resolve to DEFAULT_DESTINATION on null instead.
+  private String destinationToString(Object dest) {
+    return dest != null ? dest.toString() : DEFAULT_DESTINATION;
   }
 
   private Object addRoutingMetadata(Object value, String destination, String topic) {

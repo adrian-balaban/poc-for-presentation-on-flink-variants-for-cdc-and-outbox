@@ -245,7 +245,7 @@ services:
       # terminal state. start_period is generous: mc-bucket-create + TM wait +
       # flink-cdc.sh submission can take 60-90s on a cold stack.
       test: >
-        sh -c "pgrep -f 'flink-cdc.sh' >/dev/null || curl -sf http://flink-jobmanager:8081/jobs/overview | grep -q 'state.*RUNNING'"
+        sh -c "pgrep -f '[f]link-cdc.sh' >/dev/null || curl -sf http://flink-jobmanager:8081/jobs/overview | grep -q 'state.*RUNNING'"
       interval: 15s
       retries: 8
       start_period: 120s

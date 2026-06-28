@@ -27,7 +27,12 @@ dependencies {
     implementation libs.json
 
     // Testing
+    // The root subprojects{} block forces useJUnitPlatform() on every module, which
+    // cannot discover JUnit 4 (@org.junit.Test) tests on its own. These SMT tests are
+    // JUnit 4, so the vintage engine must be on the test runtime classpath or the
+    // tests silently don't run (the build reports 0 tests, green, masking regressions).
     testImplementation libs.junit4
+    testImplementation libs.junit.vintage.engine
 }
 
 jar {

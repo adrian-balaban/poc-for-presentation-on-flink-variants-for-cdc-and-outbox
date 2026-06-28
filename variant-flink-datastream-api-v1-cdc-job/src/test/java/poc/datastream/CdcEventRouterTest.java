@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.flink.util.Collector;
+import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import poc.common.config.JobConfig;
 import poc.common.router.CdcEventRouter;
@@ -45,22 +46,27 @@ class CdcEventRouterTest {
     router.processElement("{\"id\":1}", null, collector);
 
     assertEquals(1, collector.out.size());
-    String enriched = collector.out.get(0);
-    assertTrue(enriched.contains("\"variant\":\"datastream-cdc\""), "missing variant tag");
-    assertTrue(enriched.contains("\"topic\":\"poc.flink.datastream.orders\""), "missing topic tag");
+    JSONObject enriched = new JSONObject(collector.out.get(0));
+    assertEquals("datastream-cdc", enriched.getString("variant"));
+    assertEquals("poc.flink.datastream.orders", enriched.getString("topic"));
+    assertEquals(1, enriched.getInt("id"));
   }
 
   @Test
-  void processElement_replacesClosingBrace() throws Exception {
+  void processElement_roundTripsValidJson() throws Exception {
+    // The router re-serialises valid JSON via org.json, preserving original fields
+    // and appending the variant/topic tags. The output must be valid JSON (not a
+    // hand-spliced string), so a JSONObject round-trip must succeed and keep the
+    // source field intact.
     CdcEventRouter router = new CdcEventRouter(config("p"));
     ListCollector<String> collector = new ListCollector<>();
 
     router.processElement("{\"x\":\"y\"}", null, collector);
 
-    String enriched = collector.out.get(0);
-    // Original closing brace replaced; result must still be valid-looking JSON object
-    assertTrue(enriched.endsWith("}"), "must end with closing brace");
-    assertFalse(enriched.contains("\"x\":\"y\"}\"variant\""), "brace not replaced cleanly");
+    JSONObject enriched = new JSONObject(collector.out.get(0));
+    assertEquals("y", enriched.getString("x"));
+    assertEquals("datastream-cdc", enriched.getString("variant"));
+    assertEquals("p.datastream.orders", enriched.getString("topic"));
   }
 
   @Test
@@ -70,21 +76,23 @@ class CdcEventRouterTest {
 
     router.processElement("{}", null, collector);
 
-    assertTrue(collector.out.get(0).contains("custom.prefix.datastream.orders"));
+    JSONObject enriched = new JSONObject(collector.out.get(0));
+    assertEquals("custom.prefix.datastream.orders", enriched.getString("topic"));
   }
 
   @Test
-  void processElement_handlesBraceAtStartOfString() throws Exception {
-    // lastIndexOf('}') == 0 — validates CONDITIONALS_BOUNDARY mutation on lastBrace < 0
+  void processElement_forwardsMalformedJsonUnchanged() throws Exception {
+    // A lone "}" is malformed JSON (org.json throws JSONException), so the router
+    // forwards it unchanged rather than crashing the job. This also covers the
+    // lastIndexOf('}') == 0 boundary that used to be exercised by the old
+    // string-splicing implementation.
     CdcEventRouter router = new CdcEventRouter(config("p"));
     ListCollector<String> collector = new ListCollector<>();
 
     router.processElement("}", null, collector);
 
-    String enriched = collector.out.get(0);
-    assertTrue(
-        enriched.contains("\"variant\":\"datastream-cdc\""),
-        "brace at index 0 must still be replaced");
+    assertEquals(1, collector.out.size());
+    assertEquals("}", collector.out.get(0));
   }
 
   @Test

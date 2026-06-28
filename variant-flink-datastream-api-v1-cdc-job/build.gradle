@@ -9,6 +9,11 @@ dependencies {
     compileOnly libs.flink.streaming.java
     compileOnly libs.flink.clients
     testImplementation libs.flink.streaming.java
+    // CdcEventRouterTest asserts enriched output via org.json exact-field access (the
+    // router re-serialises through org.json, so substring matching on the raw string is
+    // brittle — number formatting like 50.00 → 50.0 breaks it). Common exposes org.json
+    // only at implementation scope, so the variant test needs its own testImplementation.
+    testImplementation libs.json
 }
 
 shadowJar {

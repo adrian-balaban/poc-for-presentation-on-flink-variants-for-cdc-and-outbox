@@ -114,11 +114,14 @@ class FlinkRestClient {
   }
 
   /**
-   * Return the jobId of a RUNNING job with the given name, or null if none exists. If job is
-   * INITIALIZING, wait up to 30s for it to transition to RUNNING.
+   * Return the jobId of a RUNNING job with the given name, or null if none exists. If the job is in
+   * a transient pre-RUNNING state (INITIALIZING, RESTARTING, RECONCILING), wait up to 60s for it to
+   * transition to RUNNING. These transient states are normal during CDC source recovery / JM
+   * reconciliation and must not be mistaken for "no job" — otherwise {@code ensureJobRunning}
+   * resubmits and collides on the MySQL server-id.
    */
   String findRunningJob(String jobName) throws Exception {
-    String initializingJobId = null;
+    String pendingJobId = null;
 
     HttpResponse<String> r =
         http.send(
@@ -139,24 +142,28 @@ class FlinkRestClient {
         String state = job.getString("state");
         if ("RUNNING".equals(state)) {
           return job.getString("jid");
-        } else if ("INITIALIZING".equals(state)) {
-          initializingJobId = job.getString("jid");
+        } else if (TRANSIENT_STATES.contains(state)) {
+          pendingJobId = job.getString("jid");
         }
       }
     }
 
-    // If job is INITIALIZING, wait for it to transition to RUNNING
-    if (initializingJobId != null) {
+    // If the job is in a transient pre-RUNNING state, wait for it to settle to RUNNING
+    // (or fail fast if it reaches a terminal state — handled inside waitForJobRunning).
+    if (pendingJobId != null) {
       log.info(
-          "Job '{}' is INITIALIZING (jobId={}) — waiting for it to become RUNNING",
+          "Job '{}' is in a transient state (jobId={}) — waiting for it to become RUNNING",
           jobName,
-          initializingJobId);
-      waitForJobRunning(initializingJobId, Duration.ofSeconds(60));
-      return initializingJobId;
+          pendingJobId);
+      waitForJobRunning(pendingJobId, Duration.ofSeconds(60));
+      return pendingJobId;
     }
 
     return null;
   }
+
+  private static final java.util.Set<String> TRANSIENT_STATES =
+      java.util.Set.of("INITIALIZING", "RESTARTING", "RECONCILING");
 
   /** Poll until the job reaches RUNNING state or the timeout expires. */
   void waitForJobRunning(String jobId, Duration timeout) throws Exception {
